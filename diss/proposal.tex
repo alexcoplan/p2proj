@@ -1,0 +1,160 @@
+% Note: this file can be compiled on its own, but is also included by
+% diss.tex (using the docmute.sty package to ignore the preamble)
+\documentclass[12pt,a4paper,twoside]{article}
+\usepackage[UKenglish]{isodate}
+\usepackage[pdfborder={0 0 0}]{hyperref}
+\usepackage[margin=25mm]{geometry}
+\usepackage{graphicx}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{microtype}
+
+\usepackage[style=numeric,backend=bibtex]{biblatex}
+\bibliography{refs.bib}
+
+\begin{document}
+
+\cleanlookdateon
+
+\begin{center}
+\Large
+Computer Science Tripos -- Part II -- Project Proposal\\[4mm]
+\LARGE
+A Comparison of Markov Techniques and Recurrent Neural Networks Applied to the Generation of Music\\[4mm]
+
+\large
+Alex Coplan, St Catharine's College
+
+Originator: Alex Coplan
+
+\today
+\end{center}
+
+\vspace{5mm}
+
+\textbf{Project Supervisor:} 
+
+\textbf{Director of Studies:} Dr S. Taraskin
+
+\textbf{Project Overseers:} Dr M. Fiore \& Dr I. Leslie
+
+% Main document
+
+\section*{Introduction}
+
+The goal of this project is to implement, evaluate, and compare two different techniques for the algorithmic generation of music. In particular, the two classes of techniques I intend to consider for this project are:
+\begin{itemize}[itemsep=0mm]
+	\item Markov techniques, such as Markov chains and hidden Markov models (HMMs).
+	\item Recurrent neural networks.
+\end{itemize}
+
+Investigations into algorithmic composition often restrict the domain of source material to stem from a particular musical idiom \cite{pearce2001evaluation}. This is desirable for a number of reasons, not least because it introduces a useful evaluation critereon: do the compositions produced by the system exhibit a coherent musical style, consistent with that exhibited by the material in the corpus?
+
+I am particularly interested in the generation of melody, and ultimately, polyphony. A large volume of research has already been performed in computational \emph{homophonic} harmonisation, an extremely popular example being the harmonisation of Lutherian chorale melodies in the style of J.S. Bach, e.g.\ \cite{allan2005chorales}\cite{phon2002computational}\cite{phon1999four}\cite{whorley2015improved}.
+
+The problem of homophonic harmonisation is essentially ``given a melody, output a list of chords that accompany the melody''. An investigation into polyphonic composition might begin by considering melody composition, and may later be developed by considering the problem ``given a melody (the \emph{subject}), compose a second (independent) melody (the \emph{countersubject}) which interacts with, and is coherent with the subject.''
+
+My intention is that the project follow along these very lines, undertaking an investigation into the algorithimic composition of polyphonic music. The core of the project would therefore investigate the application of these techniques to melody generation, and, as an extension, an investigation would be carried out into the composition of polyphonic music, using these techniques and extensions thereof.
+
+Paragraph justifying techniques chosen.
+
+In order for this project to be evaluated effectively, it is necessary to perform listening trials on human subjects. Pearce et al.\ \cite{pearce2001evaluation} outline a framework for evaluation which allows more scientific claims to be made as a result of the evaluation proecss. 
+
+\section*{Starting point}
+
+\emph{Describe existing state of the art, previous work in this area,
+  libraries and databases to be used. Describe the state of any
+  existing codebase that is to be built on.}
+
+I am already able to write prose using the English language. I have an
+online dictionary, etc.
+
+\section*{Resources required}
+
+\emph{A note of the resources required and confirmation of access.}
+
+For this project I shall mainly use my own quad-core computer that
+runs Fedora Linux. Backup will be to github and/or to an SVN
+repository on an external hard disk that is dumped to writable CD/DVD
+media. I have another similar computer to hand should my main machine
+suddenly fail. I require no other special resources.
+
+\section*{Work to be done}
+
+\emph{Describe the technical work.}
+
+The project breaks down into the following sub-projects:
+
+\begin{enumerate}
+
+\item The construction of a skeleton dissertation with the required
+  structure. This involves writing the Makefile and making dummy
+  files for the title page, the proforma, chapters 1 to 5, the
+  appendices and the proposal.
+
+\item Filling in the details required in the cover page and proforma.
+
+\item Writing the contents of chapters 1 to 5, including examples of
+  common \LaTeX\ constructs.
+
+\item Adding a example of how to use floating figures and ``encapsulated
+  PostScript'' or PDF diagrams.
+
+\end{enumerate}
+
+\section*{Success citeria}
+
+\emph{Describe what you expect to be able to demonstrate at the
+end of the project and how you are going to evaluate your achievement.}
+
+The project will be a success if I have a completed dissertation with
+the correct chapter titles and I have achieved my other success
+criteria, which are to blah \ldots
+
+
+\section*{Possible extensions}
+
+{\em Potential further envisaged evaluation metrics or extensions.}
+
+If I achieve my main result early I shall try the following
+alternative experiment or method of evaluation \ldots
+
+
+\section*{Timetable}
+
+\emph{A workplan of perhaps ten or so two-week work-packages,
+as well as milestones to be achieved along the way. Provide a
+target date for each milestone.}
+
+Planned starting date is 16/10/2011.
+
+\begin{enumerate}
+
+\item \textbf{Michaelmas weeks 2--4} Learn to use X. Read book Y. Read papers Z.
+
+\item \textbf{Michaelmas weeks 5--6} Do preliminary test of Q.
+
+\item \textbf{Michaelmas weeks 7--8} Start implementation of main task A.
+
+\item \textbf{Michaelmas vacation} Finish A and start main task B.
+
+\item \textbf{Lent weeks 0--2} Write progress report. Generate corpus of
+  test examples. Finish task B.
+
+\item \textbf{Lent weeks 3--5} Run main experiments and achieve working project.
+
+\item \textbf{Lent weeks 6--8} Second main deliverable here.
+
+\item \textbf{Easter vacation:} Extensions and writing dissertation main
+  chapters.
+
+\item \textbf{Easter term 0--2:}  Further evaluation and complete dissertation.
+
+\item \textbf{Easter term 3:} Proof reading and then an early submission
+  so as to concentrate on examination revision.
+
+\end{enumerate}
+
+\printbibliography
+
+\end{document}

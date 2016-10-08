@@ -1,0 +1,19 @@
+# General cruft
+.DS_Store
+*.swp
+
+# Custom ignores
+diss/*.pdf
+rough_unchecked
+
+# LaTeX files
+*.aux
+*_minted*
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*-blx.bib
