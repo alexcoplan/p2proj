@@ -7,6 +7,8 @@
 \usepackage{graphicx}
 \usepackage{parskip}
 \usepackage{enumitem}
+% \usepackage{mathpazo}
+% \usepackage{eulervm}
 \usepackage{microtype}
 
 \usepackage[style=numeric,backend=bibtex]{biblatex}
@@ -44,37 +46,36 @@ Originator: Alex Coplan
 
 The goal of this project is to implement, evaluate, and compare two different techniques for the algorithmic generation of music. In particular, the two classes of techniques I intend to consider for this project are:
 \begin{itemize}[itemsep=0mm]
-	\item Markov techniques, such as Markov chains and hidden Markov models (HMMs).
+	\item Markov techniques, such as Markov chains, hidden Markov models (HMMs), and other context models.
 	\item Recurrent neural networks.
 \end{itemize}
 
-Investigations into algorithmic composition often restrict the domain of source material to stem from a particular musical idiom \cite{pearce2001evaluation}. This is desirable for a number of reasons, not least because it introduces a useful evaluation critereon: do the compositions produced by the system exhibit a coherent musical style, consistent with that exhibited by the material in the corpus?
+Investigations into algorithmic composition often restrict the domain of source material to stem from a particular musical idiom \cite{pearce2001evaluation}. This is desirable for a number of reasons, not least because it introduces a useful evaluation criterion: do the compositions produced by the system exhibit a coherent musical style, consistent with that exhibited by the material in the corpus?
 
 I am particularly interested in the generation of melody, and ultimately, polyphony. A large volume of research has already been performed in computational \emph{homophonic} harmonisation, an extremely popular example being the harmonisation of Lutherian chorale melodies in the style of J.S. Bach, e.g.\ \cite{allan2005chorales}\cite{phon2002computational}\cite{phon1999four}\cite{whorley2015improved}.
 
 The problem of homophonic harmonisation is essentially ``given a melody, output a list of chords that accompany the melody''. An investigation into polyphonic composition might begin by considering melody composition, and may later be developed by considering the problem ``given a melody (the \emph{subject}), compose a second (independent) melody (the \emph{countersubject}) which interacts with, and is coherent with the subject.''
 
-My intention is that the project follow along these very lines, undertaking an investigation into the algorithimic composition of polyphonic music. The core of the project would therefore investigate the application of these techniques to melody generation, and, as an extension, an investigation would be carried out into the composition of polyphonic music, using these techniques and extensions thereof.
+My intention is that the project follow along these very lines, undertaking an investigation into the algorithmic composition of polyphonic music. The core of the project would therefore investigate the application of these techniques to melody generation, and, as an extension, an investigation would be carried out into the composition of polyphonic music, using these techniques and extensions thereof.
 
-Paragraph justifying techniques chosen.
+Markov processes are natural statistical models for the analysis of melody, and are well known as tools for composition \cite{ames1989markov}. Recently, recurrent neural networks have also received a lot of attention to this end. A number of improvements can be made over basic Markov models to heighten the quality of the output. Specifically, a basic pitch-duration Markov process disregards a considerable amount of musical information available in the context. 
 
-In order for this project to be evaluated effectively, it is necessary to perform listening trials on human subjects. Pearce et al.\ \cite{pearce2001evaluation} outline a framework for evaluation which allows more scientific claims to be made as a result of the evaluation proecss. 
+For example, Conklin et al.\ \cite{conklin1995viewpoints} introduce the method of \emph{multiple viewpoints} which uses the interpolation of the predictions of many different context models, each of which considers a different musical attribute (or some combination of attributes). In this work, it is also conjectured that lower-entropy models generate music which is closer in style to that of the corpus. Whorley et al.\ \cite{whorley2016music} have recently successfully used the technique of multiple viewpoints along with information-theoretic analysis, demonstrating that lower entropy solutions correspond to improved output quality.
+
+Conklin \cite{conklin2003music} notes that it is (largely) not necessary to distinguish between statistical music analysis and generation. Generation can be thought of as sampling from the empirically-determined distribution. Moreover, random walk, a common method for generating music from a Markov model, is not necessarily the best method for sampling from the model's distribution, in that it does not consistently yield compositions with high overall probability. In this project, I would therefore also consider exploring different techniques for sampling from Markov chains.
+
+In order for this project to be evaluated effectively, in addition to any information-theoretic or music-theoretic analyses, it is necessary to perform listening trials on human subjects. Pearce et al.\ \cite{pearce2001evaluation} outline a framework for evaluation which allows more scientific claims to be made as a result of the evaluation process. Evaluation would be performed in the form of a blind trial where the subjects are asked to classify compositions as human or machine-composed. In this work, it is noted that the subjects used exhibited a bias towards classifying compositions as machine composed. This is something that should be taken into account when designing the evaluation methodology.
 
 \section*{Starting point}
 
-\emph{Describe existing state of the art, previous work in this area,
-  libraries and databases to be used. Describe the state of any
-  existing codebase that is to be built on.}
-
-I am already able to write prose using the English language. I have an
-online dictionary, etc.
+In Lent term of 2016, I gave a talk on melody generation using Markov chains. I also constructed a demo
 
 \section*{Resources required}
 
 \emph{A note of the resources required and confirmation of access.}
 
 For this project I shall mainly use my own quad-core computer that
-runs Fedora Linux. Backup will be to github and/or to an SVN
+runs Fedora Linux. Backup will be to GitHub and/or to an SVN
 repository on an external hard disk that is dumped to writable CD/DVD
 media. I have another similar computer to hand should my main machine
 suddenly fail. I require no other special resources.

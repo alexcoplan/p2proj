@@ -1,6 +1,7 @@
 # General cruft
 .DS_Store
 *.swp
+*.bak
 
 # Custom ignores
 diss/*.pdf
@@ -17,3 +18,4 @@ rough_unchecked
 *.out
 *.run.xml
 *-blx.bib
+

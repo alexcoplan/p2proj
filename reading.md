@@ -27,6 +27,9 @@
 - Week 10
 - Week 11
 
+## Conklin, Witten: Multiple viewpoint systems for music prediction (1995)
+
+
 ## Pearce, Wiggins: Towards a Framework for the Evaluation of Machine Compositions (2001) ✅
 - Core idea: to make our work more scientific, we need to present and provide evidence for _refutable claims_.
 - E.g. "People cannot distinguish the machine composed music from human composed music"
