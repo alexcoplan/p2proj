@@ -68,37 +68,30 @@ In order for this project to be evaluated effectively, in addition to any inform
 
 \section*{Starting point}
 
-In Lent term of 2016, I gave a talk on melody generation using Markov chains. I also constructed a demo
+In Lent term of 2016, I gave a talk (as part of Churchill college's Computer Science talk series) on melody generation using Markov chains. I also constructed a demo in Ruby which implemented a parser for ABC notation\footnote{\url{http://abcnotation.com/}} along with a simple Markov chain model, trained of a small corpus of hymn tunes, which generated tunes by random walk. 
+
+Although this experience lead me to this choice of project, I will not be using any of the code from this in my project. The Markov models (and any parsing code, internal representations, or frameworks for music theory) will be written from scratch in C++ or Java, and the neural network will be implemented using a library such as Google's TensorFlow\footnote{\url{https://www.tensorflow.org/}}.
+
+As an organ scholar (and previously an A-Level music student), I have considerable experience with performing polyphonic music (and some experience of analysis), especially that of the renaissance and baroque eras. I believe this domain knowledge will prove especially useful for making musically-informed decisions in this project. 
 
 \section*{Resources required}
 
-\emph{A note of the resources required and confirmation of access.}
+For this project I shall primarily use my own laptop. Backup will be primarily in the form of a GitHub-hosted repository, but I will also perform backups of the project files to an external hard drive as well as multiple cloud providers (Google, Apple, Dropbox) and the MCS. Should my main computer suddenly fail, I can easily continue the project using MCS computers by cloning the code from the GitHub repository.
 
-For this project I shall mainly use my own quad-core computer that
-runs Fedora Linux. Backup will be to GitHub and/or to an SVN
-repository on an external hard disk that is dumped to writable CD/DVD
-media. I have another similar computer to hand should my main machine
-suddenly fail. I require no other special resources.
+Although datasets can easily be compiled from online sources, it may also be of use to have a MIDI keyboard to be able to input arbitrary muscial data. I own a MIDI keyboard which would be suitable for these purposes. I will make use of open-source software (such as MuseScore\footnote{\url{https://musescore.org/}}) for synthesis of MIDI and other musical data. I require no other special resources.
 
 \section*{Work to be done}
-
-\emph{Describe the technical work.}
 
 The project breaks down into the following sub-projects:
 
 \begin{enumerate}
 
-\item The construction of a skeleton dissertation with the required
-  structure. This involves writing the Makefile and making dummy
-  files for the title page, the proforma, chapters 1 to 5, the
-  appendices and the proposal.
-
-\item Filling in the details required in the cover page and proforma.
-
-\item Writing the contents of chapters 1 to 5, including examples of
-  common \LaTeX\ constructs.
-
-\item Adding a example of how to use floating figures and ``encapsulated
+\item Devising and implementing an internal representation of musical data, along with a simple ``music theory engine'' to process this data.
+\item Implementing a simple parser for some form of input notation (ABC, MIDI, MusicXML).
+\item Implementing the first iteration of the Markov model for melody generation.
+\item Implementing the first iteration of the RNN for melody generation.
+\item etc.
+	
   PostScript'' or PDF diagrams.
 
 \end{enumerate}
