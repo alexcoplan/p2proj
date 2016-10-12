@@ -35,7 +35,7 @@ Originator: Alex Coplan
 
 \vspace{5mm}
 
-\textbf{Project Supervisor:} 
+\textbf{Project Supervisor:} Matthew Ireland
 
 \textbf{Director of Studies:} Dr S. Taraskin
 
@@ -47,8 +47,10 @@ Originator: Alex Coplan
 
 The goal of this project is to implement, evaluate, and compare two different
 techniques for the algorithmic generation of music. I am particularly interested
-in the generation of melody, and ultimately, polyphony. In particular, the two
-classes of techniques I intend to consider for this project are:
+in the generation of melody, and ultimately, \emph{polyphony}: multiple
+independent melodies interacting with each other in harmonic coherence. In
+particular, the two classes of techniques I intend to consider for this project
+are:
 \begin{itemize}[itemsep=0mm]
 	\item Statistical history models such as \emph{multiple viewpoint
 			systems} \cite{conklin1995viewpoints}.
@@ -58,14 +60,25 @@ classes of techniques I intend to consider for this project are:
 The exact statistical model(s) to be investigated will be determined by the end
 of the research phase of the project.
 
+Algorithmic composition is of general interest in computational creativity, but
+also has a number of practical applications; one such application being in
+\emph{machine-assisted composition}, where a music generation tool aids a human
+composer by extending or generating musical ideas. Such tools would be used by a
+wide variety of music practitioners.
+
 My intention is to undertake an investigation into the algorithmic composition
-of polyphonic music. The first major problem that needs to be tackled in an
-investigation into polyphonic composition is that of melody generation. Once
-this problem has been addressed, one would subsequently consider the problem of
-``given a melody (the \emph{subject}), compose a second (independent) melody
-(the \emph{countersubject}) which interacts with, and is coherent with the
-subject.'' Since the lines in polyphony should be \emph{independent} melodies,
-it is necessary to approach the problem of melody generation first.
+of polyphonic music. The first major problem that needs to be tackled in such an
+endeavour is that of melody generation. Once this problem has been addressed,
+one would subsequently consider the problem ``given a melody (the
+\emph{subject}), compose a second (independent) melody (the
+\emph{countersubject}) which interacts with, and is coherent with the subject.''
+Since the lines in polyphony should be \emph{independent} melodies, it is
+necessary to approach the problem of melody generation first.
+
+I therefore propose that the core of the project investigate the application of
+these techniques to melody generation. As an optional extension, an
+investigation could then be carried out into the composition of two-part
+polyphonic music, using these techniques and/or extensions thereof.
 
 I shall follow the approach often taken in the literature of restricting the
 domain of source material to stem from a particular musical idiom, e.g.\
@@ -73,11 +86,6 @@ domain of source material to stem from a particular musical idiom, e.g.\
 least because it introduces a useful evaluation criterion: do the compositions
 produced by the system exhibit a coherent musical style, consistent with that
 exhibited by the material in the corpus?
-
-I propose that the core of the project investigate the application of these
-techniques to melody generation. As an optional extension, an investigation
-could then be carried out into the composition of two-part polyphonic music,
-using these techniques and/or extensions thereof.
 
 In order for this project to be evaluated effectively, in addition to any
 information-theoretic or music-theoretic analyses, it is necessary to perform
@@ -88,17 +96,16 @@ form of a blind trial where the subjects are asked to classify compositions as
 human or machine-composed. In this work, it is noted that the participants
 exhibited a bias towards classifying compositions as machine composed. This is
 something that should be taken into account when designing the evaluation
-methodology.
-\subsection*{Background}
+methodology. An avenue for investigation in this respect is the method of
+\emph{three-alternative forced choice}.
 
-% A large volume of research has already been performed in
-% computational \emph{homophonic} harmonisation, an extremely popular example
-% being the harmonisation of Lutheran chorale melodies in the style of J.S. Bach,
-% e.g.\ \cite{allan2005chorales}\cite{phon2002computational}\ignorespaces
-% \cite{phon1999four}\cite{whorley2015improved}.
-% 
-% The problem of homophonic harmonisation is essentially ``given a melody, output
-% a list of chords that accompany the melody''. 
+Conklin \cite{conklin2003music} notes that random walk is not necessarily the
+best method of sampling from a statistical distribution such as that of a
+multiple viewpoint system or Markov chain. In this project, I would therefore
+also consider exploring different techniques for sampling from statistical
+models.
+ 
+\subsection*{Background}
 
 Markov processes are natural statistical models for the analysis of melody, and
 are well known as tools for composition \cite{ames1989markov}. Although
@@ -118,26 +125,8 @@ which is present in music.
 Conklin et al.\ \cite{conklin1995viewpoints} introduce the method of
 \emph{multiple viewpoints} which uses the interpolation of the predictions of
 many different context models, each of which considers a different musical
-attribute (or some combination of attributes). In particular, a multiple
-viewpoint system partitions these musical attributes (or \emph{types}) into
-long-term and short-term types, with the system using a weighted combination of
-the long-term and short-term predictions.
-
-In this work, it is also conjectured that lower-entropy models generate music
-which is closer in style to that of the corpus. Whorley et al.\
-\cite{whorley2016music} have recently successfully used the technique of
-multiple viewpoints along with information-theoretic analysis and search
-techniques, demonstrating that lower entropy solutions correspond to improved
-output quality.
-
-Conklin \cite{conklin2003music} notes that it is (largely) not necessary to
-distinguish between statistical music analysis and generation. Generation can be
-thought of as sampling from the empirically-determined distribution. Moreover,
-random walk, a common method for generating music from a Markov model, is not
-necessarily the best method for sampling from the model's distribution, in that
-it does not consistently yield compositions with high overall probability. In
-this project, I would therefore also consider exploring different techniques for
-sampling from statistical models.
+attribute (or some combination of attributes). These include both short-term and
+long-term attributes, enabling this method to capture sequence and structure.
 
 It is well known that Recurrent Neural Networks (RNNs) can effectively generate
 sequences. RNNs have seen more successful application in music following the
@@ -145,15 +134,6 @@ introduction of long short-term memory (LSTM) techniques \cite{eck2002lstm}.
 Without use of LSTM, RNNs exhibit similar problems to Markov chains in that the
 output does not contain the elements of sequence and structure that one might
 expect from compositions in the corpus.
-
-\subsection*{Motivation}
-
-Algorithmic composition is of general interest in computational creatitvity, but
-also has a number of practical applications; one such application being in
-\emph{machine-assisted composition}, where a music generation technique would
-aid a human composer by extending or generating musical ideas.
-
-% TODO: mention about comparison between statistical models and RNNs?
 
 \section*{Starting point}
 
@@ -164,10 +144,11 @@ notation\footnote{\url{http://abcnotation.com/}} along with a simple Markov
 chain model, trained of a small corpus of hymn tunes, which generated tunes by
 random walk. 
 
-Although this experience lead me to this choice of project, I will not be using
-any of the code from this in my project. The parser, internal representation and
-music theory engine will be written from scratch in C++ or Java, and the neural
-network will be implemented using a library such as Google's
+Although this experience led me to this choice of project, the implementation of
+a model such as a multiple viewpoint system is considerably more involved, and
+the architecture vastly different. The implementation of this model will
+therefore be carried out from scratch.  The neural network will be implemented
+using a library such as Google's
 TensorFlow\footnote{\url{https://www.tensorflow.org/}}.
 
 As an organ scholar (and previously an A-Level music student), I have
@@ -195,8 +176,7 @@ resources.
 \section*{Work to be done}
 
 I will employ an agile software development methodology when undertaking this
-project. The project breaks down into the following sub-projects:
-
+project. The ordered list of sub-tasks within this project are:
 \begin{enumerate}
 
 \item Devising and implementing an internal representation of musical data,
@@ -205,15 +185,14 @@ project. The project breaks down into the following sub-projects:
 \item Implementing a simple parser for some form of input notation (ABC, MIDI,
 	MusicXML); the exact form to be determined in the research phase.  
 
-\item Implementing the first iteration of the multiple viewpoint system.
+\item Implementing and iteratively refining the statistical model (e.g. multiple
+	viewpoint system).
 
-\item Implementing the first iteration of the RNN for melody generation.  
+\item Implementing and iteratively refining the RNN for melody generation.  
 
-\item Devising a scheme for human evaluation.
+\item Designing and carrying out a scheme for human evaluation.
 
 \item Making iterative improvements to the two models.
-
-\item Carrying out the human evaluation.
 
 \end{enumerate}
 
@@ -225,9 +204,9 @@ The project will be a success if I have:
 \begin{itemize}
 	\item Successfully implemented a statistical model such as a multiple
 		viewpoint system capable of generating melody.
-	\item Successfully implemented a recurrent neural network capable of
-		generating melody.
-	\item Performed a meaningful comparison and evaluation of the two
+	\item Successfully implemented a technique based on recurrent neural
+		networks capable of generating melody.
+	\item Performed an evaluation and comparison of the two
 		models, answering questions such as:
 	\begin{itemize}
 		\item Can human subjects distinguish the machine-composed output
@@ -260,34 +239,45 @@ These possible extensions include:
 
 Planned starting date is 16/10/2011.
 
-Timetable to be completed in a later draft.
+\begin{tabular}{ p{4cm} | p{11cm} } \hline 
+% TODO: 2 week blocks, start earlier to include proposal week.
+% TODO: 2-page spread
 
-% \begin{enumerate}
-% 
-% \item \textbf{Michaelmas weeks 2--4} Learn to use X. Read book Y. Read papers Z.
-% 
-% \item \textbf{Michaelmas weeks 5--6} Do preliminary test of Q.
-% 
-% \item \textbf{Michaelmas weeks 7--8} Start implementation of main task A.
-% 
-% \item \textbf{Michaelmas vacation} Finish A and start main task B.
-% 
-% \item \textbf{Lent weeks 0--2} Write progress report. Generate corpus of test
-% 	examples. Finish task B.
-% 
-% \item \textbf{Lent weeks 3--5} Run main experiments and achieve working project.
-% 
-% \item \textbf{Lent weeks 6--8} Second main deliverable here.
-% 
-% \item \textbf{Easter vacation:} Extensions and writing dissertation main
-% 	chapters.
-% 
-% \item \textbf{Easter term 0--2:}  Further evaluation and complete dissertation.
-% 
-% \item \textbf{Easter term 3:} Proof reading and then an early submission so as
-% 	to concentrate on examination revision.
-% 
-% \end{enumerate}
+16/10/16 - 27/10/16 Mich. Weeks 2-4 & \textbf{Research phase}.
+Research multiple viewpoint systems, RNNs, and evaluation techniques.
+Investigate options for corpus material and format. This will inform the type of
+parser that should subsequently be implemented. Devise and fix an internal
+representation for musical data. Design specific multiple viewpoint system based
+on \cite{whorley2013phd}. The corpus should also be prepared as fully as
+possible during this stage. Familiarisation with libraries (e.g. TensorFlow)
+should be accomplished during this phase.
+
+\textbf{Milestone}: Report summarising research handed to supervisor.
+\\ \hline
+03/11/16 - 10/11/16 \newline Mich. Week 5 & \textbf{Preliminary Implementation}. 
+Implement parser for chosen corpus format. Implement internal representation as
+determined in the previous phase. Write test suite for the above. 
+\\ \hline
+10/11/16 - 30/11/16 \newline Mich. Weeks 6-8 & \textbf{MVS Implementation I}.
+First iteration of multiple viewpoint system to be completed in these three
+weeks. System need not be complete in terms of the exact viewpoints used.
+However, the underlying machinery should be. In particular, context models,
+viewpoint representation, prediction interpolation etc. should all be
+implemented, such that a MVS can be constructed, trained, and used for
+generation.
+\\ \hline
+01/12/16 - 22/12/16 \newline Christmas Vac. Weeks 1-3 & \textbf{RNN Implementation I}.
+Implement LSTM Recurrent Neural Network. 
+\\ \hline
+29/12/16 - 12/01/17 \newline Christmas Vac. Weeks 4-5 & \textbf{MVS Implementation II}.
+Implement full multiple viewpoint system. Investigate different choices of
+viewpoints as per the R\&D outlined in the research phase. 
+\\ \hline
+12/01/17 - 26/01/17 \newline Lent Week 0 & \textbf{RNN Implementation II}.
+Finish RNN implementation. Train network on entire corpus.
+\\ \hline
+
+\end{tabular}
 
 \printbibliography
 
