@@ -1,0 +1,46 @@
+Subject: Phase 1 - Coplan: A Comparison of Markov Techniques and Recurrent
+Neural Networks Applied to Music Generation
+
+Phase 1 Project Selection Status Report
+
+Name: Alex Coplan
+
+College: St Catharine's College
+
+User Identifier: ajc310                                                 
+
+Director of Studies: Dr S. Taraskin (snt1000)                                            
+
+Please complete 1, 2 and 3 below.
+
+1. Please write 100 words on your current project ideas.
+                                                                 
+I would like to implement, evaluate, and compare two different techniques for
+music generation. Specifically, I would like to compare Markov techniques such
+as Markov Chains, Hidden Markov Models, or more general context models with
+Recurrent Neural Networks. I intend to initially focus on melody generation, 
+and later consider the generation of polyphonic music (for which melody 
+generation is a prerequisite). 
+
+I plan to evaluate the project primarily by performing a listening trial with
+human subjects, asking the subjects to attempt to distinguish between
+machine-composed compositions and human-composed samples from the corpus in a
+blind trial.
+                                                                 
+                                                                 
+                                                                 
+
+2. Please list names of potential project supervisors.
+Alan Blackwell
+Matthew Ireland
+
+3. Is there any chance that your project will involve any computing resources
+other than the Computing Service's MCS and software that is already installed
+there, for example: your own machine, machines in College, special peripherals,
+imported software packages, special hardware, network access, substantial extra
+disc space on the MCS.
+
+If so indicate below what, and what it is needed for.
+                                                                 
+I shall use my own laptop and MIDI keyboard. I will be using open-source
+software for music synthesis. No further special resources will be required.
