@@ -1,3 +1,5 @@
+%% TODO: evaluation: refer to technique in success criteria
+
 % Note: this file can be compiled on its own, but is also included by
 % diss.tex (using the docmute.sty package to ignore the preamble)
 \documentclass[12pt,a4paper,twoside]{article}
@@ -21,7 +23,7 @@
 \Large
 Computer Science Tripos -- Part II -- Project Proposal\\[4mm]
 \LARGE
-A Comparison of Statistical Models and Recurrent Neural Networks Applied to the
+A Comparison of Statistical Models and Recurrent Neural Networks for the
 Generation of Music\\[4mm]
 
 \large
@@ -34,45 +36,49 @@ Originator: Alex Coplan
 
 \vspace{5mm}
 
-\textbf{Project Supervisor:} Matthew Ireland
+\textbf{Project Supervisor:} Matthew Ireland (mti20)
 
-\textbf{Director of Studies:} Dr S. Taraskin
+\textbf{Director of Studies:} Dr S. Taraskin (snt1000)
 
-\textbf{Project Overseers:} Dr M. Fiore \& Dr I. Leslie
+\textbf{Project Overseers:} Prof.\ M. Fiore \& Prof.\ I. Leslie
 
-% Main document
-
-\section*{Introduction}
+\section{Introduction}
 
 The goal of this project is to implement, evaluate, and compare two different
 techniques for the algorithmic generation of music. I am particularly interested
 in the generation of melody, and ultimately, \emph{polyphony}: multiple
-independent melodies interacting with each other in harmonic coherence. In
-particular, the two classes of techniques I intend to consider for this project
-are:
+independent melodies interacting with each other in harmonic coherence.  The two
+classes of techniques I intend to consider for this project are:
 \begin{itemize}[itemsep=0mm]
 	\item Statistical history models such as \emph{multiple viewpoint
 			systems} \cite{conklin1995viewpoints}.
 	\item Recurrent neural networks.
 \end{itemize}
 
-The exact statistical model(s) to be investigated will be determined by the end
-of the research phase of the project.
+The exact statistical model(s) to be investigated will be chosen during and
+determined by the end of the research phase of the project.
 
-Algorithmic composition is of general interest in computational creativity, but
-also has a number of practical applications; one such application being in
-\emph{machine-assisted composition}, where a music generation tool aids a human
-composer by extending or generating musical ideas. Such tools would be of use to
-a wide variety of music practitioners.
+Whilst the primary aim of this project is a scientific comparison of two
+techniques, the implementation itself will be of use to two main classes of
+user:
+\begin{enumerate}
+  \item Composers. The resulting implementation could be integrated into a
+    notation package to enable \emph{machine-assisted composition}, where the
+    computer acts as a source of inspiration: extending and/or
+    generating music for the composer.
+  \item Musicologists, who could gain insight into the works of a composer or
+    period by exploring the output of one of the models trained on an
+    appropriate corpus.
+    
+\end{enumerate}
 
-My intention is to undertake an investigation into the algorithmic composition
-of polyphonic music. The first major problem that needs to be tackled in such an
-endeavour, which will make up the core of the project, is that of melody
-generation. Once this problem has been addressed, one would subsequently
-consider the problem ``given a melody (the \emph{subject}), compose a second
-(independent) melody (the \emph{countersubject}) which interacts with, and is
-coherent with the subject.'' I propose tackling this second problem as an
-extension component.
+The first problem that needs to be tackled, which will make up the core of the
+project, is that of melody generation. Once this problem has been addressed, an
+investigation into the generation of polyphonic music could form an extension
+component. Specifically, one could consider the problem ``given a melody (the
+\emph{subject}), compose a second (independent) melody (the
+\emph{countersubject}) which interacts with, and is harmonically coherent with
+the subject.'' 
 
 I shall follow the approach often taken in the literature of restricting the
 domain of source material to stem from a particular musical idiom, e.g.\
@@ -83,15 +89,16 @@ exhibited by the material in the corpus?
 
 In order for this project to be evaluated effectively, in addition to any
 information-theoretic or music-theoretic analyses, it is necessary to perform
-listening trials on human subjects. Pearce et al.\ \cite{pearce2001evaluation}
-outline a framework for evaluation which allows empirically-falsifiable claims
-to be made as a result of the evaluation process. Evaluation would be performed
-in the form of a blind trial where (e.g.) the subjects are asked to classify
-compositions as human or machine-composed. In this work, it is noted that the
-participants exhibited a bias towards classifying compositions as machine
-composed. This is something that should be taken into account when designing the
-evaluation methodology. An avenue for investigation in this respect is the
-method of \emph{three-alternative forced choice}.
+listening trials with human participants. Pearce et al.\
+\cite{pearce2001evaluation} outline a framework for evaluation which allows
+empirically-falsifiable claims to be made as a result of the evaluation process.
+Evaluation would be performed in the form of a blind trial where (e.g.) the
+subjects are asked to classify compositions as human or machine-composed. In
+this work, it is noted that the participants exhibited a bias towards
+classifying compositions as machine composed. This is something that should be
+taken into account when designing the evaluation methodology. An avenue for
+investigation in this respect is the method of \emph{three-alternative forced
+  choice}.
 
 Conklin \cite{conklin2003music} notes that random walk is not necessarily the
 best method of sampling from a statistical distribution such as that of a
@@ -99,7 +106,7 @@ multiple viewpoint system (MVS) or Markov chain, since it can lead to output
 solutions with overall low probability. In this project, I would therefore also
 consider exploring different techniques for sampling from statistical models.
  
-\subsection*{Background}
+\subsection{Background}
 
 Markov processes are natural statistical models for the analysis of melody, and
 are well known as tools for composition \cite{ames1989markov}. Although
@@ -123,20 +130,20 @@ attribute (or some combination of attributes). These include both short-term and
 long-term attributes, enabling this method to capture sequence and structure.
 
 It is well known that Recurrent Neural Networks (RNNs) can effectively learn and
-generate sequences. RNNs have seen more successful application in music
-following the introduction of long short-term memory (LSTM) techniques
-\cite{eck2002lstm}.  Without use of LSTM, RNNs exhibit similar problems to
-Markov chains in that the output does not contain the elements of musical
-sequence and structure that one might expect from compositions in the corpus.
+generate sequences.\ \cite{graves2013generating} RNNs have seen more successful
+application in music following the introduction of long short-term memory (LSTM)
+techniques \cite{eck2002lstm}.  Without use of LSTM, RNNs exhibit similar
+problems to Markov chains in that the output does not contain the elements of
+musical sequence and structure that one might expect from compositions in the
+corpus.
 
-\section*{Starting point}
+\section{Starting point}
 
-In Lent term of 2016, I gave a talk (as part of Churchill college's Computer
-Science talk series) on melody generation using Markov chains. I also
-constructed a demo in Ruby which implemented a parser for ABC
-notation\footnote{\url{http://abcnotation.com/}} along with a simple Markov
-chain model, trained of a small corpus of hymn tunes, which generated tunes by
-random walk. 
+In Lent term of 2016, I gave a talk for a university society on melody
+generation using Markov chains. I also constructed a demo in Ruby which
+implemented a parser for ABC notation\footnote{\url{http://abcnotation.com/}}
+along with a simple Markov chain model, trained of a small corpus of hymn tunes,
+which generated tunes by random walk. 
 
 Although this experience led me to this choice of project, the implementation of
 a model such as a MVS is considerably more involved, and
@@ -151,27 +158,29 @@ analysis), especially that of the renaissance and baroque eras. I believe this
 domain knowledge will prove especially useful for making musically-informed
 decisions in this project. 
 
-\section*{Resources required}
+\section{Resources required}
 
 For this project I shall primarily use my own laptop. Git will be used for
 version control, with the repository stored on GitHub. I will perform backups of
-the project files to an external hard drive as well as multiple cloud providers
-(Google, Apple, Dropbox) and the MCS. Should my main computer suddenly fail, I
-can easily continue the project using MCS computers by cloning the code from the
-GitHub repository.
+the project files to an external hard drive as well as the MCS. Should my main
+computer suddenly fail, I can easily continue the project using MCS computers by
+cloning the code from the GitHub repository.
 
 Although datasets can easily be compiled from online sources, it may also be of
 use to have a MIDI keyboard to be able to input arbitrary musical data. I own a
-MIDI keyboard which would be suitable for these purposes. I will make use of
-open-source software (such as MuseScore\footnote{\url{https://musescore.org/}})
-for synthesis of MIDI and other musical data. I require no other special
-resources.
+MIDI keyboard which would be suitable for these purposes. Should this fail, I
+have access to suitable College equipment. I will make use of open-source
+software (such as MuseScore\footnote{\url{https://musescore.org/}}) for
+synthesis of MIDI and other musical data. I require no other special resources.
 
-\section*{Work to be done}
+\section{Work to be done}
 
 I will employ an agile software development methodology when undertaking this
 project. The ordered list of sub-tasks within this project are:
 \begin{enumerate}
+
+\item Researching the techniques involved and undertaking familiarisation with
+  core libraries.
 
 \item Devising and implementing an internal representation of musical data,
 	along with a simple ``music theory engine'' to process this data.  
@@ -179,8 +188,8 @@ project. The ordered list of sub-tasks within this project are:
 \item Implementing a simple parser for some form of input notation (ABC, MIDI,
 	MusicXML); the exact form to be determined in the research phase.  
 
-\item Implementing and iteratively refining the statistical model (e.g. multiple
-	viewpoint system).
+\item Implementing and iteratively refining the statistical model (e.g.\
+  multiple viewpoint system).
 
 \item Implementing and iteratively refining the RNN for melody generation.  
 
@@ -188,31 +197,39 @@ project. The ordered list of sub-tasks within this project are:
 
 \end{enumerate}
 
-\section*{Success criteria}
+\section{Success criteria}
 
-\subsection*{Core Tasks}
+\subsection{Core Tasks}
 
 The project will be a success if I have:
 \begin{itemize}
+  \item Successfully implemented a parser / import tool for the chosen corpus
+    format.
 	\item Successfully implemented a statistical model such as a multiple
 		viewpoint system capable of generating melody.
 	\item Successfully implemented a technique based on recurrent neural
 		networks capable of generating melody.
-	\item Performed an evaluation and comparison of the two
-		models, answering questions such as:
+  \item Performed quantitative evaluation of the two models, using
+    music-theoretic and/or information-theoretic measures.
+  \item Performed a human evaluation and comparison of the two models. The
+    success of this stage is not predicated on the answers to any questions
+    posed in the evaluation, but merely whether the evaluation is conducted in a
+    scientific manner, answering questions such as:
 	\begin{itemize}
 		\item Can human subjects distinguish the machine-composed output
 			from the human-composed samples in the corpus?
 		\item Do human subjects classify the machine-composed output as
 			adhering to the specified style?
 	\end{itemize}
+  
+  The evaluation will employ techniques to make scientific, \emph{falsifiable}
+  claims concerning properties of the models and their output, e.g.\ as per
+  Pearce et al.\ 
+  \cite{pearce2001evaluation}.
 
-	Note that the success of the evaluation stage is not predicated on the
-	answers to the questions given above, but merely whether the evaluation
-	is conducted in a scientific manner.
-\end{itemize}
+	\end{itemize}
 
-\subsection*{Extension Tasks}
+\subsection{Extension Tasks}
 
 The project will be judged as a success if all the core tasks have been
 completed. The extension tasks won't be used to judge the success of the
@@ -221,99 +238,122 @@ completed.
 
 These possible extensions include:
 \begin{itemize}
-	\item Extending a MVS to generate polyphony.
-	\item Extending a RNN to generate polyphony.
-	\item Exploring extensions and adaptations of multiple viewpoint
-		systems.
+	\item Extending a multiple viewpoint system to generate polyphony.
+	\item Extending a recurrent neural network to generate polyphony.
+  \item Creating a web interface to one or both of the systems to allow end
+    users to train and generate from their own models.
 \end{itemize}
 
 \newpage
 
-\section*{Timetable}
+\section{Timetable}
 
 \begin{longtable}{ p{4cm} | p{11cm} } \hline 
 
-06/10/16 - 19/10/16 Michaelmas Weeks 1-2 & \textbf{Proposal}. Done. \\ \hline
-20/10/16 - 02/11/16 Michaelmas Weeks 3-4 & \textbf{Research Phase}. 
-Research multiple viewpoint systems, RNNs, and evaluation techniques.
-Investigate options for corpus material and format. Devise and fix internal
-representation for musical data. Design specific MVS based on
-\cite{whorley2013phd}. Prepare corpus as fully as possible. Gain familiarity
-with core libraries (e.g. TensorFlow).
+06/10/16 -- 19/10/16 Michaelmas Weeks 1-2 & \textbf{Proposal}. Done. \\ \hline
+20/10/16 -- 02/11/16 Michaelmas Weeks 3-4 & \textbf{Research Phase}. 
+Research multiple viewpoint systems, RNNs, and perform preliminary research on
+evaluation techniques.  Investigate options for corpus material and format.
+Devise and fix internal representation for musical data. Prepare test corpus.
+Gain familiarity with core libraries (e.g.\ TensorFlow) and modern C++ features.
+\newline
 
-\textbf{Deliverable}: Report summarising research and design decisions to
-supervisor.
+\textbf{Milestone}: Report summarising research and design decisions to
+supervisor. \emph{Due 2nd November 2016}.
 \\ \hline
-03/11/16 - 16/11/16 Michaelmas Weeks 5-6 & \textbf{Implementation:
+03/11/16 -- 16/11/16 Michaelmas Weeks 5-6 & \textbf{Implementation:
 	Preliminaries}.
-Implement parser for format determined during the research.  Implement internal
-representation and associated music-theoretic tooling. Once complete, commence
-work on MVS implementation.
+Implement parser for format determined during research phase (e.g.\ ABC, MIDI,
+MusicXML). Implement internal representation and associated music-theoretic
+tooling. Once complete, commence work on MVS implementation. \newline
 
-\textbf{Deliverable}: Working parser with accompanying (passing) tests.
+\textbf{Milestone}: Working parser with accompanying (passing) tests. Underlying
+context model implementation for MVS complete. \emph{Due 16th
+  November 2016}.
 \\ \hline
 
-17/11/16 - 30/11/16 Michaelmas Weeks 7-8 & \textbf{Implementation: MVS}.
-Continue implementation of MVS. The model need not be complete in the exact
-viewpoints used, but the underlying machinery should be.
+17/11/16 -- 30/11/16 Michaelmas Weeks 7-8 & \textbf{Implementation: MVS}.
+Continue implementation of MVS. The system need not be complete in the exact
+viewpoints used, but the underlying machinery should be. \newline
 
-\textbf{Deliverable}: Working (although not necessarily complete) MVS
-demonstrated to supervisor.
+\textbf{Milestone}: Working MVS demonstrated to supervisor. Induction of
+viewpoints, generation from individual viewpoints and interpolation of viewpoint
+predictions should be demonstrated. \emph{Due 30th November 2016}. \\ \hline
+
+01/12/16 -- 14/12/16 Xmas Vac.\ Weeks 1-2 & \textbf{Implementation: RNN}.
+Begin implementation of RNN. Some slack allowed in this period. \newline
+
+\textbf{Milestone}: Basic RNN implementation without LSTM, using a simple input
+representation (e.g.\ pitch-only) completed. \newline 
+\emph{Due 14th December 2016}.
 \\ \hline
 
-01/12/16 - 14/12/16 Xmas Vac. Weeks 1-2 & \textbf{Implementation: RNN}.
-Begin implementation of RNN.  \\ \hline
-15/12/16 - 04/01/17 Xmas Vac. Weeks 3-5 & \textbf{Implementation: MVS II}.
+15/12/16 -- 04/01/17 Xmas Vac.\ Weeks 3-5 & \textbf{Implementation: MVS II}.
 Refine implementation of MVS. Experiment with various different viewpoints.
+Refer to Whorley \cite{whorley2013phd} for direction here.
+\newline
 
+\textbf{Extension}: If time, extend MVS to generate polyphony in this stage. 
+\newline
+
+\textbf{Milestone}: MVS assembled, document summarising implementation progress
+including sample output sent to supervisor. 
+\newline \emph{Due 4th January 2017}.
 \\ \hline
-05/01/17 - 18/01/17 Xmas Vac. Weeks 6-7 & \textbf{Implementation: RNN II}.
-Refine implementation of RNN. 
+05/01/17 -- 18/01/17 Xmas Vac.\ Weeks 6-7 & \textbf{Implementation: RNN II}.
+Refine implementation of RNN. Investigate implementing LSTM model. Some slack
+allowed in this phase. \newline
 
-\textbf{Deliverable}: Demonstration of RNN and MVS to supervisor for start of
-term.
+\textbf{Extension}: Continue extending MVS to generate polyphony, or extend
+RNN. \newline
+\textbf{Milestone}: Demonstration of RNN and MVS to supervisor for start of
+term. \emph{Due 19th January 2017}.
 \\ \hline
 
-19/01/17 - 01/02/17 Lent Weeks 1-2 & \textbf{Review}.
+19/01/17 -- 01/02/17 Lent Weeks 1-2 & \textbf{Review}.
 Review progress so far. Continue iteratively refining models. Design listening
-trials for evaluation.
+trials for evaluation. \newline
 
-\textbf{Deliverable}: Progress Report \& Presentation \emph{due 12pm, 3rd
+\textbf{Milestone}: Progress Report \& Presentation \emph{Due 12pm, 3rd
 	February}.
 \\ \hline
 
-02/02/17 - 15/02/17 Lent Weeks 3-4 & \textbf{Evaluation}.
+02/02/17 -- 15/02/17 Lent Weeks 3-4 & \textbf{Evaluation}.
 Arrange and conduct listening trials. Also perform any ``offline'' evaluation in
-this phase e.g. collecting data from models, analysing output etc.
+this phase e.g.\ collecting data from models, analysing output etc.
+
+\textbf{Milestone}: Listening trials arranged by \emph{9th February}.
 \\ \hline
 
-16/02/17 - 01/03/17 Lent Weeks 5-6 & \textbf{Dissertation: Preparation}.
-Finish evaluation and data collection. Start to write Evaluation and Conclusion
-chapters of dissertation.
+16/02/17 -- 01/03/17 Lent Weeks 5-6 & \textbf{Dissertation: Preparation}.
+Finish evaluation and data collection. Write bullet-point conclusion and begin
+writing up implementation. \newline
+
+\textbf{Milestone}: Data from evaluation collected by \emph{23rd February}.
+Conclusion and evaluation outlined in bullet points. Implementation chapter
+complete. \emph{Due 1st March 2017}.
 \\ \hline
 
-02/03/17 - 15/03/17 Lent Weeks 7-8 & \textbf{Dissertation: Introduction}.
+02/03/17 -- 15/03/17 Lent Weeks 7-8 & \textbf{Dissertation: Introduction}.
 Start writing introduction for dissertation. Sketch outline of inner chapters
 (even if only in bullet-point form).
 
-\textbf{Deliverable}: First draft of dissertation outline to supervisor.
+\textbf{Milestone}: First draft of dissertation outline to supervisor.
 \\ \hline
 
-16/03/17 - 29/03/17 Easter Vac. Weeks 1-2 & Continue writing dissertation. 
+16/03/17 -- 29/03/17 Easter Vac.\ Weeks 1-2 & Continue writing dissertation. 
 
-\textbf{Deliverable}: Draft to supervisor.
+\textbf{Milestone}: Draft to supervisor.
 \\ \hline
 
-30/03/17 - 12/04/17 Easter Vac. Weeks 3-4 & 
+30/03/17 -- 12/04/17 Easter Vac.\ Weeks 3-4 & 
 Applying supervisor's corrections to dissertation. Continue working on
-dissertation (e.g. figures etc.)
+dissertation (e.g.\ figures etc.)
 \\ \hline
 
-13/04/17 - 26/04/17 Easter Vac. Weeks 5-6 & 
+13/04/17 -- 26/04/17 Easter Vac.\ Weeks 5-6 & 
 Aim to finish the dissertation by the end of the Easter vacation.
 \\ \hline
-%27/04/17 - 10/05/17 Easter Weeks 1-2
-%11/05/17 - 17/05/17 Easter Week 3
 \end{longtable}
 
 \printbibliography
