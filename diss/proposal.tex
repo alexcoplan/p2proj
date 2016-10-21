@@ -130,7 +130,7 @@ attribute (or some combination of attributes). These include both short-term and
 long-term attributes, enabling this method to capture sequence and structure.
 
 It is well known that Recurrent Neural Networks (RNNs) can effectively learn and
-generate sequences.\ \cite{graves2013generating} RNNs have seen more successful
+generate sequences \cite{graves2013generating}. RNNs have seen more successful
 application in music following the introduction of long short-term memory (LSTM)
 techniques \cite{eck2002lstm}.  Without use of LSTM, RNNs exhibit similar
 problems to Markov chains in that the output does not contain the elements of
@@ -175,25 +175,26 @@ synthesis of MIDI and other musical data. I require no other special resources.
 
 \section{Work to be done}
 
-I will employ an agile software development methodology when undertaking this
+I will employ an Agile software development methodology when undertaking this
 project. The ordered list of sub-tasks within this project are:
 \begin{enumerate}
 
-\item Researching the techniques involved and undertaking familiarisation with
+\item Researching the techniques involved and gaining familiarity with
   core libraries.
 
 \item Devising and implementing an internal representation of musical data,
 	along with a simple ``music theory engine'' to process this data.  
 
 \item Implementing a simple parser for some form of input notation (ABC, MIDI,
-	MusicXML); the exact form to be determined in the research phase.  
+  MusicXML); the exact form of which to be determined in the research phase.  
 
 \item Implementing and iteratively refining the statistical model (e.g.\
   multiple viewpoint system).
 
 \item Implementing and iteratively refining the RNN for melody generation.  
 
-\item Designing and carrying out a scheme for human evaluation.
+\item Designing and carrying out schemes for both human and quantitative
+  evaluation.
 
 \end{enumerate}
 
@@ -209,7 +210,7 @@ The project will be a success if I have:
 		viewpoint system capable of generating melody.
 	\item Successfully implemented a technique based on recurrent neural
 		networks capable of generating melody.
-  \item Performed quantitative evaluation of the two models, using
+  \item Performed quantitative evaluation of at least one of the models, using
     music-theoretic and/or information-theoretic measures.
   \item Performed a human evaluation and comparison of the two models. The
     success of this stage is not predicated on the answers to any questions
@@ -278,7 +279,9 @@ viewpoints used, but the underlying machinery should be. \newline
 
 \textbf{Milestone}: Working MVS demonstrated to supervisor. Induction of
 viewpoints, generation from individual viewpoints and interpolation of viewpoint
-predictions should be demonstrated. \emph{Due 30th November 2016}. \\ \hline
+predictions should be demonstrated. Core functionality (e.g. context model
+induction) should be accompanied by passing unit tests. 
+\emph{Due 30th November 2016}. \\ \hline
 
 01/12/16 -- 14/12/16 Xmas Vac.\ Weeks 1-2 & \textbf{Implementation: RNN}.
 Begin implementation of RNN. Some slack allowed in this period. \newline
@@ -306,6 +309,7 @@ allowed in this phase. \newline
 
 \textbf{Extension}: Continue extending MVS to generate polyphony, or extend
 RNN. \newline
+
 \textbf{Milestone}: Demonstration of RNN and MVS to supervisor for start of
 term. \emph{Due 19th January 2017}.
 \\ \hline
@@ -314,36 +318,39 @@ term. \emph{Due 19th January 2017}.
 Review progress so far. Continue iteratively refining models. Design listening
 trials for evaluation. \newline
 
-\textbf{Milestone}: Progress Report \& Presentation \emph{Due 12pm, 3rd
+\textbf{Milestone}: Progress Report \& Presentation. \emph{Due 12pm, 3rd
 	February}.
 \\ \hline
 
 02/02/17 -- 15/02/17 Lent Weeks 3-4 & \textbf{Evaluation}.
 Arrange and conduct listening trials. Also perform any ``offline'' evaluation in
-this phase e.g.\ collecting data from models, analysing output etc.
+this phase e.g.\ collecting data from models, analysing output etc. \newline
 
-\textbf{Milestone}: Listening trials arranged by \emph{9th February}.
+\textbf{Extension}: If time available, and requisite extension components
+complete, carry out music-theoretic evaluation of polyphony. \newline
+
+\textbf{Milestone}: Listening trials arranged \emph{by 9th February}.
 \\ \hline
 
 16/02/17 -- 01/03/17 Lent Weeks 5-6 & \textbf{Dissertation: Preparation}.
-Finish evaluation and data collection. Write bullet-point conclusion and begin
-writing up implementation. \newline
+Finish evaluation and data collection. Write bullet-point conclusion and 
+evaluation chapters. Write up implementation. \newline
 
 \textbf{Milestone}: Data from evaluation collected by \emph{23rd February}.
-Conclusion and evaluation outlined in bullet points. Implementation chapter
+Conclusion outlined in bullet points. Implementation chapter
 complete. \emph{Due 1st March 2017}.
 \\ \hline
 
 02/03/17 -- 15/03/17 Lent Weeks 7-8 & \textbf{Dissertation: Introduction}.
-Start writing introduction for dissertation. Sketch outline of inner chapters
-(even if only in bullet-point form).
+Write preparation and introduction chapters of dissertation. \newline
 
-\textbf{Milestone}: First draft of dissertation outline to supervisor.
+\textbf{Milestone}: Chapter drafts to supervisor. \emph{Due 15th March}.
 \\ \hline
 
-16/03/17 -- 29/03/17 Easter Vac.\ Weeks 1-2 & Continue writing dissertation. 
+16/03/17 -- 29/03/17 Easter Vac.\ Weeks 1-2 & Write evaluation chapter of
+dissertation. Revise drafts of chapters written thus far. \newline
 
-\textbf{Milestone}: Draft to supervisor.
+\textbf{Milestone}: First complete draft to supervisor. \emph{Due 29th March}.
 \\ \hline
 
 30/03/17 -- 12/04/17 Easter Vac.\ Weeks 3-4 & 
@@ -352,7 +359,10 @@ dissertation (e.g.\ figures etc.)
 \\ \hline
 
 13/04/17 -- 26/04/17 Easter Vac.\ Weeks 5-6 & 
-Aim to finish the dissertation by the end of the Easter vacation.
+Finish the dissertation by the end of the Easter vacation. Slack for revision
+allowed in this phase. \newline
+
+\textbf{Milestone}: Final draft sent to supervisor by \emph{26th April 2017}.
 \\ \hline
 \end{longtable}
 
