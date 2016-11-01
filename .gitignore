@@ -6,6 +6,7 @@
 # Custom ignores
 diss/*.pdf
 rough_unchecked
+*/MNIST_DATA/*
 
 # LaTeX files
 *.aux

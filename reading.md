@@ -1,22 +1,15 @@
-# Reading Todo List
+# Reading for Machine Learning
 
-## Probability and Computing
+## http://neuralnetworksanddeeplearning.com/
+- Chapter 1 (Neural network introduction) ✅
+- Chapter 2 (Backpropagation) ✅
+- ...
 
-### Recap
-- Ch1 Events and Probability
-- Ch2 DRVs and Expectation
-- Ch3 Moments and Deviations
-- Ch4 Chernoff Bounds
-
-### Markov
-- Ch7 Markov Chains and Random Walks
-- Ch9 Entropy, Randomness and Information?
-- Ch10 The Monte Carlo Method
-- Ch11 Coupling of Markov Chains
+# Reading for Statistical Models / MVSs
 
 ## Coursera Machine Learning Course
 - Week 1 ✅
-- Week 2 
+- Week 2 ✅
 - Week 3
 - Week 4
 - Week 5
