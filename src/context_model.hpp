@@ -74,8 +74,6 @@ void ContextModel<b>::learnSequence(const std::vector<unsigned int> &seq) {
   for (size_t end = history; end <= seq.size(); end++) 
     for (size_t beg = end - history; beg <= end; beg++) 
       addOrIncrement(seq, beg, end);
-
-  debug_summary();
 }
 
 template<int b> void
@@ -89,7 +87,11 @@ ContextModel<b>::get_ngrams(const unsigned int n,
 template<int b>
 void TrieNode<b>::debug_summary() {
   std::cout << "TrieNode summary:" << std::endl;
-  std::cout << "root count: " << count;
+  std::cout << "root count: " << count << std::endl;
+
+  for (unsigned int i = 0; i < b; i++) {
+    std::cout << i << ": " << (children[i]->count) << std::endl;
+  }
 }
 
 template<int b>
@@ -112,7 +114,7 @@ void TrieNode<b>::get_ngrams(const unsigned int n,
   assert(n > 0);
   if (n == 1) {
     for (unsigned int i = 0; i < b; i++) {
-      if (children[i] != NULL)
+      if (children[i] == NULL)
         continue;
 
       std::list<unsigned int> ngram; 

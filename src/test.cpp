@@ -50,7 +50,7 @@ int main()
   model.learnSequence(nums);
 
   std::list<std::pair<unsigned int, std::list<unsigned int>>> ngrams;
-  model.get_ngrams(1, ngrams);
+  model.get_ngrams(2, ngrams);
   std::cout << ngrams.size() << std::endl;
   for (auto ngram : ngrams) {
     for (auto x : ngram.second) 
