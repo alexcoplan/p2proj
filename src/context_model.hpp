@@ -22,10 +22,10 @@ template<int b>
 class ContextModel {
   TrieNode<b> trie_root;
   unsigned int history;
-
-public:
   void addOrIncrement(const std::vector<unsigned int> &seq, 
                       const size_t i_begin, const size_t i_end);
+
+public:
   void learnSequence(const std::vector<unsigned int> &seq);
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   unsigned int count_of(const std::vector<unsigned int> &seq);
@@ -153,3 +153,4 @@ void TrieNode<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
     }
   }
 }
+

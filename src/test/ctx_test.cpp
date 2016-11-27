@@ -3,10 +3,6 @@
 #include <iostream>
 #include <string>
 
-// TODO: function to check context model satisfies trie sum property
-
-// include unit test library
-// set this file to have a main
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
@@ -60,13 +56,37 @@ TEST_CASE("Test data decoding works correctly", "[selftest]") {
 }
 
 TEST_CASE("Context model training works correctly", "[ctxmodel]") {
-
   SECTION("Replicate example given in Conklin & Witten's 1995 MVS Paper") {
+    // data here is taken directly from the paper (Table 1)
     ContextModel<NUM_NOTES> model(HISTORY);
-
     model.learnSequence(encode_string("GGDBAGGABA"));
-    REQUIRE( model.count_of(std::vector<unsigned int>()) == 10 );
-    // TODO: complete unit tests here
-  }
 
+    // total count (zero-grams)
+    REQUIRE( model.count_of(std::vector<unsigned int>()) == 10 );
+
+    // unigrams
+    REQUIRE( model.count_of(encode_string("A")) == 3 );
+    REQUIRE( model.count_of(encode_string("G")) == 4 );
+    REQUIRE( model.count_of(encode_string("D")) == 1 );
+    REQUIRE( model.count_of(encode_string("B")) == 2 );
+
+    // bigrams
+    REQUIRE( model.count_of(encode_string("AB")) == 1 );
+    REQUIRE( model.count_of(encode_string("AG")) == 1 );
+    REQUIRE( model.count_of(encode_string("GA")) == 1 );
+    REQUIRE( model.count_of(encode_string("GG")) == 2 );
+    REQUIRE( model.count_of(encode_string("GD")) == 1 );
+    REQUIRE( model.count_of(encode_string("DB")) == 1 );
+    REQUIRE( model.count_of(encode_string("BA")) == 2 );
+    
+    // trigrams
+    REQUIRE( model.count_of(encode_string("ABA")) == 1 );
+    REQUIRE( model.count_of(encode_string("AGG")) == 1 );
+    REQUIRE( model.count_of(encode_string("GAB")) == 1 );
+    REQUIRE( model.count_of(encode_string("GGA")) == 1 );
+    REQUIRE( model.count_of(encode_string("GDB")) == 1 );
+    REQUIRE( model.count_of(encode_string("DBA")) == 1 );
+    REQUIRE( model.count_of(encode_string("BAG")) == 1 );
+  }
 }
+
