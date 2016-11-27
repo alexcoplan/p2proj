@@ -5,6 +5,8 @@
 #include <cassert>
 #include <iostream>
 
+typedef std::pair<unsigned, std::list<unsigned int>> Ngram;
+
 template<int b>
 struct TrieNode {
   TrieNode *children[b];
@@ -12,7 +14,7 @@ struct TrieNode {
 
   TrieNode();
   ~TrieNode();
-  void get_ngrams(const unsigned int n, std::list<std::pair<unsigned int, std::list<unsigned int>>> &result);
+  void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   void debug_summary();
 };
 
@@ -22,9 +24,10 @@ class ContextModel {
   unsigned int history;
 
 public:
-  void addOrIncrement(const std::vector<unsigned int> &seq, const size_t i_begin, const size_t i_end);
+  void addOrIncrement(const std::vector<unsigned int> &seq, 
+                      const size_t i_begin, const size_t i_end);
   void learnSequence(const std::vector<unsigned int> &seq);
-  void get_ngrams(const unsigned int n, std::list<std::pair<unsigned int, std::list<unsigned int>>> &result);
+  void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   void debug_summary();
 
   ContextModel(unsigned int history);
@@ -42,7 +45,8 @@ void ContextModel<b>::debug_summary() {
 
 // begin is inclusive, end is exclusive
 template<int b>
-void ContextModel<b>::addOrIncrement(const std::vector<unsigned int> &seq, const size_t i_begin, const size_t i_end) {
+void ContextModel<b>::addOrIncrement(const std::vector<unsigned int> &seq, 
+    const size_t i_begin, const size_t i_end) {
   TrieNode<b> *node = &trie_root;
 
   for (size_t i = i_begin; i < i_end; i++) {
@@ -77,8 +81,7 @@ void ContextModel<b>::learnSequence(const std::vector<unsigned int> &seq) {
 }
 
 template<int b> void
-ContextModel<b>::get_ngrams(const unsigned int n, 
-     std::list<std::pair<unsigned int, std::list<unsigned int>>> &result) {
+ContextModel<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
   trie_root.get_ngrams(n, result);
 }
 
@@ -109,8 +112,7 @@ TrieNode<b>::~TrieNode() {
 }
 
 template<int b>
-void TrieNode<b>::get_ngrams(const unsigned int n, 
-     std::list<std::pair<unsigned int, std::list<unsigned int>>> &result) {
+void TrieNode<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
   assert(n > 0);
   if (n == 1) {
     for (unsigned int i = 0; i < b; i++) {
@@ -119,7 +121,9 @@ void TrieNode<b>::get_ngrams(const unsigned int n,
 
       std::list<unsigned int> ngram; 
       ngram.push_back(i);
-      result.push_back(std::pair<unsigned int, std::list<unsigned int>>(children[i]->count, ngram));
+      result.push_back(
+        Ngram(children[i]->count, ngram)
+      );
     }
     return;
   } 

@@ -5,6 +5,9 @@
 
 # Compilation products
 *.dSYM
+*.out
+*.o
+*.sconsign.dblite
 
 # Custom ignores
 diss/*.pdf

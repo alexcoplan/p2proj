@@ -38,7 +38,8 @@ int main()
   std::cout << std::endl;
 
   std::vector<unsigned int> nums(chars.size());
-  std::transform(chars.begin(), chars.end(), nums.begin(), [](char c) { return encode(c); });
+  std::transform(chars.begin(), chars.end(), nums.begin(), 
+      [](char c) { return encode(c); });
 
   std::cout << "Converted: ";
   for (auto n : nums) 
