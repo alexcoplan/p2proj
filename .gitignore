@@ -3,6 +3,9 @@
 *.swp
 *.bak
 
+# Compilation products
+*.dSYM
+
 # Custom ignores
 diss/*.pdf
 rough_unchecked

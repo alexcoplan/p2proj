@@ -1,0 +1,279 @@
+\documentclass[12pt,a4paper,twoside]{article}
+\usepackage[UKenglish]{isodate}
+\usepackage[pdfborder={0 0 0}]{hyperref}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{changepage}
+\usepackage{longtable} % so we can break the timetable across two pages
+\usepackage{listings}
+
+% setup listings to allow math in code
+\lstset{
+  basicstyle=\ttfamily\small,
+  numbers=left,
+  mathescape
+}
+
+\usepackage[style=numeric,backend=bibtex]{biblatex}
+\bibliography{refs.bib}
+
+\newcommand{\pair}[1]{\langle #1 \rangle}
+\newcommand{\set}[1]{\left\{ #1 \right\}}
+
+\begin{document}
+
+\cleanlookdateon
+
+\begin{center}
+\LARGE
+Part II Project - Research Summary
+
+\large
+Alex Coplan
+
+\today
+\end{center}
+
+\vspace{4mm}
+
+This document summarises the research I have carried out in preparation for the
+implementation phase of the project.
+
+\section*{Statistical Models}
+
+Conklin \& Witten introduce multiple viewpoint systems in their 1995 paper
+\cite{conklin1995viewpoints}, which is the primary paper I used for this part of
+the research.  In this work, the authors make note of the strong links between
+predictive statistical models and compression. In particular, to quote the
+introduction of this paper:
+\begin{adjustwidth}{1em}{}
+  ``The conjecture of this paper is that highly \emph{predictive} theories for
+  [music] will also generate original, acceptable works. The predictiveness of a
+  theory (model) can be precisely measured using entropy.''
+\end{adjustwidth}
+
+The authors suggest an estimate of entropy as given in equation
+(\ref{eq:entropy}), where $e_i$ is an event, $c_i$ is its context, and the
+summation is taken over $N$ subsequences in the language of the model, which we
+denote $L$.
+\begin{equation}
+  H(L) = - \sum_{i = 1}^N \log_2 \mathbb{P}(e_i | c_i) \label{eq:entropy}
+\end{equation} 
+The more subsequences used in this estimate, the better the estimate of the
+entropy. For more on this link see Cleary \& Witten's 1984 Paper on the PPM
+algorithm \cite{cleary1984ppm}. As we will see, the PPM algorithm is of
+considerable importance to multiple viewpoint systems.
+
+\subsection*{Context Models}
+
+The fundamental building block in a multiple viewpoint system is the
+\emph{context model}. Context models are defined to be comprised of:
+\begin{itemize}
+  \item A database of sequences over an event space, each having an associated
+    frequency count.
+  \item An inference method which is used to calculate the probability of an
+    event in context.
+\end{itemize}
+\vspace{2mm}
+\textbf{Notation} ~~ \begin{tabular}{ r l }
+  $e_{n}^{n + k}$ & abbreviates the sequence $(e_n, e_{n + 1}, \ldots, e_{n + k
+  - 1}, e_{n + k})$. \\
+  $()$ & denotes the empty sequence. \\
+  $\xi$ & denotes the \emph{event space}: the set of all representable events.
+  \\
+  $c :: e$ & is a \emph{snoc} operation: it denotes the list $c$
+  with $e$ appended to it. \\
+  $\tau$ & a type \\
+  $[\tau]$ & the set of all syntactic members of type $\tau$ \\
+  $S^*$ & the set of all finite sequences drawn from the set $S$
+\end{tabular}
+
+If $C(x)$ denotes the count of a sequence $x$ in our database, then we perform
+deductive inference from a context model using equation (\ref{eq:ctx-inf}).
+\begin{equation}
+  \mathbb{P}(e | c) = \frac{ C(c :: e) }{ C(c) } \label{eq:ctx-inf}
+\end{equation}
+This equation gives us a probability for an event $e$ in the context $c$, and is
+the obvious definition when one considers the frequentist view of probability.
+
+The primary data structure used to efficiently implement context models is the
+\emph{trie} (or prefix tree). If we have a context model for events of type
+$\tau$, and we let $[\tau]$ denote the syntactic values of type $\tau$, then the
+underlying trie for the context model maps sequences $e_1^k \in [\tau]^*$ to
+natural numbers. The root of the trie corresponds to the empty sequence $()$,
+and a path from the root to a node uniquely determines a sequence $e_1^k$, with
+the value at that node corresponding to how many times the context model has
+seen the sequence $e_1^k$ in training.
+
+The underlying trie for a context model also has the property that a node's
+value is given by the sum of its children's values, i.e.
+$$
+  \forall e_1^k \in [\tau]^* .\ C(e_1^k) = \sum_{i}
+  C(e_1^k :: \mathrm{child}(e_1^k)_i) \label{eq:trie-sum} 
+$$
+where $\mathrm{child}(e_1^k)$ denotes the set of children of the node
+corresponding to the sequence $e_1^k$ in the trie.
+
+To induct a context model from a sequence $e_1^n$, one trains the model by
+presenting it with the examples:
+\begin{equation}
+  \pair{(), e_1}, \pair{(e_1), e_2}, \pair{(e_1, e_2), e_3}, \ldots,
+  \pair{e_1^{n-1}, e_n} \label{eq:ctx-egs}
+\end{equation} 
+
+The context model can learn from an example using the following procedures
+(written in a sort of ML/C++ hybrid pseudocode).
+
+\begin{lstlisting}
+  DB::addOrIncrement($e_1^k$) =
+    if self.has($e_1^k$) then
+      DB[$e_1^k$].count++     
+    else 
+      self.store($e_1^k$)     
+      self[$e_1^k$].count = 1 
+
+  DB::learn($e_1^k$ as $e_1$::$e_2^k$) =
+    self.addOrIncrement($e_1^k$)
+    self.learn($e_2^k$)
+| DB::learn([])  =
+    self.addOrIncrement($()$)
+\end{lstlisting}
+
+Namely, to train a context model on the example $\pair{e_1^{k-1}, e_k}$,
+one would call \texttt{db.learn($e_1^k$)}. The procedure for training the
+model on an entire sequence $e_1^n$ is then to generate the examples as per
+(\ref{eq:ctx-egs}), and to call \texttt{DB::learn} on each.
+
+Conklin and Witten refer to line 3 of the above (incrementing the count of an
+existing sequence) as \emph{statistical specialisation} of the model, and lines
+5-6 (adding a new sequence) as \emph{structural specialisation} of the model.
+
+Note that we associate a count with $()$, and this simply acts as a normalising
+constant. In particular, \texttt{db[$()$].count} gives the total number of
+examples the model has been trained on, and normalises the counts of sequences
+of length one to give a probability as per (\ref{eq:ctx-inf}).
+
+As given, these procedures would lead to the context model becoming somewhat
+unwieldy. In particular, for a single example $\pair{e_1^{n-1}, e_n}$, the
+procedure \texttt{DB::learn} can store up to $n+1$ sequences in the
+database. To prevent this, we limit the maximum length of a sequence that can be
+stored by the model to some number $h$. We say that such a context model is of
+order $h-1$. To implement this, when given an example $\pair{e_1^{k-1}, e_k}$,
+instead of calling \texttt{db.learn($e_1^k$)}, we call
+\texttt{db.learn($e_{k-h+1}^k$)}, which processes the sequences:
+$$ (e_{k-h+1}, \ldots, e_n), (e_{k-h+2}, \ldots, e_n), \ldots, (). $$
+
+One question that might arise from equation (\ref{eq:ctx-inf}) is what to do
+when $C(c) = 0$ for some context $c$. That is, how do we infer the next event
+when we don't have its context in our database?
+
+The solution proposed by Conklin \& Witten is the partial match algorithm (PPM)
+\cite{cleary1984ppm}. This actually solves two problems for us simultaneously:
+it solves the \emph{zero-count problem} stated above, but also makes our
+model \emph{non-exclusive}. This is useful for a number of reasons, not
+least that it allows us to take logs of any conditional probability (and
+therefore calculate entropy).
+
+A model is said to be non-exclusive if there is a non-zero probability attached
+to every possible sequence $e_{1}^n \in \xi^*$. In order for a context model to
+be non-exclusive, we need to allocate some probability to an event $e_i$ which
+might be \emph{novel} for its context $c$. This includes the case when $c$
+is the empty sequence $()$. This means we must also assign a non-zero
+probability to every event (even those without context).
+
+PPM solves these problems as follows. Instead of allocating probabilities to
+events as per equation (\ref{eq:ctx-inf}), we allow for one count in the context
+to be used for novel subsequent events. This gives rise to equation
+(\ref{eq:ppm-inf}).
+\begin{equation}
+  \mathbb{P}(e | c) = \frac{ C(c :: e) }{ C(c) + 1 } \label{eq:ppm-inf}
+\end{equation} 
+Thus, the probability left over to be distributed among events that are novel
+to their context, known as the \emph{escape probability}, is given by:
+$$ 1 - \sum_i \mathbb{P}(e_i | c) = 1 - 
+\sum_i \frac{ C(c :: e_i) }{ C(c) + 1 } = 1 - \frac{ C(c) }{ C(c) + 1 } = \frac{
+1 }{ 1 + C(c) } $$
+
+We can then distribute this escape probability among all the events which are
+novel for their context. Formally, the distribution is as follows:
+$$ \mathbb{P}(e' | e_1^{k}) = \begin{cases}
+  \frac{ C(e_1^{k} :: e') }{ 1 + C(e_1^k) } & e' \in
+  \mathrm{child}(e_1^{k}) \\
+  \frac{ 1 }{ 1 + C(e_1^{k}) } \cdot \mathbb{P}(e' | e_1^{k-1}) & \text{otherwise}
+\end{cases} $$
+
+Note that a nice property of this formulation is that the more a context model
+is trained, the lower the likelihood that it will predict a note that is novel
+for its context. Conversely, a poorly-trained model is more likely to ``guess''
+a note out of context.
+
+This particular method is actually known as PPM version A. In their original
+paper \cite{cleary1984ppm}, Cleary \& Witten introduce versions A and B. Since
+then, there have been several other versions introduced \cite{whorley2013phd}.
+Initially, I intend to implement version A before considering other versions.
+
+\subsection*{Multiple Viewpoint Systems}
+
+We introduce the formalism underlying multiple viewpoint systems, starting with
+a few definitions.
+
+\textbf{Definition}. A \emph{type} is an abstract property of events. To use a
+musical example, events might have types such as \emph{scale degree} or the
+melodic interval of a note (event) with its predecessor.
+
+\textbf{Definition}. A \emph{viewpoint} of type $\tau$ consists of:
+\begin{enumerate}[label=\arabic*., itemsep=0mm]
+  \item A partial function $\Psi_\tau : \xi^* \rightharpoonup [\tau]$ known as
+    the \emph{projection function}.
+  \item A \emph{context model} of sequences in $[\tau]^*$.
+\end{enumerate}
+
+A collection of viewpoints forms a multiple viewpoint system.
+
+One immediate observation about multiple viewpoint systems comprised only of
+simple types is that they cannot model the interactions between types (such as
+interdependence of pitch and rhythm). To model such behaviour, we need to
+introduce the notion of \emph{product types}.
+
+\textbf{Definition}. A \emph{product type} $\tau_1 \otimes \tau_2 \otimes
+\ldots \otimes \tau_n$ is itself a type $\tau$ where the elements of the
+product type are elements of the cross product:
+$$ [\tau] = [\tau_1] \times [\tau_2] \times \ldots \times [\tau_n] $$
+and the projection $\Psi_\tau$ is defined only when all of the individual
+projection functions are:
+$$ \Psi_\tau(e_1^k) = \begin{cases} 
+  \bot & \text{if } \Psi_{\tau_i}(e_1^k)\uparrow \text{ for any } i \in \set{1,
+  \ldots, n} \\
+  \pair{ \Psi_{\tau_1}(e_1^k), \ldots, \Psi_{\tau_n}(e_1^k) } & \text{otherwise}
+\end{cases} $$
+
+A \emph{linked viewpoint} is then a viewpoint whose underlying type is a product
+type. We can now build multiple viewpoint systems out of both linked and
+primitive viewpoints. 
+
+The behaviour of the projection function $\Psi_\tau$ is dependent on the
+individual viewpoint, but the intuition and typical definition is that
+$\Psi_\tau$ takes a sequence $e_1^k$, finds the last (most recent) event in the
+sequence to have a property of type $\tau$ defined, and projects out this value,
+some member of $[\tau]$. Of course, it may be the case that no event or
+combination of events in $e_1^k$ specifies a property of type $\tau$, in which
+case, $\Psi_\tau(e_1^k)\uparrow$.
+
+\section*{Recurrent Neural Networks}
+
+I plan to use TensorFlow to implement the RNN. As such, one of the goals of the
+research phase was to gain familiarity with the library. This has been achieved,
+in that I have implemented the MNIST classifier as demonstrated in the
+introductory tutorial on the TensorFlow website
+\footnote{\url{https://www.tensorflow.org/versions/r0.11/tutorials/mnist/beginners/index.html}}.
+
+
+
+\printbibliography
+
+\end{document}
