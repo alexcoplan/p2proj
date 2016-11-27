@@ -28,6 +28,7 @@ public:
                       const size_t i_begin, const size_t i_end);
   void learnSequence(const std::vector<unsigned int> &seq);
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
+  unsigned int count_of(const std::vector<unsigned int> &seq);
   void debug_summary();
 
   ContextModel(unsigned int history);
@@ -41,6 +42,18 @@ ContextModel<b>::ContextModel(unsigned int h) : history(h) {}
 template<int b>
 void ContextModel<b>::debug_summary() {
   trie_root.debug_summary();
+}
+
+template<int b>
+unsigned int ContextModel<b>::count_of(const std::vector<unsigned int> &seq) {
+  TrieNode<b> *node = &trie_root;
+  for (auto event : seq) {
+    if (node->children[event] == NULL)
+      return 0;
+    node = node->children[event];
+  }
+
+  return node->count;
 }
 
 // begin is inclusive, end is exclusive

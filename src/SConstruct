@@ -1,3 +1,7 @@
-env = Environment(CXX='clang++', CXXFLAGS='-std=c++11 -Wall -pedantic')
+base_cxxflags = '-std=c++11 -Wall -pedantic'
+env = Environment(CXX='clang++', CXXFLAGS=base_cxxflags)
 
-env.Program(target = 'ctx_test.out', source = ["ctx_test.cpp"])
+# compile unit tests
+test_env = env.Clone()
+test_env.Append(CXXFLAGS = ' -I.')
+test_env.Program(target = 'test/ctx_test.out', source = ["test/ctx_test.cpp"])
