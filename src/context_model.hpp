@@ -4,8 +4,19 @@
 #include <utility>
 #include <cassert>
 #include <iostream>
+#include <fstream>
 
 typedef std::pair<unsigned, std::list<unsigned int>> Ngram;
+
+struct GraphWriter {
+  std::string node_decls;
+  std::string edge_list;
+  std::string (*decoder)(unsigned int);
+
+  GraphWriter(std::string (*decode_fn)(unsigned int)) :
+    decoder(decode_fn) {}
+};
+
 
 template<int b>
 struct TrieNode {
@@ -18,6 +29,9 @@ struct TrieNode {
   TrieNode();
   ~TrieNode();
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
+  void write_graphviz(const std::string &fname, 
+      std::string (*decoder)(unsigned int));
+  void gen_graphviz(std::string prefix, GraphWriter &gw);
   void debug_summary();
 };
 
@@ -35,6 +49,8 @@ public:
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   unsigned int count_of(const std::vector<unsigned int> &seq);
   double probability_of(const std::vector<unsigned int> &seq);
+  void write_graphviz(const std::string &fname, 
+      std::string (*decoder)(unsigned int));
   void debug_summary();
 
   ContextModel(unsigned int history);
@@ -48,6 +64,12 @@ ContextModel<b>::ContextModel(unsigned int h) : history(h) {}
 template<int b>
 void ContextModel<b>::debug_summary() {
   trie_root.debug_summary();
+}
+
+template<int b>
+void ContextModel<b>::write_graphviz(const std::string &fname,
+    std::string (*decoder)(unsigned int)) {
+  trie_root.write_graphviz(fname, decoder);
 }
 
 template<int b>
@@ -219,3 +241,40 @@ void TrieNode<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
   }
 }
 
+/* GraphViz generation for visualising Tries */
+
+
+template<int b>
+void TrieNode<b>::gen_graphviz(std::string prefix, GraphWriter &gw) {
+  TrieNode *child = NULL;
+  for (unsigned int i = 0; i < b; i++) {
+    child = children[i];
+    if (child != NULL) {
+      std::string symbol = gw.decoder(i);
+      std::string this_node = (prefix.length() == 0 ? "root" : prefix);
+      std::string child_name = prefix + symbol;
+      gw.node_decls += child_name + " [label=\"" + child_name + ":" +
+        std::to_string(child->count) + "\"];\n";
+      gw.edge_list += this_node + " -> " + child_name + " [label=\"" + symbol
+        + "\"];\n";
+
+      child->gen_graphviz(child_name, gw);
+    }
+  }
+}
+
+template<int b>
+void TrieNode<b>::write_graphviz(const std::string &fname, 
+    std::string (*decode)(unsigned int)) {
+  GraphWriter gw(decode);
+
+  gw.node_decls += "root [label=\"():" + std::to_string(count) + "\"];\n";
+  gen_graphviz("", gw);
+
+  std::ofstream gvfile;
+  gvfile.open(fname);
+  gvfile << "digraph G {" << std::endl;
+  gvfile << gw.node_decls << std::endl << gw.edge_list;
+  gvfile << "}" << std::endl;
+  gvfile.close();
+}

@@ -33,6 +33,10 @@ char decode(const unsigned int x) {
   return a[x];
 }
 
+std::string decode_to_str(const unsigned int x) {
+  return std::string(1, decode(x));
+}
+
 std::vector<unsigned int> encode_string(const std::string &str) {
   const std::vector<char> chars(str.begin(), str.end());
   std::vector<unsigned int> encoded(chars.size());
@@ -90,6 +94,8 @@ TEST_CASE("Context model training works correctly", "[ctxmodel]") {
     REQUIRE( model.count_of(encode_string("DBA")) == 1 );
     REQUIRE( model.count_of(encode_string("BAG")) == 1 );
     REQUIRE( model.count_of(encode_string("GGD")) == 1 );
+
+    model.write_graphviz("bin/gout.gv", decode_to_str);
   }
 }
 

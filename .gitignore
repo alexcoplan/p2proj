@@ -8,6 +8,7 @@
 *.out
 *.o
 *.sconsign.dblite
+src/out/*
 
 # Custom ignores
 diss/*.pdf
