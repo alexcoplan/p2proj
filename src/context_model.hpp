@@ -10,7 +10,9 @@ typedef std::pair<unsigned, std::list<unsigned int>> Ngram;
 template<int b>
 struct TrieNode {
   TrieNode *children[b];
+  TrieNode *parent;
   unsigned int count;
+  unsigned int child_sum;
 
   TrieNode();
   ~TrieNode();
@@ -24,11 +26,14 @@ class ContextModel {
   unsigned int history;
   void addOrIncrement(const std::vector<unsigned int> &seq, 
                       const size_t i_begin, const size_t i_end);
+  double calculate_probability(const std::vector<unsigned int> &seq,
+                               const unsigned int context);
 
 public:
   void learnSequence(const std::vector<unsigned int> &seq);
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   unsigned int count_of(const std::vector<unsigned int> &seq);
+  double probability_of(const std::vector<unsigned int> &seq);
   void debug_summary();
 
   ContextModel(unsigned int history);
@@ -56,6 +61,52 @@ unsigned int ContextModel<b>::count_of(const std::vector<unsigned int> &seq) {
   return node->count;
 }
 
+/* Calculate probability of sequence using PPM method A */
+template<int b> double 
+ContextModel<b>::calculate_probability(const std::vector<unsigned int> &seq, 
+                                       const unsigned int context) {
+  assert(seq.size() > 0);
+
+  TrieNode<b> *node = &trie_root;
+  unsigned int i = 0;
+  for (; i < context; i++) {
+    unsigned int event = seq[i];
+    if (node->children[event] == NULL) {
+      i++;
+      break;
+    }
+    node = node->children[event];
+  }
+
+  // we have matched i context events
+  // due to PPM, any context that was not matched is irrelevant
+  // since the counts were effectively zero, so we multiply with
+  // an escape probability of one. Thus, it suffices to calculate
+  // p(e' | e_1^i)
+  unsigned int target = seq[seq.size() - 1];
+  TrieNode<b> *child = node->children[target];
+  if (child == NULL) {
+    if (i == 0)
+      return 1.0 / (double)b; // PPM base case: blend with 1/b
+
+    // event is novel for this context
+    int delta_c = node->count - node->child_sum;
+    assert(delta_c >= 0);
+
+    double p_escape = (1.0 + (double)delta_c) / (1.0 + (double)node->count);
+    return p_escape * calculate_probability(seq, i-1);
+  }
+
+  // event is known for this context
+  return (double)(child->count) / (1.0 + (double)node->count);
+}
+
+/* Public wrapper to calculate probability of n-gram */
+template<int b> double
+ContextModel<b>::probability_of(const std::vector<unsigned int> &seq) {
+  return calculate_probability(seq, seq.size() - 1);
+}
+
 // begin is inclusive, end is exclusive
 template<int b>
 void ContextModel<b>::addOrIncrement(const std::vector<unsigned int> &seq, 
@@ -64,12 +115,18 @@ void ContextModel<b>::addOrIncrement(const std::vector<unsigned int> &seq,
 
   for (size_t i = i_begin; i < i_end; i++) {
     unsigned int event = seq[i];
-    if (node->children[event] == NULL) 
+    if (node->children[event] == NULL) {
       node->children[event] = new TrieNode<b>();
+      node->children[event]->parent = node;
+    }
 
     node = node->children[event];
   }
   
+  // we check for null parent in case this is the root
+  if (node->parent != NULL)
+    node->parent->child_sum++;
+
   node->count++;
 }
 
@@ -111,7 +168,7 @@ void TrieNode<b>::debug_summary() {
 }
 
 template<int b>
-TrieNode<b>::TrieNode() : count(0) {
+TrieNode<b>::TrieNode() : count(0), child_sum(0) {
   for (unsigned int i = 0; i < b; i++) {
     children[i] = NULL;
   }
