@@ -13,6 +13,7 @@ struct TrieNode {
   TrieNode *parent;
   unsigned int count;
   unsigned int child_sum;
+  unsigned int num_children; // used in PPM: need # of novel child events
 
   TrieNode();
   ~TrieNode();
@@ -86,8 +87,14 @@ ContextModel<b>::calculate_probability(const std::vector<unsigned int> &seq,
   unsigned int target = seq[seq.size() - 1];
   TrieNode<b> *child = node->children[target];
   if (child == NULL) {
-    if (i == 0)
-      return 1.0 / (double)b; // PPM base case: blend with 1/b
+    if (i == 0) { // no context
+      if (node->count == 0)
+        return 1.0 / (double)b; // PPM base case: blend with 1/b
+      
+      // divide escape probability of root equally among novel events
+      double p_escape = 1.0 / (1.0 + (double)node->count);
+      return p_escape / ((double)(b - node->num_children));
+    }
 
     // event is novel for this context
     int delta_c = node->count - node->child_sum;
@@ -118,6 +125,7 @@ void ContextModel<b>::addOrIncrement(const std::vector<unsigned int> &seq,
     if (node->children[event] == NULL) {
       node->children[event] = new TrieNode<b>();
       node->children[event]->parent = node;
+      node->num_children++;
     }
 
     node = node->children[event];
@@ -168,7 +176,7 @@ void TrieNode<b>::debug_summary() {
 }
 
 template<int b>
-TrieNode<b>::TrieNode() : count(0), child_sum(0) {
+TrieNode<b>::TrieNode() : count(0), child_sum(0), num_children(0) {
   for (unsigned int i = 0; i < b; i++) {
     children[i] = NULL;
   }

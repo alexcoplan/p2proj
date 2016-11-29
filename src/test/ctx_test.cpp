@@ -108,6 +108,26 @@ TEST_CASE("Context model correctly calculates probabilities using PPM",
     REQUIRE( model_b.probability_of(encode_string("D")) == 0.25 );
   }
 
-  // TODO: write many many more unit tests here
+  SECTION("Simple case: h = 1, calcualte probability for unseen event") {
+    ContextModel<4> model(1);
+    model.learnSequence( encode_string("GGGGABB") );
+    
+    // first check that the counts are as expected
+    // although this is not what we actually want to test here
+    REQUIRE( model.count_of(std::vector<unsigned int>()) == 7 );
+    REQUIRE( model.count_of(encode_string("G")) == 4 );
+    REQUIRE( model.count_of(encode_string("A")) == 1 );
+    REQUIRE( model.count_of(encode_string("B")) == 2 );
+    REQUIRE( model.count_of(encode_string("D")) == 0 );
+
+    // the numbers here are chosen to result in probabilities that are powers of
+    // two, so as to prevent floating-point error
+    REQUIRE( model.probability_of(encode_string("G")) == 1.0/2.0 );
+    REQUIRE( model.probability_of(encode_string("A")) == 1.0/8.0 );
+    REQUIRE( model.probability_of(encode_string("B")) == 1.0/4.0 );
+    
+    // unseen, calculate using PPM:
+    REQUIRE( model.probability_of(encode_string("D")) == 1.0/8.0 ); 
+  }
 }
 
