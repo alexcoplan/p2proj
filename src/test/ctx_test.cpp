@@ -115,7 +115,6 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
   SECTION("Simple case: h = 1, calculate probability for unseen event") {
     ContextModel<4> model(1);
     model.learnSequence( encode_string("GGGGABB") );
-    model.write_graphviz("test_graph.gv", decode_to_str);
     
     // first check that the counts are as expected
     // although this is not what we actually want to test here
@@ -125,8 +124,6 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
     REQUIRE( model.count_of(encode_string("B")) == 2 );
     REQUIRE( model.count_of(encode_string("D")) == 0 );
 
-    // the numbers here are chosen to result in probabilities that are powers of
-    // two, so as to prevent floating-point error
     REQUIRE( model.probability_of(encode_string("G")) == 1.0/2.0 );
     REQUIRE( model.probability_of(encode_string("A")) == 1.0/8.0 );
     REQUIRE( model.probability_of(encode_string("B")) == 1.0/4.0 );
@@ -140,15 +137,27 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
     ContextModel<4> model(3);
     model.learnSequence(encode_string("GGDBAGGABA"));
 
-    // bigrams
+    // sample bigrams
     REQUIRE( model.probability_of(encode_string("GG")) == 2.0/5.0 );
     REQUIRE( model.probability_of(encode_string("GA")) == 1.0/5.0 );
     REQUIRE( model.probability_of(encode_string("GB")) == 1.0/5.0 ); // unseen
     REQUIRE( model.probability_of(encode_string("GD")) == 1.0/5.0 );
 
-    // sanity check
-    REQUIRE( model.count_of(encode_string("GA")) == 1 );
-    REQUIRE( model.count_of(encode_string("GD")) == 1 );
+    REQUIRE( model.probability_of(encode_string("AG")) == 1.0/3.0 );
+    REQUIRE( model.probability_of(encode_string("AA")) == 1.0/4.0 );
+    REQUIRE( model.probability_of(encode_string("AB")) == 1.0/3.0 );
+    REQUIRE( model.probability_of(encode_string("AD")) == 1.0/12.0 );
+
+    // sample trigrams
+    REQUIRE( model.probability_of(encode_string("GGA")) == 1.0/3.0 );
+    REQUIRE( model.probability_of(encode_string("GGD")) == 1.0/3.0 );
+    REQUIRE( model.probability_of(encode_string("GGB")) == 1.0/9.0 );
+    REQUIRE( model.probability_of(encode_string("GGG")) == 2.0/9.0 );
+
+    REQUIRE( model.probability_of(encode_string("GAB")) == 1.0/2.0 );
+    REQUIRE( model.probability_of(encode_string("GAA")) == 3.0/16.0 );
+    REQUIRE( model.probability_of(encode_string("GAG")) == 1.0/4.0 );
+    REQUIRE( model.probability_of(encode_string("GAD")) == 1.0/16.0 );
   }
 }
 
