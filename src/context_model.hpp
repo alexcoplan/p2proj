@@ -21,10 +21,9 @@ struct GraphWriter {
 template<int b>
 struct TrieNode {
   TrieNode *children[b];
+  std::bitset<b> child_mask; // 1 where we have a child, 0 elsewhere
   TrieNode *parent;
   unsigned int count;
-  unsigned int child_sum;
-  unsigned int num_children; // used in PPM: need # of novel child events
 
   TrieNode();
   ~TrieNode();
@@ -41,8 +40,11 @@ class ContextModel {
   unsigned int history;
   void addOrIncrement(const std::vector<unsigned int> &seq, 
                       const size_t i_begin, const size_t i_end);
-  double calculate_probability(const std::vector<unsigned int> &seq,
-                               const unsigned int context);
+  TrieNode<b> *match_context(const std::vector<unsigned int> &seq, 
+                             const unsigned int i_start,
+                                   unsigned int &i_matched);
+  double ppm_a(const std::vector<unsigned int> &seq,
+               const unsigned int i_start, const std::bitset<b> &dead);
 
 public:
   void learnSequence(const std::vector<unsigned int> &seq);
@@ -56,7 +58,9 @@ public:
   ContextModel(unsigned int history);
 };
 
-// ContextModel implementation
+/**************************************************
+ * ContextModel: public methods
+ **************************************************/
 
 template<int b>
 ContextModel<b>::ContextModel(unsigned int h) : history(h) {}
@@ -84,62 +88,97 @@ unsigned int ContextModel<b>::count_of(const std::vector<unsigned int> &seq) {
   return node->count;
 }
 
-/* Calculate probability of sequence using PPM method A */
-template<int b> double 
-ContextModel<b>::calculate_probability(const std::vector<unsigned int> &seq, 
-                                       const unsigned int context) {
-  assert(seq.size() > 0);
-
-  TrieNode<b> *node = &trie_root;
-  unsigned int i = 0;
-  for (; i < context; i++) {
-    unsigned int event = seq[i];
-    if (node->children[event] == NULL) {
-      i++;
-      break;
-    }
-    node = node->children[event];
-  }
-
-  // we have matched i context events
-  // due to PPM, any context that was not matched is irrelevant
-  // since the counts were effectively zero, so we multiply with
-  // an escape probability of one. Thus, it suffices to calculate
-  // p(e' | e_1^i)
-  unsigned int target = seq[seq.size() - 1];
-  TrieNode<b> *child = node->children[target];
-  if (child == NULL) {
-    if (i == 0) { // no context
-      if (node->count == 0)
-        return 1.0 / (double)b; // PPM base case: blend with 1/b
-      
-      // divide escape probability of root equally among novel events
-      double p_escape = 1.0 / (1.0 + (double)node->count);
-      return p_escape / ((double)(b - node->num_children));
-    }
-
-    // event is novel for this context
-    int delta_c = node->count - node->child_sum;
-    assert(delta_c >= 0);
-
-    double p_escape = (1.0 + (double)delta_c) / (1.0 + (double)node->count);
-    return p_escape * calculate_probability(seq, i-1);
-  }
-
-  // event is known for this context
-  return (double)(child->count) / (1.0 + (double)node->count);
-}
-
 /* Public wrapper to calculate probability of n-gram */
 template<int b> double
 ContextModel<b>::probability_of(const std::vector<unsigned int> &seq) {
-  return calculate_probability(seq, seq.size() - 1);
+  return ppm_a(seq, seq.size() - 1, std::bitset<b>());
+}
+
+/**************************************************
+ * ContextModel: private methods
+ **************************************************/
+
+/** Find the TrieNode corresponding to a given context in the trie
+ *
+ * @param i_start: index in seq marking the start of the context
+ * @param i_matched: set to the lowest i with i >= i_start s.t. the context
+ *  e_i^(n-1) is successfully matched
+ *
+ * @return pointer to the node corresponding to the matched context */
+template<int b> TrieNode<b> *
+ContextModel<b>::match_context(const std::vector<unsigned int> &seq,
+                               const unsigned int i_start,
+                                     unsigned int &i_matched) {
+  TrieNode<b> *node = &trie_root;
+
+  for (unsigned int i = i_start; i < seq.size() - 1; i++) {
+    node = &trie_root;
+
+    unsigned int j = i;
+    for (; j < seq.size() - 1; j++) {
+      unsigned int event = seq[j];
+      if (node->children[event] == NULL)
+        break;
+
+      node = node->children[event];
+    }
+
+    // if we matched the entire context from i to n-1
+    // then we're done. 
+    if (j == seq.size() - 1) {
+      i_matched = i;
+      return node;
+    }
+  }
+
+  // if we come out of the above loop then we didn't match anything :(
+  i_matched = seq.size() - 1;
+  return node;
+}
+
+/* Calculate probability of sequence using PPM method A */
+template<int b> double 
+ContextModel<b>::ppm_a(const std::vector<unsigned int> &seq, 
+                       const unsigned int ctx_start,
+                       const std::bitset<b> &dead) {
+  // base case: use uniform distribution
+  if (ctx_start == seq.size()) {
+    assert(!dead.all());
+    return 1.0 / (double)(b - dead.count());
+  }
+
+  unsigned int i_matched;
+  TrieNode<b> *ctx_node = match_context(seq, ctx_start, i_matched);
+  // we matched the context e_{i_matched}^{n-1}
+
+  int sum = 0;
+  std::bitset<b> seen_or_dead = ctx_node->child_mask | dead;
+  std::bitset<b> novel_events = ~seen_or_dead;
+  std::bitset<b> known_events = ctx_node->child_mask & ~dead;
+
+  for (unsigned int i = 0; i < b; i++) {
+    if (known_events[i])
+      sum += ctx_node->children[i]->count;
+  }
+
+  double known_total = (double)sum;
+
+  unsigned int event = seq[seq.size() - 1];
+  if (novel_events.any()) {
+    if (known_events[event])
+      return (double)(ctx_node->children[event]->count) / (1.0 + known_total);
+    return ppm_a(seq, i_matched+1, seen_or_dead) / (1.0 + known_total);
+  }
+
+  // no novel events, so don't include escape probability
+  return (double)(ctx_node->children[event]->count) / known_total;
 }
 
 // begin is inclusive, end is exclusive
 template<int b>
 void ContextModel<b>::addOrIncrement(const std::vector<unsigned int> &seq, 
-    const size_t i_begin, const size_t i_end) {
+                                     const size_t i_begin, 
+                                     const size_t i_end) {
   TrieNode<b> *node = &trie_root;
 
   for (size_t i = i_begin; i < i_end; i++) {
@@ -147,16 +186,12 @@ void ContextModel<b>::addOrIncrement(const std::vector<unsigned int> &seq,
     if (node->children[event] == NULL) {
       node->children[event] = new TrieNode<b>();
       node->children[event]->parent = node;
-      node->num_children++;
+      node->child_mask.set(event);
     }
 
     node = node->children[event];
   }
   
-  // we check for null parent in case this is the root
-  if (node->parent != NULL)
-    node->parent->child_sum++;
-
   node->count++;
 }
 
@@ -198,7 +233,8 @@ void TrieNode<b>::debug_summary() {
 }
 
 template<int b>
-TrieNode<b>::TrieNode() : count(0), child_sum(0), num_children(0) {
+TrieNode<b>::TrieNode() : 
+  parent(NULL), count(0) {
   for (unsigned int i = 0; i < b; i++) {
     children[i] = NULL;
   }
@@ -242,7 +278,6 @@ void TrieNode<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
 }
 
 /* GraphViz generation for visualising Tries */
-
 
 template<int b>
 void TrieNode<b>::gen_graphviz(std::string prefix, GraphWriter &gw) {

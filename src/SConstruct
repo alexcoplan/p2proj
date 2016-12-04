@@ -1,4 +1,5 @@
-flags = '-std=c++11 -Wall -pedantic'
+flags = '-std=c++11 -Wall -pedantic -g -fcolor-diagnostics'
 env = Environment(CXX='clang++', CXXFLAGS=flags, CPPPATH = ['.'])
 
 env.Program(target = 'test/ctx_test.out', source = ["test/ctx_test.cpp"])
+env.Program(target = 'play/graph_gen.out', source = ["play/graph_gen.cpp"])

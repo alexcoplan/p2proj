@@ -94,13 +94,11 @@ TEST_CASE("Context model training works correctly", "[ctxmodel]") {
     REQUIRE( model.count_of(encode_string("DBA")) == 1 );
     REQUIRE( model.count_of(encode_string("BAG")) == 1 );
     REQUIRE( model.count_of(encode_string("GGD")) == 1 );
-
-    model.write_graphviz("bin/gout.gv", decode_to_str);
   }
 }
 
-TEST_CASE("Context model correctly calculates probabilities using PPM", 
-    "[ctxmodel]") {
+TEST_CASE("Context model calculates correct probabilities using PPM A", 
+    "[ctxmodel][ppm-a]") {
   SECTION("Trivial cases: untrained model gives equal probabilities") {
     ContextModel<2> model(1);
     REQUIRE( model.count_of(std::vector<unsigned int>()) == 0 ); // check init'd
@@ -114,9 +112,10 @@ TEST_CASE("Context model correctly calculates probabilities using PPM",
     REQUIRE( model_b.probability_of(encode_string("D")) == 0.25 );
   }
 
-  SECTION("Simple case: h = 1, calcualte probability for unseen event") {
+  SECTION("Simple case: h = 1, calculate probability for unseen event") {
     ContextModel<4> model(1);
     model.learnSequence( encode_string("GGGGABB") );
+    model.write_graphviz("test_graph.gv", decode_to_str);
     
     // first check that the counts are as expected
     // although this is not what we actually want to test here
@@ -134,6 +133,7 @@ TEST_CASE("Context model correctly calculates probabilities using PPM",
     
     // unseen, calculate using PPM:
     REQUIRE( model.probability_of(encode_string("D")) == 1.0/8.0 ); 
+
   }
 }
 
