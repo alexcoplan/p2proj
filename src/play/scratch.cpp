@@ -40,5 +40,10 @@ int main(void)
 {
   ContextModel<4> model(3);
   model.learnSequence( encode_string("GGDBAGGABA") );
-  model.write_graphviz("out/gout.gv", decode_to_str);
+  std::cout << "P(GG): "
+    << model.probability_of(encode_string("GG")) << std::endl;
+  std::cout << "P(GA): " 
+    << model.probability_of(encode_string("GA")) << std::endl;
+  std::cout << "P(GD): "
+    << model.probability_of(encode_string("GD")) << std::endl;
 }

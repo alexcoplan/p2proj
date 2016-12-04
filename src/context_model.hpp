@@ -91,7 +91,7 @@ unsigned int ContextModel<b>::count_of(const std::vector<unsigned int> &seq) {
 /* Public wrapper to calculate probability of n-gram */
 template<int b> double
 ContextModel<b>::probability_of(const std::vector<unsigned int> &seq) {
-  return ppm_a(seq, seq.size() - 1, std::bitset<b>());
+  return ppm_a(seq, 0, std::bitset<b>());
 }
 
 /**************************************************

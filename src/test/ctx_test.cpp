@@ -133,7 +133,22 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
     
     // unseen, calculate using PPM:
     REQUIRE( model.probability_of(encode_string("D")) == 1.0/8.0 ); 
+  }
 
+  SECTION("Nontrivial case: h = 3, probabilities match hand calculations for\
+ C&W example") {
+    ContextModel<4> model(3);
+    model.learnSequence(encode_string("GGDBAGGABA"));
+
+    // bigrams
+    REQUIRE( model.probability_of(encode_string("GG")) == 2.0/5.0 );
+    REQUIRE( model.probability_of(encode_string("GA")) == 1.0/5.0 );
+    REQUIRE( model.probability_of(encode_string("GB")) == 1.0/5.0 ); // unseen
+    REQUIRE( model.probability_of(encode_string("GD")) == 1.0/5.0 );
+
+    // sanity check
+    REQUIRE( model.count_of(encode_string("GA")) == 1 );
+    REQUIRE( model.count_of(encode_string("GD")) == 1 );
   }
 }
 
