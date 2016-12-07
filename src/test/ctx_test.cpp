@@ -65,7 +65,7 @@ TEST_CASE("Context model training works correctly", "[ctxmodel]") {
     // note that there is an error in the table, but it is clearly a duplication
     // typo
     ContextModel<NUM_NOTES> model(HISTORY);
-    model.learnSequence(encode_string("GGDBAGGABA"));
+    model.learn_sequence(encode_string("GGDBAGGABA"));
 
     // total count (zero-grams)
     REQUIRE( model.count_of(std::vector<unsigned int>()) == 10 );
@@ -114,7 +114,7 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
 
   SECTION("Simple case: h = 1, calculate probability for unseen event") {
     ContextModel<4> model(1);
-    model.learnSequence( encode_string("GGGGABB") );
+    model.learn_sequence( encode_string("GGGGABB") );
     
     // first check that the counts are as expected
     // although this is not what we actually want to test here
@@ -135,7 +135,7 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
   SECTION("Nontrivial case: h = 3, probabilities match hand calculations for\
  C&W example") {
     ContextModel<4> model(3);
-    model.learnSequence(encode_string("GGDBAGGABA"));
+    model.learn_sequence(encode_string("GGDBAGGABA"));
 
     // sample bigrams
     REQUIRE( model.probability_of(encode_string("GG")) == 2.0/5.0 );

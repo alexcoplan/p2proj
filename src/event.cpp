@@ -24,7 +24,7 @@ const std::vector<char> DummyEvent::shared_encoding() {
   return std::vector<char>{'G','A','B','D'};
 }
 
-unsigned int DummyEvent::encode() {
+unsigned int DummyEvent::encode() const {
   return coded;
 }
 

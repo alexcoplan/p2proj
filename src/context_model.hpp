@@ -1,3 +1,6 @@
+#ifndef AJC_HGUARD_CTXMODEL
+#define AJC_HGUARD_CTXMODEL
+
 #include <cstddef>
 #include <vector>
 #include <list>
@@ -47,7 +50,7 @@ class ContextModel {
                const unsigned int i_start, const std::bitset<b> &dead);
 
 public:
-  void learnSequence(const std::vector<unsigned int> &seq);
+  void learn_sequence(const std::vector<unsigned int> &seq);
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   unsigned int count_of(const std::vector<unsigned int> &seq);
   double probability_of(const std::vector<unsigned int> &seq);
@@ -196,7 +199,7 @@ void ContextModel<b>::addOrIncrement(const std::vector<unsigned int> &seq,
 }
 
 template<int b>
-void ContextModel<b>::learnSequence(const std::vector<unsigned int> &seq) {
+void ContextModel<b>::learn_sequence(const std::vector<unsigned int> &seq) {
   // We train the context model by passing a window of size h over the training
   // sequence, and generating examples from the subsequence lying under the
   // window. 
@@ -313,3 +316,5 @@ void TrieNode<b>::write_graphviz(const std::string &fname,
   gvfile << "}" << std::endl;
   gvfile.close();
 }
+
+#endif // header guard

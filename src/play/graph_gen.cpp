@@ -39,6 +39,6 @@ std::vector<unsigned int> encode_string(const std::string &str) {
 int main(void)
 {
   ContextModel<4> model(3);
-  model.learnSequence( encode_string("GGDBAGGABA") );
+  model.learn_sequence( encode_string("GGDBAGGABA") );
   model.write_graphviz("out/gout.gv", decode_to_str);
 }
