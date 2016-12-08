@@ -2,6 +2,7 @@
 #include <string>
 #include <iostream>
 #include <string>
+#include <array>
 
 #include "catch.hpp"
 #include "event.hpp"
@@ -130,3 +131,20 @@ TEST_CASE("SequenceModel distribtuion construction works correctly",
     REQUIRE( distrib.probability_for(DummyEvent('D')) == 1.0/3.0 );
   }
 }
+
+TEST_CASE("Check entropy calculation", "[seqmodel]") {
+  std::array<double, 4> values{{0.5, 0.25, 0.125, 0.125}};
+  EventDistribution<DummyEvent> dist(values);
+  REQUIRE( dist.entropy() == 1.75 );
+
+  std::array<double, 4> flat_vs{{0.25, 0.25, 0.25, 0.25}};
+  EventDistribution<DummyEvent> flat(flat_vs);
+  REQUIRE( flat.entropy() == 2.0 );
+
+  std::array<double, 4> delta_vs{{1.0, 0.0, 0.0, 0.0}};
+  EventDistribution<DummyEvent> delta(delta_vs);
+  REQUIRE( delta.entropy() == 0.0 );
+}
+
+
+

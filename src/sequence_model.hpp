@@ -10,7 +10,7 @@
 #include "context_model.hpp"
 
 // accuracy to which distributions must sum to 1
-#define DISTRIBUTION_EPS 1e-10 
+#define DISTRIBUTION_EPS 1e-15 
 
 /* SequenceModel provides an abstraction of the ContextModel class, such that
  * the model takes abstract events and encodes them for appropriately for the
@@ -20,33 +20,59 @@
  * EventDistribution: declaration
  **************************************************/
 
-template<class T> struct EventDistribtuion {
+template<class T> class EventDistribution {
+private:
   std::array<double, T::cardinality> values;
 
-  EventDistribtuion(const std::array<double, T::cardinality> &vs);
+public:
+  EventDistribution(const std::array<double, T::cardinality> &vs);
+  constexpr static double max_entropy();
+  EventDistribution<T> weighted_combination (
+      const std::vector<EventDistribution<T> &> &vector);
   double probability_for(const T &event);
+  double entropy();
 };
 
 /**************************************************
- * EventDistribution: implementation
+ * EventDistribution: public methods
  **************************************************/
 
 template<class T> 
-EventDistribtuion<T>::EventDistribtuion(
+EventDistribution<T>::EventDistribution(
     const std::array<double, T::cardinality> &vs) : values(vs) {
   // enforce T : SequenceEvent
-  static_assert(std::is_base_of<SequenceEvent, T>::value, "EventDistribtuion\
+  static_assert(std::is_base_of<SequenceEvent, T>::value, "EventDistribution\
  can only be specialized on SequenceEvents");
   static_assert(T::cardinality > 0, "Event type must have strictly positive\
  cardinality!");
 
   double total_probability = std::accumulate(values.begin(), values.end(), 0.0);
-  assert( std::abs(total_probability - 1.0) < 1e-10 );
+  assert( std::abs(total_probability - 1.0) < DISTRIBUTION_EPS );
 }
 
 template<class T>
-double EventDistribtuion<T>::probability_for(const T& event) {
+double EventDistribution<T>::probability_for(const T& event) {
   return values[event.encode()];
+}
+
+template<class T>
+constexpr static double max_entropy() {
+  return std::log2(T::cardinality);
+}
+
+// might need to be careful about numerical stability here.
+// what if v > 0.0 but v ~~ 0.0?
+template<class T>
+double EventDistribution<T>::entropy() {
+  double sum = 0.0;
+  for (double v : values) {
+    if (v == 0.0)
+      continue;
+
+    sum -= v * std::log2(v);
+  }
+
+  return sum;
 }
 
 /**************************************************
@@ -63,7 +89,7 @@ public:
   SequenceModel(unsigned int history);
   void learn_sequence(const std::vector<T> &seq);
   double probability_of(const std::vector<T> &seq);
-  EventDistribtuion<T> gen_successor_dist(const std::vector<T> &ctx);
+  EventDistribution<T> gen_successor_dist(const std::vector<T> &ctx);
 };
 
 /**************************************************
@@ -90,7 +116,7 @@ double SequenceModel<T>::probability_of(const std::vector<T> &seq) {
   return model.probability_of(encode_sequence(seq));
 }
 
-template<class T> EventDistribtuion<T> 
+template<class T> EventDistribution<T> 
 SequenceModel<T>::gen_successor_dist(const std::vector<T> &context) {
   std::vector<T> tmp_ctx(context);
   std::array<double, T::cardinality> values;
@@ -103,7 +129,7 @@ SequenceModel<T>::gen_successor_dist(const std::vector<T> &context) {
     tmp_ctx.pop_back();
   }
 
-  return EventDistribtuion<T>(values);
+  return EventDistribution<T>(values);
 }
 
 /**************************************************

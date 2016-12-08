@@ -20,4 +20,8 @@ int main(void)
   for (char c : letters) 
     std::cout << "P(" << c << "|A) = " << 
       distrib.probability_for(DummyEvent(c)) << std::endl;
+
+  std::array<double, 4> almost_deltas{{0.99, 0.01/3.0, 0.01/3.0, 0.01/3.0}};
+  EventDistribution<DummyEvent> adelta(almost_deltas);
+  std::cout << "Entropy of almost delta: " << adelta.entropy() << std::endl;
 }
