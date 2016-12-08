@@ -160,4 +160,3 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
     REQUIRE( model.probability_of(encode_string("GAD")) == 1.0/16.0 );
   }
 }
-

@@ -1,7 +1,6 @@
 #ifndef AJC_HGUARD_EVENT
 #define AJC_HGUARD_EVENT
 
-
 #include <vector>
 
 class SequenceEvent {

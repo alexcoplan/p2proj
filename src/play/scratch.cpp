@@ -1,40 +1,23 @@
-#include "context_model.hpp"
 #include <iostream>
-// #include <type_traits>
 
-class Event {
-public:
-  const static int bf = 1;
-};
+#include "sequence_model.hpp"
 
-class PitchEvent : Event {
-public:
-  const static int bf = 12;
-};
-
-class DurEvent : Event {
-public:
-  const static int bf = 96;
-};
-
-template<class T> class Wrapper {
-public:
-  ContextModel<T::bf> model;
-
-  Wrapper(unsigned int hist) : model(hist) {
-    static_assert(std::is_base_of<Event, T>::value, "T not derived from Event");
-  }
-
-  void thang() {
-    std::cout << "bf: " << T::bf << std::endl;
-  }
-};
+std::vector<DummyEvent> str_to_events(const std::string &str) {
+  std::vector<DummyEvent> result;
+  std::transform(str.begin(), str.end(), std::back_inserter(result), 
+    [](const char c) { return DummyEvent(c); });
+  return result;
+}
 
 int main(void)
 {
-  Wrapper<PitchEvent> w1(3);
-  Wrapper<DurEvent> w2(3);
+  SequenceModel<DummyEvent> seq_model(3);
+  seq_model.learn_sequence(str_to_events("GGDBAGGABA"));
 
-  w1.thang();
-  w2.thang();
+  std::vector<DummyEvent> a_ctx{ DummyEvent('A') };
+  auto distrib = seq_model.gen_successor_dist(a_ctx);
+  std::vector<char> letters{'G','A','B','D'};
+  for (char c : letters) 
+    std::cout << "P(" << c << "|A) = " << 
+      distrib.probability_for(DummyEvent(c)) << std::endl;
 }

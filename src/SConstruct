@@ -5,5 +5,5 @@ base_files = ["event.cpp"]
 
 env.Program(target = 'test/ctx_test.out', source = base_files +
 ["test/ctx_test.cpp", "test/dist_test.cpp"])
-env.Program(target = 'play/graph_gen.out', source = ["play/graph_gen.cpp"])
-env.Program(target = 'play/scratch.out', source = ["play/scratch.cpp"])
+env.Program(target = 'play/graph_gen.out', source = base_files + ["play/graph_gen.cpp"])
+env.Program(target = 'play/scratch.out', source = base_files + ["play/scratch.cpp"])
