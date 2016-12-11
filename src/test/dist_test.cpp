@@ -13,7 +13,7 @@
  * Distributions and events
  *
  * This test suite checks distributions and the event abstractions made around
- * them 
+ * them. 
  ******************************************************************************/
 
 // little helper so we can just write strings which get split up into vectors of
@@ -155,19 +155,32 @@ TEST_CASE("Check entropy calculations", "[seqmodel]") {
   }
 }
 
-TEST_CASE("Weighted entropy calculation works as expected", "[seqmodel]") {
-  std::array<double, 4> values{{0.5, 0.25, 0.125, 0.125}};
+TEST_CASE("Weighted entropy combination works as expected", "[seqmodel]") {
+  using array_t = std::array<double, 4>;
+
+  array_t values{{0.5, 0.25, 0.125, 0.125}};
   EventDistribution<DummyEvent> dist(values);
 
-  std::array<double, 4> flat_vs{{0.25, 0.25, 0.25, 0.25}};
+  array_t flat_vs{{0.25, 0.25, 0.25, 0.25}};
   EventDistribution<DummyEvent> flat(flat_vs);
 
-  WeightedEntropyCombination<DummyEvent> strategy(1.0);
-  EventDistribution<DummyEvent> combined(strategy, {dist, flat});
+  // b = 1
+  WeightedEntropyCombination<DummyEvent> strategy_1(1.0);
+  EventDistribution<DummyEvent> combined(strategy_1, {dist, flat});
 
-  std::array<double, 4> expected{{23.0/60.0, 15.0/60.0, 11.0/60.0, 11.0/60.0}};
-  for (auto e : EventEnumerator<DummyEvent>()) {
-    REQUIRE( combined.probability_for(e) == Approx(expected[e.encode()]) );
-  }
+  array_t expected_1{{23.0/60.0, 15.0/60.0, 11.0/60.0, 11.0/60.0}};
+  for (auto e : EventEnumerator<DummyEvent>()) 
+    REQUIRE( combined.probability_for(e) == Approx(expected_1[e.encode()]) );
+
+  // b = 2 (squared bias to entropy weights)
+  WeightedEntropyCombination<DummyEvent> strategy_2(2.0);
+  EventDistribution<DummyEvent> combined_2(strategy_2, {dist, flat});
+  
+  array_t expected_2{
+    {177.0/452.0, 113.0/452.0, 81.0/452.0, 81.0/452.0}
+  };
+
+  for (auto e : EventEnumerator<DummyEvent>())
+    REQUIRE( combined_2.probability_for(e) == Approx(expected_2[e.encode()]) );
 }
 

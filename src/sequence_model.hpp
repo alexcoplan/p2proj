@@ -42,7 +42,12 @@ struct WeightedEntropyCombination : public DistCombStrategy<T> {
     double sum_of_weights = 0.0;
 
     for (auto dist : list) {
-      double weight = std::pow(dist.normalised_entropy(), -re_exponent);
+      double norm_entropy = dist.normalised_entropy();
+      if (norm_entropy == 0.0) 
+        assert(! "Distributions must be non-exclusive to use weighted entropy\
+ combination");
+      
+      double weight = std::pow(norm_entropy, -re_exponent);
       sum_of_weights += weight;
 
       for (auto event : EventEnumerator<T>()) 
