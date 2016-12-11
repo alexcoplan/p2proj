@@ -18,7 +18,7 @@ private:
 public:
   constexpr static int cardinality = 4;
   static const std::vector<char> shared_encoding();
-  virtual unsigned int encode() const override;
+  unsigned int encode() const override;
   char raw_value();
   DummyEvent(unsigned int code);
   DummyEvent(char c);

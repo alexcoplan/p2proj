@@ -7,14 +7,56 @@
 #include <cmath>
 
 #include "event.hpp"
+#include "event_enumerator.hpp"
 #include "context_model.hpp"
 
 // accuracy to which distributions must sum to 1
 #define DISTRIBUTION_EPS 1e-15 
 
+// forward declaration
+template<class T> class EventDistribution;
+
 /* SequenceModel provides an abstraction of the ContextModel class, such that
  * the model takes abstract events and encodes them for appropriately for the
  * underlying ContextModel */
+
+/* DistCombStrategy is an abstract class which specifies an algorithm for
+ * combining event distributions */
+
+template<class T>
+struct DistCombStrategy {
+  virtual std::array<double, T::cardinality>
+    combine(std::initializer_list<EventDistribution<T>> list) const = 0;
+};
+
+template<class T>
+struct WeightedEntropyCombination : public DistCombStrategy<T> {
+  const double re_exponent;
+
+  using values_t = std::array<double, T::cardinality>;
+
+  values_t 
+  combine(std::initializer_list<EventDistribution<T>> list) const override {
+    values_t result = {{0.0}};
+
+    double sum_of_weights = 0.0;
+
+    for (auto dist : list) {
+      double weight = std::pow(dist.normalised_entropy(), -re_exponent);
+      sum_of_weights += weight;
+
+      for (auto event : EventEnumerator<T>()) 
+        result[event.encode()] += dist.probability_for(event) * weight;
+    }
+
+    for (unsigned int i = 0; i < T::cardinality; i++) 
+      result[i] /= sum_of_weights;
+
+    return result;
+  }
+
+  WeightedEntropyCombination(double exponent) : re_exponent(exponent) {}
+};
 
 /**************************************************
  * EventDistribution: declaration
@@ -22,15 +64,18 @@
 
 template<class T> class EventDistribution {
 private:
-  std::array<double, T::cardinality> values;
+  const std::array<double, T::cardinality> values;
 
 public:
   EventDistribution(const std::array<double, T::cardinality> &vs);
-  constexpr static double max_entropy();
+  EventDistribution(const DistCombStrategy<T> &strategy, 
+      std::initializer_list<EventDistribution>);
+  constexpr static double max_entropy() { return std::log2(T::cardinality); }
   EventDistribution<T> weighted_combination (
       const std::vector<EventDistribution<T> &> &vector);
-  double probability_for(const T &event);
-  double entropy();
+  double probability_for(const T &event) const;
+  double entropy() const;
+  double normalised_entropy() const;
 };
 
 /**************************************************
@@ -47,23 +92,37 @@ EventDistribution<T>::EventDistribution(
  cardinality!");
 
   double total_probability = std::accumulate(values.begin(), values.end(), 0.0);
-  assert( std::abs(total_probability - 1.0) < DISTRIBUTION_EPS );
+
+  if ( std::abs(total_probability - 1.0) >= DISTRIBUTION_EPS ) {
+    std::cerr << "Distirbution failed: total prob = " << total_probability << 
+      std::endl;
+
+    std::cerr << "Values: " << std::endl << std::endl;
+    for (unsigned int i = 0; i < vs.size(); i++) 
+      std::cerr << "P(" << i << ") = " << vs[i] << std::endl;
+
+    assert(! "Distribution does not add to one, aborting...");
+  }
 }
 
+/* Combination constructor
+ *
+ * Takes a distribution combination strategy and uses the given strategy to
+ * combine the distributions */
 template<class T>
-double EventDistribution<T>::probability_for(const T& event) {
+EventDistribution<T>::EventDistribution(const DistCombStrategy<T> &strategy,
+    std::initializer_list<EventDistribution<T>> distributions) :
+  EventDistribution(strategy.combine(distributions)) {}
+
+template<class T>
+double EventDistribution<T>::probability_for(const T& event) const {
   return values[event.encode()];
-}
-
-template<class T>
-constexpr static double max_entropy() {
-  return std::log2(T::cardinality);
 }
 
 // might need to be careful about numerical stability here.
 // what if v > 0.0 but v ~~ 0.0?
 template<class T>
-double EventDistribution<T>::entropy() {
+double EventDistribution<T>::entropy() const {
   double sum = 0.0;
   for (double v : values) {
     if (v == 0.0)
@@ -73,6 +132,14 @@ double EventDistribution<T>::entropy() {
   }
 
   return sum;
+}
+
+template<class T>
+double EventDistribution<T>::normalised_entropy() const {
+  if (max_entropy() > 0.0) 
+    return entropy() / max_entropy();
+  
+  return 1.0;
 }
 
 /**************************************************
@@ -121,11 +188,9 @@ SequenceModel<T>::gen_successor_dist(const std::vector<T> &context) {
   std::vector<T> tmp_ctx(context);
   std::array<double, T::cardinality> values;
 
-  // obvious TODO: define an iterator to generate all events of a given type
-  for (unsigned int i = 0; i < T::cardinality; i++) {
-    T candidate_event = T(i);
+  for (auto candidate_event : EventEnumerator<T>()) {
     tmp_ctx.push_back(candidate_event);
-    values[i] = probability_of(tmp_ctx);
+    values[candidate_event.encode()] = probability_of(tmp_ctx);
     tmp_ctx.pop_back();
   }
 

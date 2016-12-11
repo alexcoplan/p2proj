@@ -1,7 +1,6 @@
 #ifndef AJC_HGUARD_CTXMODEL
 #define AJC_HGUARD_CTXMODEL
 
-#include <cstddef>
 #include <vector>
 #include <list>
 #include <utility>
@@ -83,7 +82,7 @@ template<int b>
 unsigned int ContextModel<b>::count_of(const std::vector<unsigned int> &seq) {
   TrieNode<b> *node = &trie_root;
   for (auto event : seq) {
-    if (node->children[event] == NULL)
+    if (node->children[event] == nullptr)
       return 0;
     node = node->children[event];
   }
@@ -120,7 +119,7 @@ ContextModel<b>::match_context(const std::vector<unsigned int> &seq,
     unsigned int j = i;
     for (; j < seq.size() - 1; j++) {
       unsigned int event = seq[j];
-      if (node->children[event] == NULL)
+      if (node->children[event] == nullptr)
         break;
 
       node = node->children[event];
@@ -186,7 +185,7 @@ void ContextModel<b>::addOrIncrement(const std::vector<unsigned int> &seq,
 
   for (size_t i = i_begin; i < i_end; i++) {
     unsigned int event = seq[i];
-    if (node->children[event] == NULL) {
+    if (node->children[event] == nullptr) {
       node->children[event] = new TrieNode<b>();
       node->children[event]->parent = node;
       node->child_mask.set(event);
@@ -237,16 +236,16 @@ void TrieNode<b>::debug_summary() {
 
 template<int b>
 TrieNode<b>::TrieNode() : 
-  parent(NULL), count(0) {
+  parent(nullptr), count(0) {
   for (unsigned int i = 0; i < b; i++) {
-    children[i] = NULL;
+    children[i] = nullptr;
   }
 }
 
 template<int b>
 TrieNode<b>::~TrieNode() {
   for (unsigned int i = 0; i < b; i++) 
-    if (children[i] != NULL)
+    if (children[i] != nullptr)
       delete children[i];
 }
 
@@ -255,7 +254,7 @@ void TrieNode<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
   assert(n > 0);
   if (n == 1) {
     for (unsigned int i = 0; i < b; i++) {
-      if (children[i] == NULL)
+      if (children[i] == nullptr)
         continue;
 
       std::list<unsigned int> ngram; 
@@ -268,7 +267,7 @@ void TrieNode<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
   } 
 
   for (unsigned int i = 0; i < b; i++) {
-    if (children[i] == NULL)
+    if (children[i] == nullptr)
       continue;
 
     std::list<std::pair<unsigned int, std::list<unsigned int>>> child_ngrams;
@@ -284,10 +283,10 @@ void TrieNode<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
 
 template<int b>
 void TrieNode<b>::gen_graphviz(std::string prefix, GraphWriter &gw) {
-  TrieNode *child = NULL;
+  TrieNode *child = nullptr;
   for (unsigned int i = 0; i < b; i++) {
     child = children[i];
-    if (child != NULL) {
+    if (child != nullptr) {
       std::string symbol = gw.decoder(i);
       std::string this_node = (prefix.length() == 0 ? "root" : prefix);
       std::string child_name = prefix + symbol;

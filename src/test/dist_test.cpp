@@ -132,19 +132,42 @@ TEST_CASE("SequenceModel distribtuion construction works correctly",
   }
 }
 
-TEST_CASE("Check entropy calculation", "[seqmodel]") {
+TEST_CASE("Check entropy calculations", "[seqmodel]") {
   std::array<double, 4> values{{0.5, 0.25, 0.125, 0.125}};
   EventDistribution<DummyEvent> dist(values);
-  REQUIRE( dist.entropy() == 1.75 );
 
   std::array<double, 4> flat_vs{{0.25, 0.25, 0.25, 0.25}};
   EventDistribution<DummyEvent> flat(flat_vs);
-  REQUIRE( flat.entropy() == 2.0 );
 
   std::array<double, 4> delta_vs{{1.0, 0.0, 0.0, 0.0}};
   EventDistribution<DummyEvent> delta(delta_vs);
-  REQUIRE( delta.entropy() == 0.0 );
+
+  SECTION("Shannon entropy") {
+    REQUIRE( dist.entropy() == 1.75 );
+    REQUIRE( flat.entropy() == 2.0 );
+    REQUIRE( delta.entropy() == 0.0 );
+  }
+
+  SECTION("Normalised entropy") {
+    REQUIRE( dist.normalised_entropy() == 0.875 );
+    REQUIRE( flat.normalised_entropy() == 1.0 );
+    REQUIRE( delta.normalised_entropy() == 0.0 );
+  }
 }
 
+TEST_CASE("Weighted entropy calculation works as expected", "[seqmodel]") {
+  std::array<double, 4> values{{0.5, 0.25, 0.125, 0.125}};
+  EventDistribution<DummyEvent> dist(values);
 
+  std::array<double, 4> flat_vs{{0.25, 0.25, 0.25, 0.25}};
+  EventDistribution<DummyEvent> flat(flat_vs);
+
+  WeightedEntropyCombination<DummyEvent> strategy(1.0);
+  EventDistribution<DummyEvent> combined(strategy, {dist, flat});
+
+  std::array<double, 4> expected{{23.0/60.0, 15.0/60.0, 11.0/60.0, 11.0/60.0}};
+  for (auto e : EventEnumerator<DummyEvent>()) {
+    REQUIRE( combined.probability_for(e) == Approx(expected[e.encode()]) );
+  }
+}
 

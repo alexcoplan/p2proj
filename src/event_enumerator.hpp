@@ -1,6 +1,3 @@
-#include <iostream>
-#include "event.hpp"
-
 template<class T>
 class EventEnumerator {
   public:
@@ -38,20 +35,10 @@ class EventEnumerator {
 
   iterator begin() const { return begin_it; }
   iterator end() const { return end_it; }
-  EventEnumerator() : begin_it(0), end_it(T::cardinality) {
-    static_assert(std::is_base_of<SequenceEvent, T>::value, "EventEnumerator\
- can only be specialized on SequenceEvents");
-    static_assert(T::cardinality > 0, "Event type must have strictly positive\
-   cardinality!");
-  }
+  EventEnumerator() : begin_it(0), end_it(T::cardinality) {}
 
   private:
     iterator begin_it;
     iterator end_it;
 };
 
-int main(void) {
-  for (auto x : EventEnumerator<DummyEvent>()) {
-    std::cout << x.raw_value() << std::endl;
-  }
-}

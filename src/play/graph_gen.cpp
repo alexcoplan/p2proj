@@ -1,7 +1,5 @@
 #include "context_model.hpp"
 
-// TODO: abstract out encoding/decoding
-
 unsigned int encode(const char c) {
   switch(c) {
     case 'G' :
