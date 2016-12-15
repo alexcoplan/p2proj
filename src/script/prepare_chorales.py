@@ -4,8 +4,8 @@ import json
 # mask out which elements of each type are actually used
 pitch_mask = [False] * 127
 duration_mask = [False] * 64
-sharps_mask = [False] * 14
-# TODO: finish this
+sharps_mask = [False] * 15
+timesig_mask = [False] * 32
 
 # quantize to semiquavers
 def ql_quantize(ql):
@@ -38,12 +38,14 @@ for i in bcl.byRiemenschneider:
 
   anacrusis_ql = first_bar_ql - anac_bar_ql # size of anacrusis
   time_sig_q = ql_quantize(first_bar_ql) # use first bar to determine time signature
+  timesig_mask[time_sig_q - 1] = True
 
 # get time/key signature information
   ts = c.recurse().getElementsByClass('TimeSignature')[0]
   ks = c.recurse().getElementsByClass('KeySignature')[0]
   time_sig_str = ts.ratioString
 
+  sharps_mask[ks.sharps + 7] = True
   key_sig_sharps = ks.sharps
   key_sig_major = True
   if isinstance(ks, key.Key):
@@ -55,10 +57,13 @@ for i in bcl.byRiemenschneider:
   c_notes = []
 
   for n in c.parts[0].flat.notes:
+    duration_q = ql_quantize(n.duration.quarterLength)
+    pitch_mask[n.pitch.midi - 1]  = True
+    duration_mask[duration_q - 1] = True
     c_notes.append([
       n.pitch.midi, 
       ql_quantize(n.offset + anacrusis_ql), 
-      ql_quantize(n.duration.quarterLength)
+      duration_q
     ])
 
   obj = {
@@ -72,12 +77,59 @@ for i in bcl.byRiemenschneider:
 
   json_objects.append(obj)
 
-print("Done processing chorales. Writing JSON...")
+print("Done processing chorales.\n")
+
+# work out possible values of each type based on masks
+pitch_domain = []
+duration_domain = []
+sharps_domain = []
+time_sig_domain = []
+
+for idx,val in enumerate(pitch_mask):
+  if val:
+    pitch_domain.append(idx + 1)
+
+print("Pitches used: ", end="")
+print(pitch_domain)
+
+for idx,val in enumerate(duration_mask):
+  if val:
+    duration_domain.append(idx + 1)
+
+print("Durations used: ", end="")
+print(duration_domain)
+
+for idx,val in enumerate(sharps_mask):
+  if val:
+    sharps_domain.append(idx - 7)
+
+print("Sharps used: ", end="")
+print(sharps_domain)
+
+for idx,val in enumerate(timesig_mask):
+  if val:
+    time_sig_domain.append(idx + 1)
+
+print("Time signatures used: ", end="")
+print(time_sig_domain)
+
+print("Compilation complete, writing JSON...")
+
+outer_object = {
+    "metadata" : {
+      "pitch_domain" : pitch_domain,
+      "duration_domain" : duration_domain,
+      "key_sig_sharps_domain" : sharps_domain,
+      "time_sig_domain" : time_sig_domain
+    },
+    "corpus" : json_objects
+}
 
 f = open('chorale_dataset.json', 'w')
-for chunk in json.JSONEncoder().iterencode(json_objects):
+for chunk in json.JSONEncoder().iterencode(outer_object):
   f.write(chunk)
 
 f.close()
 
-print("Corpus compiled!")
+print("Done generating corpus!")
+
