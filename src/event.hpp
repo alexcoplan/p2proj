@@ -2,10 +2,11 @@
 #define AJC_HGUARD_EVENT
 
 #include <vector>
+#include <cassert>
 
 class SequenceEvent {
 public:
-  constexpr static int cardinality = 0;
+  constexpr static unsigned int cardinality = 0;
   virtual unsigned int encode() const = 0;
 };
 

@@ -1,7 +1,7 @@
 flags = '-std=c++11 -Wall -pedantic -g -fcolor-diagnostics -DDEBUG'
-env = Environment(CXX='clang++', CXXFLAGS=flags, CPPPATH = ['.'])
+env = Environment(CXX='clang++', CXXFLAGS=flags, CPPPATH = ['.','include'])
 
-base_files = ["event.cpp"]
+base_files = ["event.cpp", "chorale.cpp"]
 
 env.Program(target = 'test/ctx_test.out', source = base_files +
 ["test/ctx_test.cpp", "test/dist_test.cpp"])

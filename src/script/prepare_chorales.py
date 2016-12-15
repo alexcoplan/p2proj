@@ -1,5 +1,52 @@
+# this script reqiures:
+# - Python 3
+# - Latest music21 (in particular, 8b5d422 where I fix a bug in BWV 348)
+# and it should be run from the main src directory
+
 from music21 import *
 import json
+
+################################################################################
+# Custom JSON encoder
+#
+# Taken from here: http://stackoverflow.com/a/25935321/840973
+#
+# This is to pretty-print the output, but avoid pretty-printing the inner data
+# which we aren't particularly interested in when viewing the corpus.
+################################################################################
+
+import uuid
+
+class NoIndent(object):
+  def __init__(self, value):
+    self.value = value
+
+
+class NoIndentEncoder(json.JSONEncoder):
+  def __init__(self, *args, **kwargs):
+    super(NoIndentEncoder, self).__init__(*args, **kwargs)
+    self.kwargs = dict(kwargs)
+    del self.kwargs['indent']
+    self._replacement_map = {}
+
+  def default(self, o):
+    if isinstance(o, NoIndent):
+      key = uuid.uuid4().hex
+      self._replacement_map[key] = json.dumps(o.value, **self.kwargs)
+      return "@@%s@@" % (key,)
+    else:
+      return super(NoIndentEncoder, self).default(o)
+
+  def encode(self, o):
+    result = super(NoIndentEncoder, self).encode(o)
+    for k, v in self._replacement_map.items():
+      result = result.replace('"@@%s@@"' % (k,), v)
+    return result
+
+
+################################################################################
+# Begin main script
+################################################################################
 
 # mask out which elements of each type are actually used
 pitch_mask = [False] * 127
@@ -20,7 +67,7 @@ print("Compiling corpus...")
 # get bach chorales from the music21 core corpus, categorised according to
 # Riemenschneider
 bcl = corpus.chorales.ChoraleListRKBWV()
-num_chorales = len(bcl.byRiemenschneider)
+num_chorales = max(bcl.byRiemenschneider.keys(), key=int)
 
 for i in bcl.byRiemenschneider:
   info = bcl.byRiemenschneider[i]
@@ -72,7 +119,7 @@ for i in bcl.byRiemenschneider:
       "time_sig_semis" : time_sig_q,
       "key_sig_sharps" : key_sig_sharps,
       "key_sig_major" : key_sig_major,
-      "notes" : c_notes
+      "notes" : NoIndent(c_notes)
   } 
 
   json_objects.append(obj)
@@ -117,19 +164,16 @@ print("Compilation complete, writing JSON...")
 
 outer_object = {
     "metadata" : {
-      "pitch_domain" : pitch_domain,
-      "duration_domain" : duration_domain,
-      "key_sig_sharps_domain" : sharps_domain,
-      "time_sig_domain" : time_sig_domain
+      "pitch_domain" : NoIndent(pitch_domain),
+      "duration_domain" : NoIndent(duration_domain),
+      "key_sig_sharps_domain" : NoIndent(sharps_domain),
+      "time_sig_domain" : NoIndent(time_sig_domain)
     },
     "corpus" : json_objects
 }
 
-f = open('chorale_dataset.json', 'w')
-for chunk in json.JSONEncoder().iterencode(outer_object):
-  f.write(chunk)
-
-f.close()
+with open('corpus/chorale_dataset.json', 'w') as outfile:
+  outfile.write(json.dumps(outer_object, indent=2, cls=NoIndentEncoder))
 
 print("Done generating corpus!")
 

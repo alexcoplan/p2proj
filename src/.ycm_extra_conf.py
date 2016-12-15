@@ -9,7 +9,8 @@ flags = [
 '-Wextra',
 '-Werror',
 '-std=c++11',
-'-I.'
+'-I.',
+'-Iinclude'
 ]
 
 def FlagsForFile(filename):
