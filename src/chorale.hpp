@@ -1,5 +1,10 @@
+#ifndef AJC_HGUARD_CHORALE
+#define AJC_HGUARD_CHORALE
+
 #include "event.hpp"
 #include <cassert>
+#include <string>
+#include <array>
 
 /* N.B. we define these little wrapper types such as KeySig and MidiPitch to
  * overload the constructors of the Chorale event types */
@@ -20,13 +25,23 @@ struct QuantizedDuration {
 
 class CodedEvent : public SequenceEvent {
 protected:
-  unsigned int code;
+  const unsigned int code;
+public:
+  unsigned int encode() const override { return code; }
+  std::string string_render() const override {
+    return std::to_string(code);
+  }
+  CodedEvent(unsigned int c) : code(c) {}
 };
 
 /** Empirically (c.f. script/prepare_chorales.py) the domain for the pitch of
  * chorales in MIDI notation is the integers in [60,81]. */
 class ChoralePitch : public CodedEvent {
+public:
+  constexpr static unsigned int cardinality = 22;
+
 private:
+  const static std::array<const std::string, cardinality> pitch_strings;
   constexpr static unsigned int lowest_midi_pitch = 60;
   constexpr static unsigned int map_in(unsigned int midi_pitch) {
     return midi_pitch - lowest_midi_pitch;
@@ -36,10 +51,11 @@ private:
   }
 
 public:
-  constexpr static unsigned int cardinality = 22;
-
   unsigned int encode() const override { return code; } 
   unsigned int raw_value() const { return map_out(code); } 
+  std::string string_render() const override {
+    return pitch_strings.at(code);
+  }
 
   // need the "code" constructor for enumeration etc. to work 
   ChoralePitch(unsigned int code);
@@ -55,10 +71,10 @@ private:
   static unsigned int map_in(unsigned int duration);
   static unsigned int map_out(unsigned int some_code);
 
+public:
   unsigned int encode() const override { return code; } 
   unsigned int raw_value() const { return map_out(code); } 
 
-public:
   ChoraleDuration(unsigned int code);
   ChoraleDuration(const QuantizedDuration &qd);
 };
@@ -106,6 +122,7 @@ public:
  * have as members all the different types that make up a chorale event (pitch,
  * duration, offset, etc.) */
 class ChoraleEvent {
+public:
   const ChoralePitch pitch;
   const ChoraleDuration duration;
   const ChoraleKeySig key_sig;
@@ -119,3 +136,5 @@ class ChoraleEvent {
                const unsigned int pos) :
     pitch(mp), duration(dur), key_sig(ks), time_sig(bar_length), offset(pos) {}
 };
+
+#endif

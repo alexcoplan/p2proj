@@ -8,18 +8,21 @@ class SequenceEvent {
 public:
   constexpr static unsigned int cardinality = 0;
   virtual unsigned int encode() const = 0;
+  virtual std::string string_render() const = 0;
 };
 
 // dummy events in set {G,A,B,D}
 class DummyEvent : public SequenceEvent {
 private:
-  unsigned int coded;
-  char raw_char;
+  const unsigned int coded;
+  const char raw_char;
 
 public:
   constexpr static int cardinality = 4;
-  static const std::vector<char> shared_encoding();
+  static const std::array<char, cardinality> shared_encoding;
+  static unsigned int code_for(char c);
   unsigned int encode() const override;
+  std::string string_render() const override;
   char raw_value();
   DummyEvent(unsigned int code);
   DummyEvent(char c);

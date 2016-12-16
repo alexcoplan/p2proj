@@ -155,13 +155,18 @@ template<class T> class SequenceModel {
 private:
   ContextModel<T::cardinality> model; // underlying context model
 
-  std::vector<unsigned int> encode_sequence(const std::vector<T> &seq);
+  std::vector<unsigned int> encode_sequence(const std::vector<T> &seq) const;
 
 public:
   SequenceModel(unsigned int history);
   void learn_sequence(const std::vector<T> &seq);
-  double probability_of(const std::vector<T> &seq);
-  EventDistribution<T> gen_successor_dist(const std::vector<T> &ctx);
+  double probability_of(const std::vector<T> &seq) const;
+  EventDistribution<T> gen_successor_dist(const std::vector<T> &ctx) const;
+  void write_graphviz(std::string filename) const;
+
+  // we pass the location of this function to the underlying context model in
+  // order to generate correctly-labelled graphviz output
+  static std::string string_decoder (unsigned int);
 };
 
 /**************************************************
@@ -184,12 +189,12 @@ void SequenceModel<T>::learn_sequence(const std::vector<T> &seq) {
 }
 
 template<class T>
-double SequenceModel<T>::probability_of(const std::vector<T> &seq) {
+double SequenceModel<T>::probability_of(const std::vector<T> &seq) const {
   return model.probability_of(encode_sequence(seq));
 }
 
 template<class T> EventDistribution<T> 
-SequenceModel<T>::gen_successor_dist(const std::vector<T> &context) {
+SequenceModel<T>::gen_successor_dist(const std::vector<T> &context) const {
   std::vector<T> tmp_ctx(context);
   std::array<double, T::cardinality> values;
 
@@ -202,6 +207,16 @@ SequenceModel<T>::gen_successor_dist(const std::vector<T> &context) {
   return EventDistribution<T>(values);
 }
 
+template<class T>
+std::string SequenceModel<T>::string_decoder(unsigned int code) {
+  return T(code).string_render();
+}
+
+template<class T>
+void SequenceModel<T>::write_graphviz(std::string filename) const {
+  model.write_graphviz(filename, &SequenceModel<T>::string_decoder);
+}
+
 /**************************************************
  * SequenceModel: private methods
  **************************************************/
@@ -209,7 +224,7 @@ SequenceModel<T>::gen_successor_dist(const std::vector<T> &context) {
 // Although this might look inefficient since we are returning a "big" object (a
 // vector of Ts), C++11's move semantics should have our back here.
 template<class T> std::vector<unsigned int> 
-SequenceModel<T>::encode_sequence(const std::vector<T> &seq) {
+SequenceModel<T>::encode_sequence(const std::vector<T> &seq) const {
   std::vector<unsigned int> result(seq.size());
   std::transform(seq.begin(), seq.end(), result.begin(),
       [](const T& event) { return event.encode(); });

@@ -31,8 +31,8 @@ struct TrieNode {
   ~TrieNode();
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   void write_graphviz(const std::string &fname, 
-      std::string (*decoder)(unsigned int));
-  void gen_graphviz(std::string prefix, GraphWriter &gw);
+      std::string (*decoder)(unsigned int)) const;
+  void gen_graphviz(std::string prefix, GraphWriter &gw) const;
   void debug_summary();
 };
 
@@ -42,19 +42,24 @@ class ContextModel {
   unsigned int history;
   void addOrIncrement(const std::vector<unsigned int> &seq, 
                       const size_t i_begin, const size_t i_end);
-  TrieNode<b> *match_context(const std::vector<unsigned int> &seq, 
+  const TrieNode<b> *match_context(const std::vector<unsigned int> &seq, 
+                                   const unsigned int i_start,
+                                         unsigned int &i_matched) const;
+  TrieNode<b> *match_context(const std::vector<unsigned int> &seq,
                              const unsigned int i_start,
                                    unsigned int &i_matched);
+
   double ppm_a(const std::vector<unsigned int> &seq,
-               const unsigned int i_start, const std::bitset<b> &dead);
+               const unsigned int i_start, const std::bitset<b> &dead) const;
 
 public:
   void learn_sequence(const std::vector<unsigned int> &seq);
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
+  unsigned int count_of(const std::vector<unsigned int> &seq) const;
   unsigned int count_of(const std::vector<unsigned int> &seq);
-  double probability_of(const std::vector<unsigned int> &seq);
+  double probability_of(const std::vector<unsigned int> &seq) const;
   void write_graphviz(const std::string &fname, 
-      std::string (*decoder)(unsigned int));
+      std::string (*decoder)(unsigned int)) const;
   void debug_summary();
 
   ContextModel(unsigned int history);
@@ -74,13 +79,14 @@ void ContextModel<b>::debug_summary() {
 
 template<int b>
 void ContextModel<b>::write_graphviz(const std::string &fname,
-    std::string (*decoder)(unsigned int)) {
+    std::string (*decoder)(unsigned int)) const {
   trie_root.write_graphviz(fname, decoder);
 }
 
 template<int b>
-unsigned int ContextModel<b>::count_of(const std::vector<unsigned int> &seq) {
-  TrieNode<b> *node = &trie_root;
+unsigned int 
+ContextModel<b>::count_of(const std::vector<unsigned int> &seq) const {
+  const TrieNode<b> *node = &trie_root;
   for (auto event : seq) {
     if (node->children[event] == nullptr)
       return 0;
@@ -90,9 +96,14 @@ unsigned int ContextModel<b>::count_of(const std::vector<unsigned int> &seq) {
   return node->count;
 }
 
+template<int b>
+unsigned int ContextModel<b>::count_of(const std::vector<unsigned int> &seq) {
+  return const_cast<const ContextModel<b> *>(this)->count_of(seq);
+}
+
 /* Public wrapper to calculate probability of n-gram */
 template<int b> double
-ContextModel<b>::probability_of(const std::vector<unsigned int> &seq) {
+ContextModel<b>::probability_of(const std::vector<unsigned int> &seq) const {
   return ppm_a(seq, 0, std::bitset<b>());
 }
 
@@ -107,11 +118,11 @@ ContextModel<b>::probability_of(const std::vector<unsigned int> &seq) {
  *  e_i^(n-1) is successfully matched
  *
  * @return pointer to the node corresponding to the matched context */
-template<int b> TrieNode<b> *
+template<int b> const TrieNode<b> *
 ContextModel<b>::match_context(const std::vector<unsigned int> &seq,
                                const unsigned int i_start,
-                                     unsigned int &i_matched) {
-  TrieNode<b> *node = &trie_root;
+                                     unsigned int &i_matched) const {
+  const TrieNode<b> *node = &trie_root;
 
   for (unsigned int i = i_start; i < seq.size() - 1; i++) {
     node = &trie_root;
@@ -138,11 +149,19 @@ ContextModel<b>::match_context(const std::vector<unsigned int> &seq,
   return node;
 }
 
+template<int b> TrieNode<b> *
+ContextModel<b>::match_context(const std::vector<unsigned int> &seq,
+                               const unsigned int i_start,
+                                     unsigned int &i_matched) {
+  return const_cast<const TrieNode<b> *>(this)
+          ->match_context(seq, i_start, i_matched);
+}
+
 /* Calculate probability of sequence using PPM method A */
 template<int b> double 
 ContextModel<b>::ppm_a(const std::vector<unsigned int> &seq, 
                        const unsigned int ctx_start,
-                       const std::bitset<b> &dead) {
+                       const std::bitset<b> &dead) const {
   // base case: use uniform distribution
   if (ctx_start == seq.size()) {
     assert(!dead.all());
@@ -150,7 +169,7 @@ ContextModel<b>::ppm_a(const std::vector<unsigned int> &seq,
   }
 
   unsigned int i_matched;
-  TrieNode<b> *ctx_node = match_context(seq, ctx_start, i_matched);
+  const TrieNode<b> *ctx_node = match_context(seq, ctx_start, i_matched);
   // we matched the context e_{i_matched}^{n-1}
 
   int sum = 0;
@@ -282,7 +301,7 @@ void TrieNode<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
 /* GraphViz generation for visualising Tries */
 
 template<int b>
-void TrieNode<b>::gen_graphviz(std::string prefix, GraphWriter &gw) {
+void TrieNode<b>::gen_graphviz(std::string prefix, GraphWriter &gw) const {
   TrieNode *child = nullptr;
   for (unsigned int i = 0; i < b; i++) {
     child = children[i];
@@ -302,7 +321,7 @@ void TrieNode<b>::gen_graphviz(std::string prefix, GraphWriter &gw) {
 
 template<int b>
 void TrieNode<b>::write_graphviz(const std::string &fname, 
-    std::string (*decode)(unsigned int)) {
+    std::string (*decode)(unsigned int)) const {
   GraphWriter gw(decode);
 
   gw.node_decls += "root [label=\"():" + std::to_string(count) + "\"];\n";

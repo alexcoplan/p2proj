@@ -1,31 +1,31 @@
 #include <cassert>
 #include <vector>
 #include "event.hpp"
+#include <array>
+#include <cassert>
+#include <string>
 
-DummyEvent::DummyEvent(unsigned int code) {
-  // decode in constructor 
-  coded = code;
-  raw_char = shared_encoding()[code];
-}
+const std::array<char, DummyEvent::cardinality> 
+DummyEvent::shared_encoding = {{'G','A','B','D'}};
 
-DummyEvent::DummyEvent(char c) : raw_char(c) {
-  auto encoding = shared_encoding();
-  for (unsigned int i = 0; i < encoding.size(); i++) {
-    if (encoding[i] == c) {
-      coded = i;
-      return;
-    }
-  }
+unsigned int DummyEvent::code_for(char c) {
+  for (unsigned int i = 0; i < cardinality; i++)
+    if (shared_encoding[i] == c)
+      return i;
 
   assert(! "Bad character for DummyEvent");
 }
 
-const std::vector<char> DummyEvent::shared_encoding() {
-  return std::vector<char>{'G','A','B','D'};
-}
+DummyEvent::DummyEvent(char c) : coded(code_for(c)), raw_char(c) {}
+DummyEvent::DummyEvent(unsigned int code) : 
+  coded(code), raw_char(shared_encoding[code]) {}
 
 unsigned int DummyEvent::encode() const {
   return coded;
 }
 
 char DummyEvent::raw_value() { return raw_char; }
+
+std::string DummyEvent::string_render() const {
+  return std::to_string(shared_encoding[coded]);
+}

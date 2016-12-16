@@ -6,16 +6,22 @@
  * ChoralePitch implementation
  ***************************************************/
 
-ChoralePitch::ChoralePitch(unsigned int c) {
+// n.b. this is obviously not proper spelling of the scale but currently this is
+// only for debugging purposes, so let's keep things simple
+const std::array<const std::string, ChoralePitch::cardinality>
+ChoralePitch::pitch_strings = {{
+  "C4", "C#4", "D4", "E-4", "E4", "F4", "F#4", "G4", "G#4", "A4", "B-4", "B4",
+  "C5", "C#5", "D5", "E-5", "E5", "F5", "F#5", "G5", "G#5", "A5" 
+}};
+
+ChoralePitch::ChoralePitch(unsigned int c) : CodedEvent(c) {
   assert(c < cardinality);
-  code = c;
 }
 
-ChoralePitch::ChoralePitch(const MidiPitch &mp) {
+ChoralePitch::ChoralePitch(const MidiPitch &mp) : CodedEvent(map_in(mp.pitch)) {
   auto pitch = mp.pitch;
   assert(pitch >= lowest_midi_pitch);
   assert(pitch < lowest_midi_pitch + cardinality);
-  code = map_in(pitch);
 }
 
 /***************************************************
@@ -37,30 +43,26 @@ unsigned int ChoraleDuration::map_out(unsigned int code) {
   return duration_domain[code];
 }
 
-ChoraleDuration::ChoraleDuration(unsigned int c) {
+ChoraleDuration::ChoraleDuration(unsigned int c) : CodedEvent(c) {
   assert(c < cardinality);
-  code = c;
 }
 
-ChoraleDuration::ChoraleDuration(const QuantizedDuration &qd) {
-  auto dur = qd.duration;
-  code = map_in(dur);
-}
+ChoraleDuration::ChoraleDuration(const QuantizedDuration &qd) : 
+  CodedEvent(map_in(qd.duration)) {}
 
 /***************************************************
  * ChoraleKeySig implementation
  ***************************************************/
 
-ChoraleKeySig::ChoraleKeySig(unsigned int c) {
+ChoraleKeySig::ChoraleKeySig(unsigned int c) : CodedEvent(c) {
   assert(c < cardinality);
-  code = c;
 }
 
-ChoraleKeySig::ChoraleKeySig(const KeySig &ks) {
+ChoraleKeySig::ChoraleKeySig(const KeySig &ks) :
+  CodedEvent(map_in(ks.num_sharps)) {
   auto sharps = ks.num_sharps;
   assert(sharps >= min_sharps);
   assert(sharps < min_sharps + cardinality);
-  code = map_in(sharps);
 }
 
 /***************************************************
@@ -87,13 +89,10 @@ unsigned int ChoraleTimeSig::map_out(unsigned int c) {
   return time_sig_domain[c];
 }
 
-ChoraleTimeSig::ChoraleTimeSig(unsigned int c) {
+ChoraleTimeSig::ChoraleTimeSig(unsigned int c) : CodedEvent(c) {
   assert(c < cardinality);
-  code = c;
 }
 
-ChoraleTimeSig::ChoraleTimeSig(const QuantizedDuration &qd) {
-  auto bar_len = qd.duration;
-  code = map_in(bar_len); // validation done in map_in
-}
+ChoraleTimeSig::ChoraleTimeSig(const QuantizedDuration &qd) :
+  CodedEvent(map_in(qd.duration)) {}
 
