@@ -2,6 +2,10 @@
 #include <array>
 #include <cassert>
 
+#define NAT(X,N) #X "$_{" #N "}$"
+#define SHARP(X,N) #X "\\sharp{}$_{" #N "}$"
+#define FLAT(X,N) "\\flatten{" #X "}_" #N
+
 /***************************************************
  * ChoralePitch implementation
  ***************************************************/
@@ -10,8 +14,10 @@
 // only for debugging purposes, so let's keep things simple
 const std::array<const std::string, ChoralePitch::cardinality>
 ChoralePitch::pitch_strings = {{
-  "C4", "C#4", "D4", "E-4", "E4", "F4", "F#4", "G4", "G#4", "A4", "B-4", "B4",
-  "C5", "C#5", "D5", "E-5", "E5", "F5", "F#5", "G5", "G#5", "A5" 
+  NAT(C,4), SHARP(C,4), NAT(D,4), FLAT(E,4), NAT(E,4), NAT(F,4), SHARP(F,4),
+    NAT(G,4), SHARP(G,4), NAT(A,4), FLAT(B,4), NAT(B,4), NAT(C,5), SHARP(C,5),
+    NAT(D,5), FLAT(E,5), NAT(E,5), NAT(F,5), SHARP(F,5), NAT(G,5), SHARP(G,5),
+    NAT(A,5)
 }};
 
 ChoralePitch::ChoralePitch(unsigned int c) : CodedEvent(c) {
@@ -30,6 +36,20 @@ ChoralePitch::ChoralePitch(const MidiPitch &mp) : CodedEvent(map_in(mp.pitch)) {
 
 const std::array<unsigned int, ChoraleDuration::cardinality> 
 ChoraleDuration::duration_domain = {{1,2,3,4,6,8,12,16,24,64}};
+
+const std::array<const std::string, ChoraleDuration::cardinality>
+ChoraleDuration::pretty_durations = {{
+  u8"\U0001D161",
+  u8"\U0001D160",
+  u8"\U0001D160.",
+  u8"\U0001D15F",
+  u8"\U0001D15F.",
+  u8"\U0001D15E",
+  u8"\U0001D15E.",
+  u8"\U0001D15D",
+  u8"\U0001D15D.",
+  u8"\U0001D15C-\U0001D15C"
+}};
 
 unsigned int ChoraleDuration::map_in(unsigned int quantized_duration) {
   for (unsigned int i = 0; i < cardinality; i++) 

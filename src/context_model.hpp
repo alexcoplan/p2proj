@@ -32,7 +32,8 @@ struct TrieNode {
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   void write_graphviz(const std::string &fname, 
       std::string (*decoder)(unsigned int)) const;
-  void gen_graphviz(std::string prefix, GraphWriter &gw) const;
+  void gen_graphviz(std::string id_prefix, 
+      std::string lab_prefix, GraphWriter &gw) const;
   void debug_summary();
 };
 
@@ -301,20 +302,26 @@ void TrieNode<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
 /* GraphViz generation for visualising Tries */
 
 template<int b>
-void TrieNode<b>::gen_graphviz(std::string prefix, GraphWriter &gw) const {
+void TrieNode<b>::gen_graphviz(
+    std::string id_prefix, std::string lab_prefix, GraphWriter &gw) const {
   TrieNode *child = nullptr;
   for (unsigned int i = 0; i < b; i++) {
     child = children[i];
     if (child != nullptr) {
-      std::string symbol = gw.decoder(i);
-      std::string this_node = (prefix.length() == 0 ? "root" : prefix);
-      std::string child_name = prefix + symbol;
-      gw.node_decls += child_name + " [label=\"" + child_name + ":" +
-        std::to_string(child->count) + "\"];\n";
-      gw.edge_list += this_node + " -> " + child_name + " [label=\"" + symbol
-        + "\"];\n";
+      // construct human-readable label
+      std::string pretty_str = gw.decoder(i);
+      std::string child_label = lab_prefix + pretty_str;
 
-      child->gen_graphviz(child_name, gw);
+      std::string code_str = std::to_string(i); 
+      std::string this_id = (id_prefix.length() == 0 ? "root" : id_prefix);
+      std::string child_id = (id_prefix.length() == 0) ?
+          "n" + code_str : id_prefix + "_" + code_str;
+      gw.node_decls += child_id + " [label=\"" + child_label + ":" +
+        std::to_string(child->count) + "\", fontname=\"FreeSans\"];\n";
+      gw.edge_list += this_id + " -> " + child_id + " [label=\"" + pretty_str
+        + "\", fontname=\"FreeSans\"];\n";
+
+      child->gen_graphviz(child_id, child_label, gw);
     }
   }
 }
@@ -325,14 +332,34 @@ void TrieNode<b>::write_graphviz(const std::string &fname,
   GraphWriter gw(decode);
 
   gw.node_decls += "root [label=\"():" + std::to_string(count) + "\"];\n";
-  gen_graphviz("", gw);
+  gen_graphviz("", "", gw);
 
-  std::ofstream gvfile;
-  gvfile.open(fname);
-  gvfile << "digraph G {" << std::endl;
-  gvfile << gw.node_decls << std::endl << gw.edge_list;
-  gvfile << "}" << std::endl;
-  gvfile.close();
+  std::ofstream texfile;
+  texfile.open(fname);
+  texfile << "\\documentclass[11pt]{article}" << std::endl;
+  texfile << "\\usepackage[active,tightpage]{preview}" << std::endl;
+  texfile << "\\usepackage{fontspec}" << std::endl;
+  texfile << "\\usepackage{lilyglyphs}" << std::endl;
+  texfile << "\\newcommand{\\flatten}[1]{#1\\hspace{0.08em}\\flat{}}" 
+    << std::endl;
+  texfile << "\\setlength\\PreviewBorder{10pt}" << std::endl;
+  texfile << "\\usepackage{tikz}" << std::endl;
+  texfile << "\\usetikzlibrary{shapes,arrows}" << std::endl;
+  texfile << "\\usepackage{dot2texi}" << std::endl;
+  texfile << "\\begin{document}" << std::endl;
+  texfile << "\\begin{preview}" << std::endl;
+  texfile << "\\begin{tikzpicture}[>=latex', scale=0.4]" << std::endl;
+  texfile << "\\tikzstyle{n} = [shape=rectangle]" << std::endl;
+  texfile << "\\begin{dot2tex}[dot,tikz,codeonly,options=-traw]" << std::endl;
+  texfile << "digraph G {" << std::endl;
+  texfile << "node [style=\"n\"];" << std::endl;
+  texfile << gw.node_decls << std::endl << gw.edge_list;
+  texfile << "}" << std::endl;
+  texfile << "\\end{dot2tex}" << std::endl;
+  texfile << "\\end{tikzpicture}" << std::endl;
+  texfile << "\\end{preview}" << std::endl;
+  texfile << "\\end{document}" << std::endl;
+  texfile.close();
 }
 
 #endif // header guard

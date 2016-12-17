@@ -50,12 +50,21 @@ int main(void) {
     events.push_back(e);
   }
 
-  BasicViewpoint<ChoralePitch> pitch_vp(3);
+  // let's try out some basic viewpoints
 
+  BasicViewpoint<ChoralePitch> pitch_vp(3);
   std::vector<ChoralePitch> pitches;
   std::transform(events.begin(), events.end(), std::back_inserter(pitches),
       [](ChoraleEvent e) { return e.pitch; }); 
 
   pitch_vp.learn(pitches);
-  pitch_vp.write_graphviz("out/pitch_vp.gv");
+  pitch_vp.write_graphviz("out/tex/pitch_vp.tex");
+
+  BasicViewpoint<ChoraleDuration> duration_vp(3);
+  std::vector<ChoraleDuration> durations;
+  std::transform(events.begin(), events.end(), std::back_inserter(durations),
+      [](ChoraleEvent e) { return e.duration; });
+
+  duration_vp.learn(durations);
+  duration_vp.write_graphviz("out/tex/duration_vp.tex");
 }

@@ -5,6 +5,7 @@
 #include <cassert>
 #include <string>
 #include <array>
+#include <map>
 
 /* N.B. we define these little wrapper types such as KeySig and MidiPitch to
  * overload the constructors of the Chorale event types */
@@ -68,12 +69,16 @@ public:
 
 private:
   const static std::array<unsigned int, cardinality> duration_domain;
+  const static std::array<const std::string, cardinality> pretty_durations;
   static unsigned int map_in(unsigned int duration);
   static unsigned int map_out(unsigned int some_code);
 
 public:
   unsigned int encode() const override { return code; } 
   unsigned int raw_value() const { return map_out(code); } 
+  std::string string_render() const override {
+    return pretty_durations.at(code);
+  }
 
   ChoraleDuration(unsigned int code);
   ChoraleDuration(const QuantizedDuration &qd);
