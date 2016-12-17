@@ -39,16 +39,16 @@ ChoraleDuration::duration_domain = {{1,2,3,4,6,8,12,16,24,64}};
 
 const std::array<const std::string, ChoraleDuration::cardinality>
 ChoraleDuration::pretty_durations = {{
-  u8"\U0001D161",
-  u8"\U0001D160",
-  u8"\U0001D160.",
-  u8"\U0001D15F",
-  u8"\U0001D15F.",
-  u8"\U0001D15E",
-  u8"\U0001D15E.",
-  u8"\U0001D15D",
-  u8"\U0001D15D.",
-  u8"\U0001D15C-\U0001D15C"
+  "\\semiquaver",
+  "\\quaver",
+  "\\quaverDotted",
+  "\\crotchet",
+  "\\crotchetDotted",
+  "\\minim",
+  "\\minimDotted",
+  "\\semibreve",
+  "\\semibreveDotted",
+  "$\\semibreve^4$"
 }};
 
 unsigned int ChoraleDuration::map_in(unsigned int quantized_duration) {

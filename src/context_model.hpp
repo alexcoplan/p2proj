@@ -30,7 +30,7 @@ struct TrieNode {
   TrieNode();
   ~TrieNode();
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
-  void write_graphviz(const std::string &fname, 
+  void write_latex(const std::string &fname, 
       std::string (*decoder)(unsigned int)) const;
   void gen_graphviz(std::string id_prefix, 
       std::string lab_prefix, GraphWriter &gw) const;
@@ -59,7 +59,7 @@ public:
   unsigned int count_of(const std::vector<unsigned int> &seq) const;
   unsigned int count_of(const std::vector<unsigned int> &seq);
   double probability_of(const std::vector<unsigned int> &seq) const;
-  void write_graphviz(const std::string &fname, 
+  void write_latex(const std::string &fname, 
       std::string (*decoder)(unsigned int)) const;
   void debug_summary();
 
@@ -79,9 +79,9 @@ void ContextModel<b>::debug_summary() {
 }
 
 template<int b>
-void ContextModel<b>::write_graphviz(const std::string &fname,
+void ContextModel<b>::write_latex(const std::string &fname,
     std::string (*decoder)(unsigned int)) const {
-  trie_root.write_graphviz(fname, decoder);
+  trie_root.write_latex(fname, decoder);
 }
 
 template<int b>
@@ -317,9 +317,9 @@ void TrieNode<b>::gen_graphviz(
       std::string child_id = (id_prefix.length() == 0) ?
           "n" + code_str : id_prefix + "_" + code_str;
       gw.node_decls += child_id + " [label=\"" + child_label + ":" +
-        std::to_string(child->count) + "\", fontname=\"FreeSans\"];\n";
+        std::to_string(child->count) + "\"];\n";
       gw.edge_list += this_id + " -> " + child_id + " [label=\"" + pretty_str
-        + "\", fontname=\"FreeSans\"];\n";
+        + "\"];\n";
 
       child->gen_graphviz(child_id, child_label, gw);
     }
@@ -327,7 +327,7 @@ void TrieNode<b>::gen_graphviz(
 }
 
 template<int b>
-void TrieNode<b>::write_graphviz(const std::string &fname, 
+void TrieNode<b>::write_latex(const std::string &fname, 
     std::string (*decode)(unsigned int)) const {
   GraphWriter gw(decode);
 
@@ -348,11 +348,15 @@ void TrieNode<b>::write_graphviz(const std::string &fname,
   texfile << "\\usepackage{dot2texi}" << std::endl;
   texfile << "\\begin{document}" << std::endl;
   texfile << "\\begin{preview}" << std::endl;
-  texfile << "\\begin{tikzpicture}[>=latex', scale=0.4]" << std::endl;
+  texfile << "\\begin{tikzpicture}[>=latex']" << std::endl;
   texfile << "\\tikzstyle{n} = [shape=rectangle]" << std::endl;
-  texfile << "\\begin{dot2tex}[dot,tikz,codeonly,options=-traw]" << std::endl;
+  texfile 
+    << "\\begin{dot2tex}[dot,tikz,codeonly,autosize,options="
+    << "-traw --tikzedgelabels]" 
+    << std::endl;
   texfile << "digraph G {" << std::endl;
   texfile << "node [style=\"n\"];" << std::endl;
+  texfile << "edge [lblstyle=\"auto\"]" << std::endl;
   texfile << gw.node_decls << std::endl << gw.edge_list;
   texfile << "}" << std::endl;
   texfile << "\\end{dot2tex}" << std::endl;

@@ -162,7 +162,7 @@ public:
   void learn_sequence(const std::vector<T> &seq);
   double probability_of(const std::vector<T> &seq) const;
   EventDistribution<T> gen_successor_dist(const std::vector<T> &ctx) const;
-  void write_graphviz(std::string filename) const;
+  void write_latex(std::string filename) const;
 
   // we pass the location of this function to the underlying context model in
   // order to generate correctly-labelled graphviz output
@@ -213,8 +213,8 @@ std::string SequenceModel<T>::string_decoder(unsigned int code) {
 }
 
 template<class T>
-void SequenceModel<T>::write_graphviz(std::string filename) const {
-  model.write_graphviz(filename, &SequenceModel<T>::string_decoder);
+void SequenceModel<T>::write_latex(std::string filename) const {
+  model.write_latex(filename, &SequenceModel<T>::string_decoder);
 }
 
 /**************************************************

@@ -38,5 +38,5 @@ int main(void)
 {
   ContextModel<4> model(3);
   model.learn_sequence( encode_string("GGDBAGGABA") );
-  model.write_graphviz("out/gout.gv", decode_to_str);
+  model.write_latex("out/gout.gv", decode_to_str);
 }

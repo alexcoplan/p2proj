@@ -24,8 +24,8 @@ public:
 
   Viewpoint(int history) : model(history) {}
 
-  void write_graphviz(std::string filename) const {
-    model.write_graphviz(filename);
+  void write_latex(std::string filename) const {
+    model.write_latex(filename);
   }
 };
 

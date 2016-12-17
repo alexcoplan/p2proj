@@ -58,7 +58,7 @@ int main(void) {
       [](ChoraleEvent e) { return e.pitch; }); 
 
   pitch_vp.learn(pitches);
-  pitch_vp.write_graphviz("out/tex/pitch_vp.tex");
+  pitch_vp.write_latex("out/tex/pitch_vp.tex");
 
   BasicViewpoint<ChoraleDuration> duration_vp(3);
   std::vector<ChoraleDuration> durations;
@@ -66,5 +66,5 @@ int main(void) {
       [](ChoraleEvent e) { return e.duration; });
 
   duration_vp.learn(durations);
-  duration_vp.write_graphviz("out/tex/duration_vp.tex");
+  duration_vp.write_latex("out/tex/duration_vp.tex");
 }
