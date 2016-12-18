@@ -2,10 +2,12 @@
 #define AJC_HGUARD_CHORALE
 
 #include "event.hpp"
+#include "viewpoint.hpp"
 #include <cassert>
 #include <string>
 #include <array>
 #include <map>
+#include <cmath>
 
 /* N.B. we define these little wrapper types such as KeySig and MidiPitch to
  * overload the constructors of the Chorale event types */
@@ -17,6 +19,13 @@ struct KeySig {
 struct MidiPitch {
   unsigned int pitch;
   MidiPitch(unsigned int p) : pitch(p) { assert(p < 127); }
+};
+
+struct MidiInterval {
+  int delta_pitch;
+  MidiInterval(int dp) : delta_pitch(dp) { 
+    assert(abs(dp) < 127);
+  }
 };
 
 struct QuantizedDuration {
@@ -32,8 +41,14 @@ public:
   std::string string_render() const override {
     return std::to_string(code);
   }
+  bool operator==(const CodedEvent &other) {
+    return this->code == other.code;
+  }
   CodedEvent(unsigned int c) : code(c) {}
 };
+
+// forward declare to use in ChoralePitch
+class ChoraleInterval;
 
 /** Empirically (c.f. script/prepare_chorales.py) the domain for the pitch of
  * chorales in MIDI notation is the integers in [60,81]. */
@@ -57,6 +72,9 @@ public:
   std::string string_render() const override {
     return pitch_strings.at(code);
   }
+
+  MidiInterval operator-(const ChoralePitch &rh_pitch) const;
+  ChoralePitch operator+(const ChoraleInterval &delta) const;
 
   // need the "code" constructor for enumeration etc. to work 
   ChoralePitch(unsigned int code);
@@ -142,4 +160,65 @@ public:
     pitch(mp), duration(dur), key_sig(ks), time_sig(bar_length), offset(pos) {}
 };
 
+/**********************************************************
+ * Derived types for the chorales
+ **********************************************************/
+
+class ChoraleInterval : public CodedEvent {
+public:
+  constexpr static unsigned int cardinality = 22;
+
+private:
+  // domain is {-12, -9, -8, ..., 8, 9, 12}
+  constexpr static unsigned int map_in(int delta_p) {
+    return (delta_p == -12) ? 0 :
+           (delta_p == 12) ? 21 :
+           delta_p + 10;
+  }
+
+  // inverse mapping
+  constexpr static int map_out(unsigned int some_code) {
+    return (some_code == 0) ? -12 :
+           (some_code == 21) ? 12 :
+           some_code - 10;
+  }
+
+public:
+  unsigned int encode() const override { return code; }
+  int raw_value() const { return map_out(code); }
+
+  ChoraleInterval(const MidiInterval &delta_pitch);
+  ChoraleInterval(const ChoralePitch &from, const ChoralePitch &to);
+  ChoraleInterval(unsigned int code);
+};
+
+
+/**********************************************************
+ * Chorale Viewpoints
+ **********************************************************/
+
+class IntervalViewpoint : public Viewpoint<ChoraleInterval, ChoralePitch> {
+private:
+  using ParentVP = Viewpoint<ChoraleInterval, ChoralePitch>;
+
+  std::unique_ptr<ChoraleInterval>
+    project(const std::vector<ChoralePitch> &pitches, unsigned int upto) 
+    const override;
+
+  std::vector<ChoraleInterval>
+    lift(const std::vector<ChoralePitch> &pitches) const override;
+
+public:
+  IntervalViewpoint(unsigned int h) : ParentVP(h) {}
+
+  bool can_predict(const std::vector<ChoralePitch> &pitches) const override {
+    return pitches.size() > 1;
+  }
+
+  EventDistribution<ChoralePitch>
+    predict(const std::vector<ChoralePitch> &pitches) const override;
+};
+
 #endif
+
+

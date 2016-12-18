@@ -1,4 +1,3 @@
-#include <cassert>
 #include <string>
 #include <iostream>
 #include <string>
@@ -7,7 +6,6 @@
 #include "catch.hpp"
 #include "event.hpp"
 #include "sequence_model.hpp"
-
 
 /******************************************************************************
  * Distributions and events

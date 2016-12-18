@@ -2,6 +2,7 @@
 #include <array>
 #include <cassert>
 
+// convenience macros for LaTeX trie generation
 #define NAT(X,N) #X "$_{" #N "}$"
 #define SHARP(X,N) #X "\\sharp{}$_{" #N "}$"
 #define FLAT(X,N) "\\flatten{" #X "}_" #N
@@ -28,6 +29,16 @@ ChoralePitch::ChoralePitch(const MidiPitch &mp) : CodedEvent(map_in(mp.pitch)) {
   auto pitch = mp.pitch;
   assert(pitch >= lowest_midi_pitch);
   assert(pitch < lowest_midi_pitch + cardinality);
+}
+
+MidiInterval ChoralePitch::operator-(const ChoralePitch &rhs) const {
+  auto midi_pitch_from = static_cast<int>(rhs.raw_value());
+  auto midi_pitch_to = static_cast<int>(this->raw_value());
+  return MidiInterval(midi_pitch_to - midi_pitch_from);
+}
+
+ChoralePitch ChoralePitch::operator+(const ChoraleInterval &delta) const {
+  return ChoralePitch(MidiPitch(this->raw_value() + delta.raw_value()));
 }
 
 /***************************************************
@@ -115,4 +126,76 @@ ChoraleTimeSig::ChoraleTimeSig(unsigned int c) : CodedEvent(c) {
 
 ChoraleTimeSig::ChoraleTimeSig(const QuantizedDuration &qd) :
   CodedEvent(map_in(qd.duration)) {}
+
+
+/********************************************************************
+ * Derived types below, starting with ChoraleInterval implementation
+ ********************************************************************/
+
+ChoraleInterval::ChoraleInterval(unsigned int c) :
+  CodedEvent(c)  {
+    assert(c < cardinality);
+}
+
+ChoraleInterval::ChoraleInterval(const MidiInterval &ival) :
+  CodedEvent(map_in(ival.delta_pitch)) {
+  assert(code < cardinality);
+  auto dp = ival.delta_pitch;
+  assert(dp != -11 && dp != -10 && dp != 11);
+}
+
+/********************************************************************
+ * Viewpoint implementations below
+ ********************************************************************/
+
+std::unique_ptr<ChoraleInterval>
+IntervalViewpoint::
+project(const std::vector<ChoralePitch> &pitches, unsigned int upto) const {
+  assert(upto <= pitches.size());
+
+  if (upto <= 1)
+    return std::unique_ptr<ChoraleInterval>();
+
+  auto from = pitches[upto - 2];
+  auto to = pitches[upto - 1];
+  return std::unique_ptr<ChoraleInterval>(new ChoraleInterval(to - from));
+}
+
+std::vector<ChoraleInterval>
+IntervalViewpoint::lift(const std::vector<ChoralePitch> &pitches) const {
+  if (pitches.size() <= 1)
+    return {};
+
+  std::vector<ChoraleInterval> result;
+  for (unsigned int i = 1; i < pitches.size(); i++) {
+    auto from = pitches[i-1];
+    auto to = pitches[i];
+    result.push_back(to - from);
+  }
+
+  return result;
+}
+
+// FIXME FIXME FIXME
+// this is currently a naive/broken implementation because it will try and
+// create pitch events that should not be created
+EventDistribution<ChoralePitch>
+IntervalViewpoint::predict(const std::vector<ChoralePitch> &pitch_ctx) const {
+  if (pitch_ctx.empty())
+    throw ViewpointPredictionException("Viewpoint seqint needs at least one\
+ pitch to be able to predict further pitches.");
+
+  auto interval_ctx = lift(pitch_ctx);
+  auto interval_dist = model.gen_successor_dist(interval_ctx);
+  auto last_pitch = pitch_ctx.back();
+
+  std::array<double, ChoralePitch::cardinality> new_values{{0.0}};
+  for (auto interval : EventEnumerator<ChoraleInterval>()) { 
+    auto candidate_pitch = last_pitch + interval;
+    new_values[candidate_pitch.encode()] = 
+      interval_dist.probability_for(interval);
+  }
+
+  return EventDistribution<ChoralePitch>(new_values);
+}
 

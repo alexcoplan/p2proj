@@ -4,6 +4,6 @@ env = Environment(CXX='clang++', CXXFLAGS=flags, CPPPATH = ['.','include'])
 base_files = ["event.cpp", "chorale.cpp"]
 
 env.Program(target = 'test/ctx_test.out', source = base_files +
-["test/ctx_test.cpp", "test/dist_test.cpp"])
+["test/ctx_test.cpp", "test/dist_test.cpp", "test/chorale_test.cpp"])
 env.Program(target = 'play/graph_gen.out', source = base_files + ["play/graph_gen.cpp"])
 env.Program(target = 'play/scratch.out', source = base_files + ["play/scratch.cpp"])

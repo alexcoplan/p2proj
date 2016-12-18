@@ -1,6 +1,7 @@
+#ifndef AJC_HGUARD_VIEWPOINT
+#define AJC_HGUARD_VIEWPOINT
+
 #include "sequence_model.hpp"
-#include "event.hpp"
-#include "chorale.hpp"
 
 /* T_viewpoint is the type internal to the viewpoint (such as interval).
  * T_surface is the basic musical type that T_viewpoint is derived from and thus
@@ -17,10 +18,14 @@ protected:
     lift(const std::vector<T_surface> &events) const; 
 
 public:
-  virtual void learn(const std::vector<T_surface> &events) = 0;
+  void learn(const std::vector<T_surface> &events) {
+    model.learn_sequence(lift(events));
+  }
 
   virtual EventDistribution<T_surface> 
     predict(const std::vector<T_surface> &context) const = 0;
+
+  virtual bool can_predict(const std::vector<T_surface> &ctx) const = 0;
 
   Viewpoint(int history) : model(history) {}
 
@@ -56,8 +61,11 @@ public:
   EventDistribution<T_basic> 
     predict(const std::vector<T_basic> &context) const override;
 
-
-  void learn(const std::vector<T_basic> &seq) override;
+  bool can_predict(const std::vector<T_basic> &) const override {
+    // basic viewpoints are essentially just wrapped-up context models, so they
+    // can always predict
+    return true; 
+  }
 
   BasicViewpoint(int history) : VPBase(history) {}
 };
@@ -85,7 +93,9 @@ BasicViewpoint<T>::predict(const std::vector<T> &context) const {
   return this->model.gen_successor_dist(context);
 }
 
-template<class T> 
-void BasicViewpoint<T>::learn(const std::vector<T> &seq) {
-  this->model.learn_sequence(seq);
-}
+struct ViewpointPredictionException : public std::runtime_error {
+  ViewpointPredictionException(std::string msg) : 
+    std::runtime_error(msg) {}
+};
+
+#endif

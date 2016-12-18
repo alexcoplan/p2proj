@@ -53,6 +53,7 @@ pitch_mask = [False] * 127
 duration_mask = [False] * 64
 sharps_mask = [False] * 15
 timesig_mask = [False] * 32
+seqint_mask = [False] * 42
 
 # quantize to semiquavers
 def ql_quantize(ql):
@@ -103,7 +104,13 @@ for i in bcl.byRiemenschneider:
 
   c_notes = []
 
+  prev_pitch = None
+
   for n in c.parts[0].flat.notes:
+    if prev_pitch is not None:
+      seqint_mask[n.pitch.midi - prev_pitch + 21] = True
+    prev_pitch = n.pitch.midi
+
     duration_q = ql_quantize(n.duration.quarterLength)
     pitch_mask[n.pitch.midi - 1]  = True
     duration_mask[duration_q - 1] = True
@@ -131,6 +138,7 @@ pitch_domain = []
 duration_domain = []
 sharps_domain = []
 time_sig_domain = []
+seqint_domain = []
 
 for idx,val in enumerate(pitch_mask):
   if val:
@@ -160,6 +168,13 @@ for idx,val in enumerate(timesig_mask):
 print("Time signatures used: ", end="")
 print(time_sig_domain)
 
+for idx,val in enumerate(seqint_mask):
+  if val:
+    seqint_domain.append(idx - 21)
+
+print("Intervals used (seqint): ", end="")
+print(seqint_domain)
+
 print("Compilation complete, writing JSON...")
 
 outer_object = {
@@ -167,7 +182,8 @@ outer_object = {
       "pitch_domain" : NoIndent(pitch_domain),
       "duration_domain" : NoIndent(duration_domain),
       "key_sig_sharps_domain" : NoIndent(sharps_domain),
-      "time_sig_domain" : NoIndent(time_sig_domain)
+      "time_sig_domain" : NoIndent(time_sig_domain),
+      "seqint_domain" : NoIndent(seqint_domain)
     },
     "corpus" : json_objects
 }

@@ -7,15 +7,6 @@
 
 using json = nlohmann::json;
 
-class ChoraleInterval : public CodedEvent {
-public:
-  constexpr static unsigned int cardinality = 25;
-  constexpr static int min_interval = -12;
-  ChoraleInterval(int interval) : CodedEvent(interval + min_interval) {
-    assert(code < cardinality);
-  }
-};
-
 /*
 OptionalEvent<ChoraleInterval> 
 project_interval_test(const std::vector<ChoralePitch> &pitches) {
