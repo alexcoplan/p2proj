@@ -3,11 +3,19 @@
 
 #include "sequence_model.hpp"
 
+template<typename T>
+class Predictor {
+public:
+  virtual EventDistribution<T> predict(const std::vector<T> &ts) const = 0;
+  virtual bool can_predict(const std::vector<T> &ts) const = 0;
+  virtual Predictor *clone() const = 0;
+};
+
 /* T_viewpoint is the type internal to the viewpoint (such as interval).
  * T_surface is the basic musical type that T_viewpoint is derived from and thus
  * that this viewpoint is capable of predicting. */
-template<class T_viewpoint, class T_surface> 
-class Viewpoint {
+template<class T_viewpoint, typename T_surface> 
+class Viewpoint : public Predictor<T_surface> {
 protected:
   SequenceModel<T_viewpoint> model;
 
@@ -22,11 +30,6 @@ public:
     model.learn_sequence(lift(events));
   }
 
-  virtual EventDistribution<T_surface> 
-    predict(const std::vector<T_surface> &context) const = 0;
-
-  virtual bool can_predict(const std::vector<T_surface> &ctx) const = 0;
-
   Viewpoint(int history) : model(history) {}
 
   void write_latex(std::string filename) const {
@@ -34,7 +37,7 @@ public:
   }
 };
 
-template<class T_viewpoint, class T_surface> 
+template<class T_viewpoint, typename T_surface> 
 std::vector<T_viewpoint>
 Viewpoint<T_viewpoint, T_surface>
 ::lift(const std::vector<T_surface> &events) const {
@@ -66,6 +69,8 @@ public:
     // can always predict
     return true; 
   }
+
+  BasicViewpoint *clone() const override { return new BasicViewpoint(*this); }
 
   BasicViewpoint(int history) : VPBase(history) {}
 };

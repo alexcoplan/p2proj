@@ -7,6 +7,8 @@
 #include <cassert>
 #include <iostream>
 #include <fstream>
+#include <cmath>
+#include <algorithm>
 
 typedef std::pair<unsigned, std::list<unsigned int>> Ngram;
 
@@ -45,13 +47,17 @@ class ContextModel {
                       const size_t i_begin, const size_t i_end);
   const TrieNode<b> *match_context(const std::vector<unsigned int> &seq, 
                                    const unsigned int i_start,
+                                   const unsigned int i_end,
                                          unsigned int &i_matched) const;
   TrieNode<b> *match_context(const std::vector<unsigned int> &seq,
                              const unsigned int i_start,
+                             const unsigned int i_end,
                                    unsigned int &i_matched);
 
   double ppm_a(const std::vector<unsigned int> &seq,
-               const unsigned int i_start, const std::bitset<b> &dead) const;
+               const unsigned int i_start, 
+               const unsigned int i_end,
+               const std::bitset<b> &dead) const;
 
 public:
   void learn_sequence(const std::vector<unsigned int> &seq);
@@ -59,6 +65,7 @@ public:
   unsigned int count_of(const std::vector<unsigned int> &seq) const;
   unsigned int count_of(const std::vector<unsigned int> &seq);
   double probability_of(const std::vector<unsigned int> &seq) const;
+  double avg_sequence_entropy(const std::vector<unsigned int> &seq) const;
   void write_latex(const std::string &fname, 
       std::string (*decoder)(unsigned int)) const;
   void debug_summary();
@@ -105,7 +112,29 @@ unsigned int ContextModel<b>::count_of(const std::vector<unsigned int> &seq) {
 /* Public wrapper to calculate probability of n-gram */
 template<int b> double
 ContextModel<b>::probability_of(const std::vector<unsigned int> &seq) const {
-  return ppm_a(seq, 0, std::bitset<b>());
+  return ppm_a(seq, 0, seq.size() - 1, std::bitset<b>());
+}
+
+template<int b>
+double ContextModel<b>::
+avg_sequence_entropy(const std::vector<unsigned int> &seq) const {
+  assert(seq.size() > 0);
+
+  double total_entropy = 0.0;
+  auto ramp = std::min(seq.size(), (size_t)history);
+
+  for (unsigned int i_end = 0; i_end < ramp; i_end++) {
+    double prob = ppm_a(seq, 0, i_end, std::bitset<b>());
+    total_entropy -= std::log2(prob);
+  }
+
+  for (unsigned int i_end = history; i_end < seq.size(); i_end++) {
+    auto i_begin = i_end - history + 1;
+    double prob = ppm_a(seq, i_begin, i_end, std::bitset<b>());
+    total_entropy -= std::log2(prob);
+  }
+
+  return total_entropy / static_cast<double>(seq.size()); 
 }
 
 /**************************************************
@@ -122,14 +151,17 @@ ContextModel<b>::probability_of(const std::vector<unsigned int> &seq) const {
 template<int b> const TrieNode<b> *
 ContextModel<b>::match_context(const std::vector<unsigned int> &seq,
                                const unsigned int i_start,
+                               const unsigned int i_end,
                                      unsigned int &i_matched) const {
+  assert(i_end <= seq.size() - 1);
+
   const TrieNode<b> *node = &trie_root;
 
-  for (unsigned int i = i_start; i < seq.size() - 1; i++) {
+  for (unsigned int i = i_start; i < i_end; i++) {
     node = &trie_root;
 
     unsigned int j = i;
-    for (; j < seq.size() - 1; j++) {
+    for (; j < i_end; j++) {
       unsigned int event = seq[j];
       if (node->children[event] == nullptr)
         break;
@@ -137,31 +169,33 @@ ContextModel<b>::match_context(const std::vector<unsigned int> &seq,
       node = node->children[event];
     }
 
-    // if we matched the entire context from i to n-1
+    // if we matched the entire context from i to i_end
     // then we're done. 
-    if (j == seq.size() - 1) {
+    if (j == i_end) {
       i_matched = i;
       return node;
     }
   }
 
   // if we come out of the above loop then we didn't match anything :(
-  i_matched = seq.size() - 1;
+  i_matched = i_end;
   return node;
 }
 
 template<int b> TrieNode<b> *
 ContextModel<b>::match_context(const std::vector<unsigned int> &seq,
                                const unsigned int i_start,
+                               const unsigned int i_end,
                                      unsigned int &i_matched) {
   return const_cast<const TrieNode<b> *>(this)
-          ->match_context(seq, i_start, i_matched);
+          ->match_context(seq, i_start, i_end, i_matched);
 }
 
 /* Calculate probability of sequence using PPM method A */
 template<int b> double 
 ContextModel<b>::ppm_a(const std::vector<unsigned int> &seq, 
                        const unsigned int ctx_start,
+                       const unsigned int ctx_end,
                        const std::bitset<b> &dead) const {
   // base case: use uniform distribution
   if (ctx_start == seq.size()) {
@@ -170,7 +204,8 @@ ContextModel<b>::ppm_a(const std::vector<unsigned int> &seq,
   }
 
   unsigned int i_matched;
-  const TrieNode<b> *ctx_node = match_context(seq, ctx_start, i_matched);
+  const TrieNode<b> *ctx_node = 
+    match_context(seq, ctx_start, ctx_end, i_matched);
   // we matched the context e_{i_matched}^{n-1}
 
   int sum = 0;
@@ -185,11 +220,11 @@ ContextModel<b>::ppm_a(const std::vector<unsigned int> &seq,
 
   double known_total = (double)sum;
 
-  unsigned int event = seq[seq.size() - 1];
+  unsigned int event = seq[ctx_end];
   if (novel_events.any()) {
     if (known_events[event])
       return (double)(ctx_node->children[event]->count) / (1.0 + known_total);
-    return ppm_a(seq, i_matched+1, seen_or_dead) / (1.0 + known_total);
+    return ppm_a(seq, i_matched+1, ctx_end, seen_or_dead) / (1.0 + known_total);
   }
 
   // no novel events, so don't include escape probability

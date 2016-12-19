@@ -58,4 +58,12 @@ int main(void) {
 
   duration_vp.learn(durations);
   duration_vp.write_latex("out/tex/duration_vp.tex");
+
+  IntervalViewpoint interval_vp(3);
+  interval_vp.learn(pitches);
+  interval_vp.write_latex("out/tex/ival_vp.tex");
+
+
 }
+
+

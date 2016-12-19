@@ -41,6 +41,12 @@ ChoralePitch ChoralePitch::operator+(const ChoraleInterval &delta) const {
   return ChoralePitch(MidiPitch(this->raw_value() + delta.raw_value()));
 }
 
+bool ChoralePitch::is_valid_transposition(const ChoraleInterval &delta) const {
+  auto new_val = this->raw_value() + delta.raw_value();
+  return new_val >= lowest_midi_pitch && 
+         new_val < lowest_midi_pitch + cardinality;
+}
+
 /***************************************************
  * ChoraleDuration implementation
  ***************************************************/
@@ -144,6 +150,17 @@ ChoraleInterval::ChoraleInterval(const MidiInterval &ival) :
   assert(dp != -11 && dp != -10 && dp != 11);
 }
 
+const std::array<std::string, 13> ChoraleInterval::interval_strings = {{
+  "Z", "m2", "M2", "m3", "M3", "P4", "Tri", "P5", "m6", "M6", "m7", "M7", "8ve"
+}};
+
+std::string ChoraleInterval::string_render() const {
+  auto ival = raw_value();
+  auto base_str = interval_strings[std::abs(ival)];
+  return base_str + 
+    ((ival > 0) ? "$\\uparrow$" : (ival < 0) ? "$\\downarrow$" : "");
+}
+
 /********************************************************************
  * Viewpoint implementations below
  ********************************************************************/
@@ -176,9 +193,13 @@ IntervalViewpoint::lift(const std::vector<ChoralePitch> &pitches) const {
   return result;
 }
 
-// FIXME FIXME FIXME
-// this is currently a naive/broken implementation because it will try and
-// create pitch events that should not be created
+void IntervalViewpoint::debug() {
+  for (ChoraleInterval iv : EventEnumerator<ChoraleInterval>()) {
+    std::cout << iv.string_render() << " (" << iv.raw_value() << "): "
+      << this->model.count_of({iv}) << std::endl;
+  }
+}
+
 EventDistribution<ChoralePitch>
 IntervalViewpoint::predict(const std::vector<ChoralePitch> &pitch_ctx) const {
   if (pitch_ctx.empty())
@@ -190,12 +211,78 @@ IntervalViewpoint::predict(const std::vector<ChoralePitch> &pitch_ctx) const {
   auto last_pitch = pitch_ctx.back();
 
   std::array<double, ChoralePitch::cardinality> new_values{{0.0}};
+
+  unsigned int valid_predictions = 0;
+
   for (auto interval : EventEnumerator<ChoraleInterval>()) { 
+    if (!last_pitch.is_valid_transposition(interval))
+      continue;
+
+    valid_predictions++;
     auto candidate_pitch = last_pitch + interval;
     new_values[candidate_pitch.encode()] = 
       interval_dist.probability_for(interval);
   }
 
+  if (valid_predictions == ChoraleInterval::cardinality)
+    return EventDistribution<ChoralePitch>(new_values);
+
+  // need to correct for missing values due to the interval leading to an
+  // invalid (out of range) pitch
+  double correction = 
+    (double)ChoraleInterval::cardinality / (double)valid_predictions;
+
+  for (auto &v : new_values)
+    v *= correction;
+
   return EventDistribution<ChoralePitch>(new_values);
+}
+
+
+/********************************************************************
+ * ChoraleMVS implementations below
+ ********************************************************************/
+
+template<>
+std::vector<std::unique_ptr<Predictor<ChoralePitch>>> &
+ChoraleMVS::predictors<ChoralePitch>() {
+  return pitch_predictors;
+}
+
+template<>
+std::vector<std::unique_ptr<Predictor<ChoraleDuration>>> &
+ChoraleMVS::predictors<ChoraleDuration>() {
+  return duration_predictors;
+}
+
+template<typename T>
+EventDistribution<T>
+ChoraleMVS::predict(const std::vector<T> &ctx) const {
+  auto vps = predictors<T>();
+
+  auto it = vps.begin();
+  for (; it != vps.end(); ++it) {
+    if ((*it)->can_predict(ctx))
+      break;
+  }
+
+  if (it == vps.end())
+    throw ViewpointPredictionException("No viewpoints can predict context");
+
+  auto prediction = (*it)->predict(ctx);
+  
+  if (vps.size() == 1)
+    return prediction;
+
+  auto comb_strategy = WeightedEntropyCombination<T>(entropy_bias);
+
+  for (; it != vps.end(); ++it) {
+    if ((*it)->can_predict(ctx)) {
+      auto new_prediction = (*it)->predict(ctx);
+      prediction.combine_in_place(comb_strategy, new_prediction);
+    }
+  }
+
+  return prediction;
 }
 

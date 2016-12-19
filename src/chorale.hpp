@@ -3,6 +3,7 @@
 
 #include "event.hpp"
 #include "viewpoint.hpp"
+#include "sequence_model.hpp"
 #include <cassert>
 #include <string>
 #include <array>
@@ -73,6 +74,8 @@ public:
     return pitch_strings.at(code);
   }
 
+  // check if transposition by the interval delta gives a valid chorale pitch
+  bool is_valid_transposition(const ChoraleInterval &delta) const;
   MidiInterval operator-(const ChoralePitch &rh_pitch) const;
   ChoralePitch operator+(const ChoraleInterval &delta) const;
 
@@ -183,9 +186,13 @@ private:
            some_code - 10;
   }
 
+  const static std::array<std::string, 13> interval_strings;
+
 public:
   unsigned int encode() const override { return code; }
   int raw_value() const { return map_out(code); }
+
+  std::string string_render() const override;
 
   ChoraleInterval(const MidiInterval &delta_pitch);
   ChoraleInterval(const ChoralePitch &from, const ChoralePitch &to);
@@ -217,8 +224,45 @@ public:
 
   EventDistribution<ChoralePitch>
     predict(const std::vector<ChoralePitch> &pitches) const override;
+
+  IntervalViewpoint *clone() const override { 
+    return new IntervalViewpoint(*this);
+  }
+
+  void debug();
+};
+
+
+/**********************************************************
+ * Chorale Multiple Viewpoint System
+ **********************************************************/
+
+class ChoraleMVS {
+private:
+  double entropy_bias;
+  std::vector<std::unique_ptr<Predictor<ChoralePitch>>> pitch_predictors;
+  std::vector<std::unique_ptr<Predictor<ChoraleDuration>>> duration_predictors;
+
+  template<typename T>
+    std::vector<std::unique_ptr<Predictor<T>>> &predictors();
+
+  template<typename T>
+    EventDistribution<T> predict(const std::vector<T> &ctx) const;
+
+  ChoraleMVS(double eb, 
+   std::initializer_list<Predictor<ChoralePitch> *> pitch_vps,
+   std::initializer_list<Predictor<ChoraleDuration> *> duration_vps) : 
+    entropy_bias(eb) {
+    for (auto vp_ptr : pitch_vps) {
+      std::unique_ptr<Predictor<ChoralePitch>> cloned(vp_ptr->clone());
+      pitch_predictors.push_back(std::move(cloned));
+    }
+
+    for (auto vp_ptr : duration_vps) {
+      std::unique_ptr<Predictor<ChoraleDuration>> cloned(vp_ptr->clone());
+      duration_predictors.push_back(std::move(cloned));
+    }
+  }
 };
 
 #endif
-
-

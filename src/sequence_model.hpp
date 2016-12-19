@@ -81,6 +81,11 @@ public:
   double probability_for(const T &event) const;
   double entropy() const;
   double normalised_entropy() const;
+  void combine_in_place(const DistCombStrategy<T> &strategy, 
+      const EventDistribution<T> &dist) {
+    EventDistribution combined(strategy, {dist,*this});
+    values = combined.values;
+  }
 };
 
 /**************************************************
@@ -161,6 +166,7 @@ public:
   SequenceModel(unsigned int history);
   void learn_sequence(const std::vector<T> &seq);
   double probability_of(const std::vector<T> &seq) const;
+  unsigned int count_of(const std::vector<T> &seq) const;
   EventDistribution<T> gen_successor_dist(const std::vector<T> &ctx) const;
   void write_latex(std::string filename) const;
 
@@ -191,6 +197,11 @@ void SequenceModel<T>::learn_sequence(const std::vector<T> &seq) {
 template<class T>
 double SequenceModel<T>::probability_of(const std::vector<T> &seq) const {
   return model.probability_of(encode_sequence(seq));
+}
+
+template<class T>
+unsigned int SequenceModel<T>::count_of(const std::vector<T> &seq) const {
+  return model.count_of(encode_sequence(seq));
 }
 
 template<class T> EventDistribution<T> 

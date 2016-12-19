@@ -2,6 +2,7 @@
 #include <string>
 #include <iostream>
 #include <string>
+#include <cmath>
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
@@ -160,3 +161,45 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
     REQUIRE( model.probability_of(encode_string("GAD")) == 1.0/16.0 );
   }
 }
+
+
+TEST_CASE("Context model correctly calculates average entropy of sequence", 
+    "[ctxmodel][ppm-a]") {
+  ContextModel<4> model(3);
+  model.learn_sequence(encode_string("GGDBAGGABA"));
+
+  SECTION("Calculate average entropy of single symbol") {
+    for (std::string x : {"G","A","B","D"}) {
+      double entropy = -std::log2(model.probability_of(encode_string(x)));
+      REQUIRE( entropy == model.avg_sequence_entropy(encode_string(x)) );
+    }
+  }
+
+  SECTION("Calcualte average entropy of two symbols") {
+    for (std::string x: {"G","A","B","D"}) {
+      for (std::string y : {"G","A","B","D"}) {
+        auto seq = encode_string(x + y);
+        double total_entropy = 0.0;
+        total_entropy -= std::log2(model.probability_of(encode_string(x)));
+        total_entropy -= std::log2(model.probability_of(seq));
+        total_entropy /= 2.0;
+        REQUIRE( total_entropy == model.avg_sequence_entropy(seq) );
+      }
+    }
+  }
+
+  SECTION("Calculate average entropy for string GABDG") {
+    double total_entropy = 0.0;
+    total_entropy -= std::log2(model.probability_of(encode_string("G")));
+    total_entropy -= std::log2(model.probability_of(encode_string("GA")));
+    total_entropy -= std::log2(model.probability_of(encode_string("GAB")));
+    total_entropy -= std::log2(model.probability_of(encode_string("ABD")));
+    total_entropy -= std::log2(model.probability_of(encode_string("BDG")));
+    total_entropy /= 5.0;
+
+    auto seq = encode_string("GABDG");
+    REQUIRE( model.avg_sequence_entropy(seq) == total_entropy );
+  }
+}
+
+
