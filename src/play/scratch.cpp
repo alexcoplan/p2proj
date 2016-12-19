@@ -12,45 +12,67 @@ int main(void) {
   json j;
   corpus_file >> j;
 
-  json chorale_j = j["corpus"][0];
-  std::cout << "Chorale title: " << chorale_j["title"] << std::endl;
+  BasicViewpoint<ChoralePitch> pitch_vp(3);
+  BasicViewpoint<ChoraleDuration> duration_vp(3);
+  IntervalViewpoint interval_vp(3);
 
-  KeySig ks(static_cast<int>(chorale_j["key_sig_sharps"]));
-  QuantizedDuration ts(static_cast<unsigned int>(chorale_j["time_sig_semis"]));
+  const auto num_chorales = j["corpus"].size();
+  for (unsigned int i = 0; i < num_chorales; i++) {
+    const auto &chorale_j = j["corpus"][i];
 
-  std::vector<ChoraleEvent> events;
+    std::cout << "Training (" << (i+1) << "/" << num_chorales << "): "
+     <<  chorale_j["title"] << std::endl;
 
-  for (const auto &note_j : chorale_j["notes"]) {
-    MidiPitch pitch(static_cast<unsigned int>(note_j[0]));
-    auto offset = static_cast<unsigned int>(note_j[1]);
-    QuantizedDuration dur(static_cast<unsigned int>(note_j[2]));
+    std::vector<ChoralePitch> pitches;
+    std::vector<ChoraleDuration> durations;
 
-    ChoraleEvent e(pitch, dur, ks, ts, offset);
-    events.push_back(e);
+    for (const auto &note_j : chorale_j["notes"]) {
+      MidiPitch pitch(static_cast<unsigned int>(note_j[0]));
+      // auto offset = static_cast<unsigned int>(note_j[1]);
+      QuantizedDuration dur(static_cast<unsigned int>(note_j[2]));
+
+      // ChoraleEvent e(pitch, dur, ks, ts, offset);
+      pitches.push_back(pitch);
+      durations.push_back(dur);
+    }
+
+    pitch_vp.learn(pitches);
+    duration_vp.learn(durations);
+    interval_vp.learn(pitches);
   }
 
-  // let's try out some basic viewpoints
+  pitch_vp.write_latex("out/tex/complete_pitch.tex");
+  duration_vp.write_latex("out/tex/complete_dur.tex");
+  interval_vp.write_latex("out/tex/complete_ival.tex");
 
-  BasicViewpoint<ChoralePitch> pitch_vp(3);
-  std::vector<ChoralePitch> pitches;
-  std::transform(events.begin(), events.end(), std::back_inserter(pitches),
-      [](ChoraleEvent e) { return e.pitch; }); 
+  std::vector<ChoralePitch> am_pitches;
+  std::vector<ChoraleDuration> am_durations;
 
-  pitch_vp.learn(pitches);
-  pitch_vp.write_latex("out/tex/pitch_vp.tex");
+  const auto &aus_meins_j = j["corpus"][0];
+  for (const auto &note_j : aus_meins_j["notes"]) {
+    MidiPitch pitch(static_cast<unsigned int>(note_j[0]));
+    QuantizedDuration dur(static_cast<unsigned int>(note_j[2]));
 
-  BasicViewpoint<ChoraleDuration> duration_vp(3);
-  std::vector<ChoraleDuration> durations;
-  std::transform(events.begin(), events.end(), std::back_inserter(durations),
-      [](ChoraleEvent e) { return e.duration; });
+    am_pitches.push_back(pitch);
+    am_durations.push_back(dur);
+  }
 
-  duration_vp.learn(durations);
-  duration_vp.write_latex("out/tex/duration_vp.tex");
+  double entropy_bias = 2.0; // for now
+  ChoraleMVS single_vp(entropy_bias, {&pitch_vp}, {&duration_vp});
+  ChoraleMVS multi_vp(entropy_bias, {&pitch_vp, &interval_vp}, {&duration_vp});
 
-  IntervalViewpoint interval_vp(3);
-  interval_vp.learn(pitches);
-  interval_vp.write_latex("out/tex/ival_vp.tex");
+  std::cout << std::endl << std::endl;
+  std::cout 
+    << "Average entropy of pitch in first chorale using long-term model:" 
+    << std::endl;
+ 
+  std::cout 
+    << "--> Single VP (pitch): " 
+    << single_vp.avg_sequence_entropy(am_pitches) << std::endl;
 
+  std::cout 
+    << "--> Multi VP (pitch,interval): " 
+    << multi_vp.avg_sequence_entropy(am_durations) << std::endl;
 }
 
 

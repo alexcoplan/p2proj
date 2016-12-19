@@ -212,28 +212,25 @@ IntervalViewpoint::predict(const std::vector<ChoralePitch> &pitch_ctx) const {
 
   std::array<double, ChoralePitch::cardinality> new_values{{0.0}};
 
+  double total_probability = 0.0;
   unsigned int valid_predictions = 0;
 
   for (auto interval : EventEnumerator<ChoraleInterval>()) { 
     if (!last_pitch.is_valid_transposition(interval))
       continue;
 
-    valid_predictions++;
     auto candidate_pitch = last_pitch + interval;
-    new_values[candidate_pitch.encode()] = 
-      interval_dist.probability_for(interval);
+    auto prob = interval_dist.probability_for(interval);
+    new_values[candidate_pitch.encode()] = prob;
+    total_probability += prob;
+    valid_predictions++;
   }
 
   if (valid_predictions == ChoraleInterval::cardinality)
     return EventDistribution<ChoralePitch>(new_values);
 
-  // need to correct for missing values due to the interval leading to an
-  // invalid (out of range) pitch
-  double correction = 
-    (double)ChoraleInterval::cardinality / (double)valid_predictions;
-
   for (auto &v : new_values)
-    v *= correction;
+    v /= total_probability;
 
   return EventDistribution<ChoralePitch>(new_values);
 }

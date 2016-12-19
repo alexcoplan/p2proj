@@ -6,6 +6,8 @@
 from music21 import *
 import json
 
+# FIXME: de-duplicate since there are multiple harmonisation of the same melody!
+
 ################################################################################
 # Custom JSON encoder
 #
@@ -78,6 +80,11 @@ for i in bcl.byRiemenschneider:
 
   if len(c.parts) != 4:
     print(" * Skipping: BWV %s is not in four parts." % info["bwv"])
+    continue
+
+  if info["bwv"] == "36.4-2" or info["bwv"] == "432":
+    print(" * WARNING: skipping due to inconvenient ornament.")
+    # note: 432 is a duplicate anyway
     continue
 
 # calculate anacrusis
