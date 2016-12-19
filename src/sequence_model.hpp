@@ -69,7 +69,7 @@ struct WeightedEntropyCombination : public DistCombStrategy<T> {
 
 template<class T> class EventDistribution {
 private:
-  const std::array<double, T::cardinality> values;
+  std::array<double, T::cardinality> values;
 
 public:
   EventDistribution(const std::array<double, T::cardinality> &vs);
@@ -166,6 +166,7 @@ public:
   SequenceModel(unsigned int history);
   void learn_sequence(const std::vector<T> &seq);
   double probability_of(const std::vector<T> &seq) const;
+  double avg_sequence_entropy(const std::vector<T> &seq) const;
   unsigned int count_of(const std::vector<T> &seq) const;
   EventDistribution<T> gen_successor_dist(const std::vector<T> &ctx) const;
   void write_latex(std::string filename) const;
@@ -197,6 +198,11 @@ void SequenceModel<T>::learn_sequence(const std::vector<T> &seq) {
 template<class T>
 double SequenceModel<T>::probability_of(const std::vector<T> &seq) const {
   return model.probability_of(encode_sequence(seq));
+}
+
+template<class T>
+double SequenceModel<T>::avg_sequence_entropy(const std::vector<T> &seq) const {
+  return model.avg_sequence_entropy(encode_sequence(seq));
 }
 
 template<class T>

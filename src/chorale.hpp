@@ -244,25 +244,67 @@ private:
   std::vector<std::unique_ptr<Predictor<ChoraleDuration>>> duration_predictors;
 
   template<typename T>
-    std::vector<std::unique_ptr<Predictor<T>>> &predictors();
+    const std::vector<std::unique_ptr<Predictor<T>>> &predictors() const;
 
+public:
   template<typename T>
     EventDistribution<T> predict(const std::vector<T> &ctx) const;
 
+  template<typename T>
+    double avg_sequence_entropy(const std::vector<T> &seq) const;
+
   ChoraleMVS(double eb, 
    std::initializer_list<Predictor<ChoralePitch> *> pitch_vps,
-   std::initializer_list<Predictor<ChoraleDuration> *> duration_vps) : 
-    entropy_bias(eb) {
-    for (auto vp_ptr : pitch_vps) {
-      std::unique_ptr<Predictor<ChoralePitch>> cloned(vp_ptr->clone());
-      pitch_predictors.push_back(std::move(cloned));
-    }
+   std::initializer_list<Predictor<ChoraleDuration> *> duration_vps);
+};
 
-    for (auto vp_ptr : duration_vps) {
-      std::unique_ptr<Predictor<ChoraleDuration>> cloned(vp_ptr->clone());
-      duration_predictors.push_back(std::move(cloned));
+// templated method implementations for ChoraleMVS
+
+template<typename T>
+EventDistribution<T>
+ChoraleMVS::predict(const std::vector<T> &ctx) const {
+  const auto &vps = predictors<T>();
+
+  auto it = vps.begin();
+  for (; it != vps.end(); ++it) {
+    if ((*it)->can_predict(ctx))
+      break;
+  }
+
+  if (it == vps.end())
+    throw ViewpointPredictionException("No viewpoints can predict context");
+
+  auto prediction = (*it)->predict(ctx);
+  
+  if (vps.size() == 1)
+    return prediction;
+
+  auto comb_strategy = WeightedEntropyCombination<T>(entropy_bias);
+
+  for (; it != vps.end(); ++it) {
+    if ((*it)->can_predict(ctx)) {
+      auto new_prediction = (*it)->predict(ctx);
+      prediction.combine_in_place(comb_strategy, new_prediction);
     }
   }
-};
+
+  return prediction;
+}
+
+template<typename T>
+double ChoraleMVS::avg_sequence_entropy(const std::vector<T> &seq) const {
+  std::vector<T> ngram_buf;
+
+  double total_entropy = 0.0;
+  auto dist = predict<T>({});
+
+  for (auto &e : seq) {
+    total_entropy -= std::log2(dist.probability_for(e));
+    ngram_buf.push_back(e);
+    dist = predict<T>(ngram_buf);
+  }
+  
+  return total_entropy / seq.size();
+}
 
 #endif

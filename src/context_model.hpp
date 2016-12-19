@@ -112,7 +112,8 @@ unsigned int ContextModel<b>::count_of(const std::vector<unsigned int> &seq) {
 /* Public wrapper to calculate probability of n-gram */
 template<int b> double
 ContextModel<b>::probability_of(const std::vector<unsigned int> &seq) const {
-  return ppm_a(seq, 0, seq.size() - 1, std::bitset<b>());
+  unsigned int i_begin = (seq.size() > history) ? seq.size() - history : 0;
+  return ppm_a(seq, i_begin, seq.size() - 1, std::bitset<b>());
 }
 
 template<int b>
@@ -198,7 +199,7 @@ ContextModel<b>::ppm_a(const std::vector<unsigned int> &seq,
                        const unsigned int ctx_end,
                        const std::bitset<b> &dead) const {
   // base case: use uniform distribution
-  if (ctx_start == seq.size()) {
+  if (ctx_start > ctx_end) {
     assert(!dead.all());
     return 1.0 / (double)(b - dead.count());
   }

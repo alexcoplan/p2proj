@@ -160,6 +160,14 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
     REQUIRE( model.probability_of(encode_string("GAG")) == 1.0/4.0 );
     REQUIRE( model.probability_of(encode_string("GAD")) == 1.0/16.0 );
   }
+
+  SECTION("Context model just considers last h-gram in input sequence") {
+    ContextModel<4> model(3);
+    model.learn_sequence(encode_string("GGDBAGGABA"));
+
+    REQUIRE( model.probability_of(encode_string("GGGGGA")) == 1.0/3.0 );
+    REQUIRE( model.probability_of(encode_string("ABABABGAD")) == 1.0/16.0 );
+  }
 }
 
 

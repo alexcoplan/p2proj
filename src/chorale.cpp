@@ -244,45 +244,30 @@ IntervalViewpoint::predict(const std::vector<ChoralePitch> &pitch_ctx) const {
  ********************************************************************/
 
 template<>
-std::vector<std::unique_ptr<Predictor<ChoralePitch>>> &
-ChoraleMVS::predictors<ChoralePitch>() {
+const std::vector<std::unique_ptr<Predictor<ChoralePitch>>> &
+ChoraleMVS::predictors<ChoralePitch>() const {
   return pitch_predictors;
 }
 
 template<>
-std::vector<std::unique_ptr<Predictor<ChoraleDuration>>> &
-ChoraleMVS::predictors<ChoraleDuration>() {
+const std::vector<std::unique_ptr<Predictor<ChoraleDuration>>> &
+ChoraleMVS::predictors<ChoraleDuration>() const {
   return duration_predictors;
 }
 
-template<typename T>
-EventDistribution<T>
-ChoraleMVS::predict(const std::vector<T> &ctx) const {
-  auto vps = predictors<T>();
-
-  auto it = vps.begin();
-  for (; it != vps.end(); ++it) {
-    if ((*it)->can_predict(ctx))
-      break;
+ChoraleMVS::ChoraleMVS(double eb, 
+ std::initializer_list<Predictor<ChoralePitch> *> pitch_vps,
+ std::initializer_list<Predictor<ChoraleDuration> *> duration_vps) : 
+  entropy_bias(eb) {
+  for (auto vp_ptr : pitch_vps) {
+    std::unique_ptr<Predictor<ChoralePitch>> cloned(vp_ptr->clone());
+    pitch_predictors.push_back(std::move(cloned));
   }
 
-  if (it == vps.end())
-    throw ViewpointPredictionException("No viewpoints can predict context");
-
-  auto prediction = (*it)->predict(ctx);
-  
-  if (vps.size() == 1)
-    return prediction;
-
-  auto comb_strategy = WeightedEntropyCombination<T>(entropy_bias);
-
-  for (; it != vps.end(); ++it) {
-    if ((*it)->can_predict(ctx)) {
-      auto new_prediction = (*it)->predict(ctx);
-      prediction.combine_in_place(comb_strategy, new_prediction);
-    }
+  for (auto vp_ptr : duration_vps) {
+    std::unique_ptr<Predictor<ChoraleDuration>> cloned(vp_ptr->clone());
+    duration_predictors.push_back(std::move(cloned));
   }
-
-  return prediction;
 }
+
 

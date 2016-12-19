@@ -1,5 +1,6 @@
 #include "catch.hpp"
 #include "chorale.hpp"
+#include "viewpoint.hpp"
 #include <array>
 
 TEST_CASE("Check Chorale event encodings", "[chorale][events]") {
@@ -27,3 +28,37 @@ TEST_CASE("Check Chorale event operaitons", "[chorale][events]") {
     REQUIRE((p1 + ival) == p2);
   }
 }
+
+TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
+  const unsigned int order = 3;
+  SequenceModel<ChoralePitch> model(order);
+  BasicViewpoint<ChoralePitch> pitch_vp(order);
+
+  // C D C E C F C G C A C B C C^
+  auto eg = {60,62,60,64,60,65,60,67,60,69,60,71,60,72};
+  std::vector<ChoralePitch> pitches;
+  std::transform(eg.begin(), eg.end(), std::back_inserter(pitches),
+      [](unsigned int p) { return ChoralePitch(MidiPitch(p)); });
+
+  // train both model and trivial viewpoint on same data
+  model.learn_sequence(pitches);
+  pitch_vp.learn(pitches);
+
+  double entropy_bias = 2.0; // arbitrary, this is a single viewpoint system
+  ChoraleMVS mvs(entropy_bias, {&pitch_vp}, {});
+
+  auto test_1 = {60,61,62,63,64,65,66,67,68,69,70};
+  auto test_2 = {60};
+  auto test_3 = {62,81,62,60};
+
+  for (const auto &vs : {eg, test_1, test_2, test_3}) {
+    std::vector<ChoralePitch> test_pitches;
+    std::transform(vs.begin(), vs.end(), std::back_inserter(test_pitches),
+        [](unsigned int p) { return ChoralePitch(MidiPitch(p)); });
+    auto mvs_entropy = mvs.avg_sequence_entropy(test_pitches);
+    auto model_entropy = model.avg_sequence_entropy(test_pitches);
+    REQUIRE( mvs_entropy == model_entropy );
+  }
+}
+
+

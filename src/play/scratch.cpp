@@ -7,18 +7,6 @@
 
 using json = nlohmann::json;
 
-/*
-OptionalEvent<ChoraleInterval> 
-project_interval_test(const std::vector<ChoralePitch> &pitches) {
-  if (pitches.size() < 2) return NoEvent<ChoraleInterval>();
-
-  auto pitchA = pitches[pitches.size() - 2];
-  auto pitchB = pitches[pitches.size() - 1];
-  int interval = (int)pitchB.raw_value() - (int)pitchA.raw_value();
-  return SomeEvent<ChoraleInterval>( ChoraleInterval(interval) );
-}
-*/
-
 int main(void) {
   std::ifstream corpus_file("corpus/chorale_dataset.json");
   json j;
@@ -62,7 +50,6 @@ int main(void) {
   IntervalViewpoint interval_vp(3);
   interval_vp.learn(pitches);
   interval_vp.write_latex("out/tex/ival_vp.tex");
-
 
 }
 
