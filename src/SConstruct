@@ -1,10 +1,18 @@
 flags = '-std=c++11 -Wall -pedantic -g -fcolor-diagnostics -DDEBUG'
 env = Environment(CXX='clang++', CXXFLAGS=flags, CPPPATH = ['.','include'])
 
+# separately-compiled files
 base_files = ["event.cpp", "chorale.cpp"]
 
-env.Program(target = 'test/ctx_test.out', source = base_files +
-["test/ctx_test.cpp", "test/dist_test.cpp", "test/chorale_test.cpp"])
-env.Program(target = 'play/graph_gen.out', source = base_files + ["play/graph_gen.cpp"])
+# unit test build
+test_names = ["ctx_test", "dist_test", "chorale_test"]
+test_files = base_files + ["test/" + f + ".cpp" for f in test_names]
+test_build = env.Program(target = 'test/ctx_test.out', source = test_files)
+
+# target build
 env.Program(target = 'play/scratch.out', source = base_files + ["play/scratch.cpp"])
-env.Program(target = 'play/debug.out', source = base_files + ["play/debug.cpp"])
+env.Program(target = 'play/eval.out', source = base_files + ["play/eval.cpp"])
+
+# set up `scons test` command
+test_alias = Alias('test', [test_build], test_build[0].path)
+AlwaysBuild(test_alias)

@@ -23,7 +23,6 @@ rough_unchecked
 *.fdb_latexmk
 *.fls
 *.log
-*.out
 *.run.xml
 *-blx.bib
 
