@@ -16,6 +16,11 @@ int main(void) {
   BasicViewpoint<ChoraleDuration> duration_vp(3);
   IntervalViewpoint interval_vp(3);
 
+  using entry_t = 
+    std::pair<std::vector<ChoralePitch>, std::vector<ChoraleDuration>>;
+
+  std::vector<entry_t> corpus;
+
   const auto num_chorales = j["corpus"].size();
   for (unsigned int i = 0; i < num_chorales; i++) {
     const auto &chorale_j = j["corpus"][i];
@@ -23,8 +28,8 @@ int main(void) {
     std::cout << "Training (" << (i+1) << "/" << num_chorales << "): "
      <<  chorale_j["title"] << std::endl;
 
-    std::vector<ChoralePitch> pitches;
-    std::vector<ChoraleDuration> durations;
+    std::vector<ChoralePitch> ps;
+    std::vector<ChoraleDuration> ds;
 
     for (const auto &note_j : chorale_j["notes"]) {
       MidiPitch pitch(static_cast<unsigned int>(note_j[0]));
@@ -32,13 +37,15 @@ int main(void) {
       QuantizedDuration dur(static_cast<unsigned int>(note_j[2]));
 
       // ChoraleEvent e(pitch, dur, ks, ts, offset);
-      pitches.push_back(pitch);
-      durations.push_back(dur);
+      ps.push_back(pitch);
+      ds.push_back(dur);
     }
 
-    pitch_vp.learn(pitches);
-    duration_vp.learn(durations);
-    interval_vp.learn(pitches);
+    pitch_vp.learn(ps);
+    duration_vp.learn(ds);
+    interval_vp.learn(ps);
+
+    corpus.push_back(std::make_pair(ps, ds));
   }
 
   pitch_vp.write_latex("out/tex/complete_pitch.tex");
@@ -61,18 +68,42 @@ int main(void) {
   ChoraleMVS single_vp(entropy_bias, {&pitch_vp}, {&duration_vp});
   ChoraleMVS multi_vp(entropy_bias, {&pitch_vp, &interval_vp}, {&duration_vp});
 
-  std::cout << std::endl << std::endl;
   std::cout 
-    << "Average entropy of pitch in first chorale using long-term model:" 
+    << std::endl
+    << "Training complete! Evaluating models..." 
+    << std::endl << std::endl;
+
+  double svs_entropy = 0.0;
+  double mvs_entropy = 0.0;
+
+  unsigned int i = 1;
+
+  for (const auto &c : corpus) {
+    std::cout << std::to_string(i++) << ",";
+    const auto &pitches = c.first;
+    svs_entropy += single_vp.avg_sequence_entropy(pitches);
+    mvs_entropy += multi_vp.avg_sequence_entropy(pitches);
+  }
+
+  std::cout << "done!" << std::endl << std::endl;
+
+  svs_entropy /= corpus.size();
+  mvs_entropy /= corpus.size();
+
+
+  std::cout 
+    << "Average entropy of pitch using long-term model:" 
     << std::endl;
  
   std::cout 
     << "--> Single VP (pitch): " 
-    << single_vp.avg_sequence_entropy(am_pitches) << std::endl;
+    << single_vp.avg_sequence_entropy(am_pitches) 
+    << " bits" << std::endl;
 
   std::cout 
     << "--> Multi VP (pitch,interval): " 
-    << multi_vp.avg_sequence_entropy(am_durations) << std::endl;
+    << multi_vp.avg_sequence_entropy(am_durations) 
+    << " bits" << std::endl;
 }
 
 
