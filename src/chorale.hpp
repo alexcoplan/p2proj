@@ -239,7 +239,6 @@ public:
 
 class ChoraleMVS {
 private:
-  double entropy_bias;
   std::vector<std::unique_ptr<Predictor<ChoralePitch>>> pitch_predictors;
   std::vector<std::unique_ptr<Predictor<ChoraleDuration>>> duration_predictors;
 
@@ -247,6 +246,8 @@ private:
     const std::vector<std::unique_ptr<Predictor<T>>> &predictors() const;
 
 public:
+  double entropy_bias;
+
   template<typename T>
     EventDistribution<T> predict(const std::vector<T> &ctx) const;
 
@@ -279,7 +280,7 @@ ChoraleMVS::predict(const std::vector<T> &ctx) const {
   if (vps.size() == 1)
     return prediction;
 
-  auto comb_strategy = WeightedEntropyCombination<T>(entropy_bias);
+  WeightedEntropyCombination<T> comb_strategy(entropy_bias);
 
   for (; it != vps.end(); ++it) {
     if ((*it)->can_predict(ctx)) {

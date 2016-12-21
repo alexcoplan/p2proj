@@ -164,21 +164,34 @@ TEST_CASE("Weighted entropy combination works as expected", "[seqmodel]") {
 
   // b = 1
   WeightedEntropyCombination<DummyEvent> strategy_1(1.0);
-  EventDistribution<DummyEvent> combined(strategy_1, {dist, flat});
-
   array_t expected_1{{23.0/60.0, 15.0/60.0, 11.0/60.0, 11.0/60.0}};
-  for (auto e : EventEnumerator<DummyEvent>()) 
-    REQUIRE( combined.probability_for(e) == Approx(expected_1[e.encode()]) );
 
   // b = 2 (squared bias to entropy weights)
   WeightedEntropyCombination<DummyEvent> strategy_2(2.0);
-  EventDistribution<DummyEvent> combined_2(strategy_2, {dist, flat});
-  
   array_t expected_2{
     {177.0/452.0, 113.0/452.0, 81.0/452.0, 81.0/452.0}
   };
 
-  for (auto e : EventEnumerator<DummyEvent>())
-    REQUIRE( combined_2.probability_for(e) == Approx(expected_2[e.encode()]) );
+  SECTION("Check copy combination") {
+    EventDistribution<DummyEvent> combined(strategy_1, {dist, flat});
+    for (auto e : EventEnumerator<DummyEvent>()) 
+      REQUIRE( combined.probability_for(e) == Approx(expected_1[e.encode()]) );
+
+    EventDistribution<DummyEvent> combined_2(strategy_2, {dist, flat});
+    for (auto e : EventEnumerator<DummyEvent>())
+      REQUIRE(combined_2.probability_for(e) == Approx(expected_2[e.encode()]));
+  }
+
+  SECTION("Check in-place combination") {
+    EventDistribution<DummyEvent> dist_copy(values);
+    dist_copy.combine_in_place(strategy_1, flat);
+    for (auto e : EventEnumerator<DummyEvent>()) 
+      REQUIRE( dist_copy.probability_for(e) == Approx(expected_1[e.encode()]) );
+
+    EventDistribution<DummyEvent> dist_copy2(values);
+    dist_copy2.combine_in_place(strategy_2, flat);
+    for (auto e : EventEnumerator<DummyEvent>())
+      REQUIRE(dist_copy2.probability_for(e) == Approx(expected_2[e.encode()]));
+  }
 }
 

@@ -37,8 +37,8 @@ int main(void) {
       QuantizedDuration dur(static_cast<unsigned int>(note_j[2]));
 
       // ChoraleEvent e(pitch, dur, ks, ts, offset);
-      ps.push_back(pitch);
-      ds.push_back(dur);
+      ps.push_back(ChoralePitch(pitch));
+      ds.push_back(ChoraleDuration(dur));
     }
 
     pitch_vp.learn(ps);
@@ -48,62 +48,73 @@ int main(void) {
     corpus.push_back(std::make_pair(ps, ds));
   }
 
+  /*
   pitch_vp.write_latex("out/tex/complete_pitch.tex");
   duration_vp.write_latex("out/tex/complete_dur.tex");
   interval_vp.write_latex("out/tex/complete_ival.tex");
+  */
 
-  std::vector<ChoralePitch> am_pitches;
-  std::vector<ChoraleDuration> am_durations;
-
-  const auto &aus_meins_j = j["corpus"][0];
-  for (const auto &note_j : aus_meins_j["notes"]) {
-    MidiPitch pitch(static_cast<unsigned int>(note_j[0]));
-    QuantizedDuration dur(static_cast<unsigned int>(note_j[2]));
-
-    am_pitches.push_back(pitch);
-    am_durations.push_back(dur);
-  }
-
-  double entropy_bias = 2.0; // for now
-  ChoraleMVS single_vp(entropy_bias, {&pitch_vp}, {&duration_vp});
-  ChoraleMVS multi_vp(entropy_bias, {&pitch_vp, &interval_vp}, {&duration_vp});
+  ChoraleMVS single_vp(1.0, {&pitch_vp}, {&duration_vp});
+  ChoraleMVS multi_vp(1.0, {&pitch_vp, &interval_vp}, {&duration_vp});
 
   std::cout 
     << std::endl
     << "Training complete! Evaluating models..." 
     << std::endl << std::endl;
 
-  double svs_entropy = 0.0;
-  double mvs_entropy = 0.0;
+  for (double eb = 0.0; eb < 12.0; eb += 1.0) {
+    single_vp.entropy_bias = eb;
+    multi_vp.entropy_bias = eb;
 
-  unsigned int i = 1;
+    double svs_entropy = 0.0;
+    double mvs_entropy = 0.0;
 
-  for (const auto &c : corpus) {
-    std::cout << std::to_string(i++) << "," << std::flush;
-    const auto &pitches = c.first;
-    svs_entropy += single_vp.avg_sequence_entropy(pitches);
-    mvs_entropy += multi_vp.avg_sequence_entropy(pitches);
+    double svs_entropy_2 = 0.0;
+    double mvs_entropy_2 = 0.0;
+
+    unsigned int i = 1;
+
+    std::cout << "entropy_bias = " << eb << std::endl;
+
+    for (const auto &c : corpus) {
+      if (++i % 10 == 0)
+        std::cout << "=" << std::flush;
+
+      const auto &pitches = c.first;
+
+      double h_s = single_vp.avg_sequence_entropy(pitches);
+      svs_entropy += h_s;
+      svs_entropy_2 += h_s * h_s;
+
+      double h_m = multi_vp.avg_sequence_entropy(pitches);
+      mvs_entropy += h_m;
+      mvs_entropy_2 += h_m * h_m;
+    }
+
+    svs_entropy /= corpus.size();
+    mvs_entropy /= corpus.size();
+
+    auto mu_svs_2 = svs_entropy * svs_entropy;
+    auto mu_mvs_2 = mvs_entropy * mvs_entropy;
+    auto svs_variance = (svs_entropy_2 / corpus.size()) - mu_svs_2;
+    auto mvs_variance = (mvs_entropy_2 / corpus.size()) - mu_mvs_2;
+
+    std::cout 
+      << std::endl
+      << "Average entropy of pitch using long-term model:" 
+      << std::endl;
+   
+    std::cout 
+      << "--> Single VP (pitch): " 
+      << svs_entropy << " bits" 
+      << " (stdev = " << std::sqrt(svs_variance) << ")" << std::endl;
+
+    std::cout 
+      << "--> Multi VP (pitch,interval): " 
+      << mvs_entropy << " bits" 
+      << " (stdev = " << std::sqrt(mvs_variance) << ")"
+      << std::endl << std::endl;
   }
-
-  std::cout << "done!" << std::endl << std::endl;
-
-  svs_entropy /= corpus.size();
-  mvs_entropy /= corpus.size();
-
-
-  std::cout 
-    << "Average entropy of pitch using long-term model:" 
-    << std::endl;
- 
-  std::cout 
-    << "--> Single VP (pitch): " 
-    << single_vp.avg_sequence_entropy(am_pitches) 
-    << " bits" << std::endl;
-
-  std::cout 
-    << "--> Multi VP (pitch,interval): " 
-    << multi_vp.avg_sequence_entropy(am_durations) 
-    << " bits" << std::endl;
 }
 
 
