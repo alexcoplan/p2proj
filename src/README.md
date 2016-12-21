@@ -19,7 +19,11 @@ generate a melody.
 Context models are a higher-order generalisation of Markov chains: they look at
 more than one element of history. For example, an order-2 context model over
 notes would predict a different distribution for the context `{G,A}` from that
-which it would predict for `{G,B}`. __TODO__: example here.
+which it would predict for `{G,B}`. The following shows the internal data structure
+of a context model trained on the note durations of the chorale tune "Aus meines
+Herzens Grunde".
+
+![2nd order context model for duration](https://alexcoplan.github.io/p2proj/img/duration_vp.svg)
 
 In the context of music, a _viewpoint_ can be thought of as a certain musical
 attribute that varies over time which we might want to model. For example, pitch
