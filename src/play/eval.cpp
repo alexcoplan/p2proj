@@ -7,15 +7,30 @@
 
 using json = nlohmann::json;
 
+/**************************************************
+ * TODO: Fix corpus prep script to collapse ties
+ **************************************************/
+
 int main(void) {
   std::ifstream corpus_file("corpus/chorale_dataset.json");
   json j;
   corpus_file >> j;
 
-  BasicViewpoint<ChoralePitch> pitch_vp(3);
-  BasicViewpoint<ChoraleDuration> duration_vp(3);
-  BasicViewpoint<ChoraleRest> rest_vp(3);
+  ChoraleMVS::BasicVP<ChoralePitch> pitch_vp(3);
+  ChoraleMVS::BasicVP<ChoraleDuration> duration_vp(3);
+  ChoraleMVS::BasicVP<ChoraleRest> rest_vp(3);
   IntervalViewpoint interval_vp(3);
+
+  ChoraleMVS svs(2.0);
+  svs.add_viewpoint(&pitch_vp);
+  svs.add_viewpoint(&duration_vp);
+  svs.add_viewpoint(&rest_vp);
+
+  ChoraleMVS mvs(2.0);
+  mvs.add_viewpoint(&pitch_vp);
+  mvs.add_viewpoint(&interval_vp);
+  mvs.add_viewpoint(&duration_vp);
+  mvs.add_viewpoint(&rest_vp);
 
   std::vector<std::vector<ChoraleEvent>> corpus;
 
@@ -29,7 +44,7 @@ int main(void) {
      <<  chorale_j["title"] << std::endl;
 
 
-    const auto &notes_j = chorale_j["note"];
+    const auto &notes_j = chorale_j["notes"];
     assert(notes_j.size() > 1);
 
     const auto &first_note_j = notes_j[0];
@@ -41,7 +56,7 @@ int main(void) {
       MidiPitch(first_pitch), QuantizedDuration(prev_duration), nullptr
     ));
 
-    for (unsigned int j = 1; i < notes_j.size(); j++) {
+    for (unsigned int j = 1; j < notes_j.size(); j++) {
       const auto &note_j = notes_j[j];
 
       unsigned int pitch    = note_j[0];
@@ -49,7 +64,8 @@ int main(void) {
       unsigned int duration = note_j[2];
 
       assert(offset >= prev_offset + prev_duration);
-      ChoraleRest rest(offset - prev_duration - prev_offset);
+      auto rest_amt = offset - prev_offset - prev_duration;
+      ChoraleRest rest{QuantizedDuration(rest_amt)};
 
       chorale_events.push_back(ChoraleEvent(
         MidiPitch(pitch), QuantizedDuration(duration), rest.shared_instance()
@@ -59,19 +75,10 @@ int main(void) {
       prev_duration = duration;
     }
 
-    const auto pitches = 
-      ChoraleEvent::lift<ChoralePitch>(chorale_events);
-
-    const auto rests =
-      ChoraleEvent::lift<ChoraleRest>(chorale_events);
-
-    pitch_vp.learn(pitches);
-    interval_vp.learn(pitches);
-    rest_vp.learn(ChoraleEvent::lift<ChoraleRest>(chorale_events));
-    duration_vp.learn(ChoraleEvent::lift<ChoraleDuration>(chorale_events));
+    svs.learn(chorale_events);
+    mvs.learn(chorale_events);
+    corpus.push_back(chorale_events);
   }
-
-  rest_vp.write_latex("out/tex/complete_rest.tex");
 
   /*
   pitch_vp.write_latex("out/tex/complete_pitch.tex");
@@ -79,24 +86,22 @@ int main(void) {
   interval_vp.write_latex("out/tex/complete_ival.tex");
   */
 
-  /*
-  ChoraleMVS single_vp(1.0, {&pitch_vp}, {&duration_vp}, {&rest_vp});
-  ChoraleMVS multi_vp(1.0, {&pitch_vp, &interval_vp}, {&duration_vp});
-
   std::cout 
     << std::endl
     << "Training complete! Evaluating models..." 
     << std::endl << std::endl;
 
-  for (double eb = 0.0; eb < 12.0; eb += 1.0) {
-    single_vp.entropy_bias = eb;
-    multi_vp.entropy_bias = eb;
+  for (double eb = 6.0; eb < 7.0; eb += 1.0) {
+    svs.entropy_bias = eb;
+    mvs.entropy_bias = eb;
 
     double svs_entropy = 0.0;
     double mvs_entropy = 0.0;
 
     double svs_entropy_2 = 0.0;
     double mvs_entropy_2 = 0.0;
+
+    double dur_entropy = 0.0;
 
     unsigned int i = 1;
 
@@ -106,19 +111,21 @@ int main(void) {
       if (++i % 10 == 0)
         std::cout << "=" << std::flush;
 
-      const auto &pitches = c.first;
-
-      double h_s = single_vp.avg_sequence_entropy(pitches);
+      double h_s = svs.avg_sequence_entropy<ChoralePitch>(c);
       svs_entropy += h_s;
       svs_entropy_2 += h_s * h_s;
 
-      double h_m = multi_vp.avg_sequence_entropy(pitches);
+      double h_m = mvs.avg_sequence_entropy<ChoralePitch>(c);
       mvs_entropy += h_m;
       mvs_entropy_2 += h_m * h_m;
+
+      double h_dur = svs.avg_sequence_entropy<ChoraleDuration>(c);
+      dur_entropy += h_dur;
     }
 
     svs_entropy /= corpus.size();
     mvs_entropy /= corpus.size();
+    dur_entropy /= corpus.size();
 
     auto mu_svs_2 = svs_entropy * svs_entropy;
     auto mu_mvs_2 = mvs_entropy * mvs_entropy;
@@ -135,14 +142,16 @@ int main(void) {
       << svs_entropy << " bits" 
       << " (stdev = " << std::sqrt(svs_variance) << ")" << std::endl;
 
+    std::cout
+      << "--> Single VP (duration): "
+      << dur_entropy << " bits" << std::endl;
+
     std::cout 
       << "--> Multi VP (pitch,interval): " 
       << mvs_entropy << " bits" 
       << " (stdev = " << std::sqrt(mvs_variance) << ")"
       << std::endl << std::endl;
   }
-
-  */
 }
 
 

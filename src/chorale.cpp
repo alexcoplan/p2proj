@@ -140,6 +140,11 @@ const std::array<const ChoraleRest, ChoraleRest::cardinality>
 ChoraleRest::shared_instances = 
   {{ ChoraleRest(0), ChoraleRest(1), ChoraleRest(2) }};
 
+const std::array<std::string, ChoraleRest::cardinality>
+ChoraleRest::pretty_strs = {
+  {"$\\rightarrow$ ", "\\crotchetRest{} ", "\\halfNoteRest{} "}
+};
+
 ChoraleRest::ChoraleRest(unsigned int c) : CodedEvent(c) {
   assert(c < cardinality);
 }
@@ -226,11 +231,12 @@ void IntervalViewpoint::debug() {
 }
 
 EventDistribution<ChoralePitch>
-IntervalViewpoint::predict(const std::vector<ChoralePitch> &pitch_ctx) const {
-  if (pitch_ctx.empty())
+IntervalViewpoint::predict(const std::vector<ChoraleEvent> &ctx) const {
+  if (ctx.empty())
     throw ViewpointPredictionException("Viewpoint seqint needs at least one\
  pitch to be able to predict further pitches.");
 
+  auto pitch_ctx = ChoraleEvent::lift<ChoralePitch>(ctx);
   auto interval_ctx = lift(pitch_ctx);
   auto interval_dist = model.gen_successor_dist(interval_ctx);
   auto last_pitch = pitch_ctx.back();
@@ -259,37 +265,4 @@ IntervalViewpoint::predict(const std::vector<ChoralePitch> &pitch_ctx) const {
 
   return EventDistribution<ChoralePitch>(new_values);
 }
-
-
-/********************************************************************
- * ChoraleMVS implementations below
- ********************************************************************/
-
-template<>
-const std::vector<std::unique_ptr<Predictor<ChoralePitch>>> &
-ChoraleMVS::predictors<ChoralePitch>() const {
-  return pitch_predictors;
-}
-
-template<>
-const std::vector<std::unique_ptr<Predictor<ChoraleDuration>>> &
-ChoraleMVS::predictors<ChoraleDuration>() const {
-  return duration_predictors;
-}
-
-ChoraleMVS::ChoraleMVS(double eb, 
- std::initializer_list<Predictor<ChoralePitch> *> pitch_vps,
- std::initializer_list<Predictor<ChoraleDuration> *> duration_vps) : 
-  entropy_bias(eb) {
-  for (auto vp_ptr : pitch_vps) {
-    std::unique_ptr<Predictor<ChoralePitch>> cloned(vp_ptr->clone());
-    pitch_predictors.push_back(std::move(cloned));
-  }
-
-  for (auto vp_ptr : duration_vps) {
-    std::unique_ptr<Predictor<ChoraleDuration>> cloned(vp_ptr->clone());
-    duration_predictors.push_back(std::move(cloned));
-  }
-}
-
 

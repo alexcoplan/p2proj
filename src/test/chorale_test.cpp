@@ -3,6 +3,41 @@
 #include "viewpoint.hpp"
 #include <array>
 
+struct ChoraleMocker {
+  static const MidiPitch default_pitch;
+  static const QuantizedDuration default_dur; 
+
+  static ChoraleEvent mock(const ChoralePitch &p) {
+    return ChoraleEvent(MidiPitch(p.raw_value()), default_dur, nullptr);
+  }
+
+  static ChoraleEvent mock(const ChoraleDuration &d) {
+    return 
+      ChoraleEvent(default_pitch, QuantizedDuration(d.raw_value()), nullptr);
+  }
+
+  static ChoraleEvent mock(ChoraleRest::singleton_ptr_t ptr) {
+    return ChoraleEvent(default_pitch, default_dur, ptr);
+  }
+  
+  template<typename T>
+  static std::vector<ChoraleEvent>
+  mock_sequence(std::vector<T> vals) {
+    std::vector<ChoraleEvent> result;
+    std::transform(vals.begin(), vals.end(), std::back_inserter(result),
+      [](const T &v) { return ChoraleMocker::mock(v); } );
+    return result;
+  }
+};
+
+const MidiPitch
+ChoraleMocker::default_pitch = MidiPitch(60);
+
+const QuantizedDuration 
+ChoraleMocker::default_dur = QuantizedDuration(4);
+
+
+
 TEST_CASE("Check Chorale event encodings", "[chorale][events]") {
   SECTION("Check interval encoding") {
     std::array<int, ChoraleInterval::cardinality> interval_domain =
@@ -31,8 +66,13 @@ TEST_CASE("Check Chorale event operaitons", "[chorale][events]") {
 
 TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
   const unsigned int order = 3;
+
   SequenceModel<ChoralePitch> model(order);
-  BasicViewpoint<ChoralePitch> pitch_vp(order);
+
+  double entropy_bias = 2.0;
+  ChoraleMVS mvs(entropy_bias);
+
+  ChoraleMVS::BasicVP<ChoralePitch> pitch_vp(order);
 
   // C D C E C F C G C A C B C C^
   auto eg = {60,62,60,64,60,65,60,67,60,69,60,71,60,72};
@@ -42,10 +82,9 @@ TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
 
   // train both model and trivial viewpoint on same data
   model.learn_sequence(pitches);
-  pitch_vp.learn(pitches);
+  pitch_vp.learn(ChoraleMocker::mock_sequence(pitches));
 
-  double entropy_bias = 2.0; // arbitrary, this is a single viewpoint system
-  ChoraleMVS mvs(entropy_bias, {&pitch_vp}, {});
+  mvs.add_viewpoint(&pitch_vp);
 
   auto test_1 = {60,61,62,63,64,65,66,67,68,69,70};
   auto test_2 = {60};
@@ -55,7 +94,8 @@ TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
     std::vector<ChoralePitch> test_pitches;
     std::transform(vs.begin(), vs.end(), std::back_inserter(test_pitches),
         [](unsigned int p) { return ChoralePitch(MidiPitch(p)); });
-    auto mvs_entropy = mvs.avg_sequence_entropy(test_pitches);
+    auto mvs_entropy = mvs.avg_sequence_entropy<ChoralePitch>(
+        ChoraleMocker::mock_sequence(test_pitches));
     auto model_entropy = model.avg_sequence_entropy(test_pitches);
     REQUIRE( mvs_entropy == model_entropy );
   }
