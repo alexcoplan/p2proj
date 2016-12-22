@@ -7,10 +7,6 @@
 
 using json = nlohmann::json;
 
-/**************************************************
- * TODO: Fix corpus prep script to collapse ties
- **************************************************/
-
 int main(void) {
   std::ifstream corpus_file("corpus/chorale_dataset.json");
   json j;

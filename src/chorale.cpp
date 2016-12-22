@@ -52,7 +52,7 @@ bool ChoralePitch::is_valid_transposition(const ChoraleInterval &delta) const {
  ***************************************************/
 
 const std::array<unsigned int, ChoraleDuration::cardinality> 
-ChoraleDuration::duration_domain = {{1,2,3,4,6,8,12,16,24}};
+ChoraleDuration::duration_domain = {{1,2,3,4,6,8,12,14,16,20,24,28,32,56,64}};
 
 const std::array<const std::string, ChoraleDuration::cardinality>
 ChoraleDuration::pretty_durations = {{
@@ -72,6 +72,7 @@ unsigned int ChoraleDuration::map_in(unsigned int quantized_duration) {
     if (duration_domain[i] == quantized_duration)
       return i;
   
+  std::cerr << "Unexpected duration: " << quantized_duration << std::endl;
   assert(! "Bad duration");
 }
 

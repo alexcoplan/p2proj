@@ -87,7 +87,7 @@ public:
 
 class ChoraleDuration : public CodedEvent {
 public:
-  constexpr static unsigned int cardinality = 9;
+  constexpr static unsigned int cardinality = 15;
 
 private:
   const static std::array<unsigned int, cardinality> duration_domain;

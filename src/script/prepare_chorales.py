@@ -78,6 +78,7 @@ for i in bcl.byRiemenschneider:
 
   print("Processing %d of %d (BWV %s)" % (i, num_chorales, info["bwv"]))
   c = corpus.parse('bach/bwv' + str(info["bwv"]))
+  cStrip = c.stripTies(retainContainers=True)
 
   if len(c.parts) != 4:
     print(" * Skipping: BWV %s is not in four parts." % info["bwv"])
@@ -115,12 +116,13 @@ for i in bcl.byRiemenschneider:
   prev_pitch = None
   prev_end_q = None # end = offset + duration
   
-  for n in c.parts[0].flat.notes:
+  for n in cStrip.parts[0].flat.notes:
     if prev_pitch is not None:
       seqint_mask[n.pitch.midi - prev_pitch + 21] = True
     prev_pitch = n.pitch.midi
 
     duration_q = ql_quantize(n.duration.quarterLength)
+    assert duration_q != 0
     offset_q = ql_quantize(n.offset)
 
     if prev_end_q is not None:
