@@ -61,4 +61,49 @@ TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
   }
 }
 
+TEST_CASE("Check ChoraleEvent template magic") {
+  std::vector<ChoraleEvent> test_events {
+    ChoraleEvent(
+        MidiPitch(60), QuantizedDuration(4), nullptr
+    ),
+    ChoraleEvent(
+      MidiPitch(62), QuantizedDuration(6), ChoraleRest(2).shared_instance()
+    ),
+    ChoraleEvent(
+      MidiPitch(64), QuantizedDuration(4), ChoraleRest(0).shared_instance()
+    )
+  };
+
+  auto pitches = ChoraleEvent::lift<ChoralePitch>(test_events);
+  auto durations = ChoraleEvent::lift<ChoraleDuration>(test_events);
+  auto rests = ChoraleEvent::lift<ChoraleRest>(test_events);
+
+  std::vector<unsigned int> raw_pitches = { 60,62,64 };
+  std::vector<ChoralePitch> expected_pitches;
+  std::transform(raw_pitches.begin(), raw_pitches.end(),
+    std::back_inserter(expected_pitches),
+    [](unsigned int x) { return ChoralePitch(MidiPitch(x)); });
+
+  std::vector<unsigned int> raw_durs = { 4,6,4 };
+  std::vector<ChoraleDuration> expected_durs;
+  std::transform(raw_durs.begin(), raw_durs.end(), 
+    std::back_inserter(expected_durs),
+    [](unsigned int x) { return ChoraleDuration(QuantizedDuration(x)); });
+
+  std::vector<ChoraleRest> expected_rests{ ChoraleRest(2), ChoraleRest(0) };
+  
+  REQUIRE( pitches == expected_pitches );
+  REQUIRE( durations == expected_durs );
+  REQUIRE( rests == expected_rests );
+
+  std::vector<std::pair<ChoralePitch, ChoraleDuration>> expected_pairs {
+    std::make_pair(expected_pitches[0], expected_durs[0]),
+    std::make_pair(expected_pitches[1], expected_durs[1]),
+    std::make_pair(expected_pitches[2], expected_durs[2])
+  };
+
+  auto pairs = ChoraleEvent::lift<ChoralePitch, ChoraleDuration>(test_events);
+  REQUIRE( pairs == expected_pairs );
+}
+
 

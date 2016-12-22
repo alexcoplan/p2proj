@@ -42,9 +42,10 @@ public:
   std::string string_render() const override {
     return std::to_string(code);
   }
-  bool operator==(const CodedEvent &other) {
+  bool operator==(const CodedEvent &other) const {
     return this->code == other.code;
   }
+
   CodedEvent(unsigned int c) : code(c) {}
 };
 
@@ -86,7 +87,7 @@ public:
 
 class ChoraleDuration : public CodedEvent {
 public:
-  constexpr static unsigned int cardinality = 10;
+  constexpr static unsigned int cardinality = 9;
 
 private:
   const static std::array<unsigned int, cardinality> duration_domain;
@@ -144,24 +145,99 @@ public:
   ChoraleTimeSig(const QuantizedDuration &qd);
 };
 
+class ChoraleRest : public CodedEvent {
+public:
+  using singleton_ptr_t = const ChoraleRest * const;
+  constexpr static unsigned int cardinality = 3;
+  const static std::array<const ChoraleRest, cardinality> shared_instances;
+
+private:
+  constexpr static unsigned int map_in(unsigned int rest_len) {
+    return rest_len / 4;
+  }
+  constexpr static unsigned int map_out(unsigned int code) {
+    return code * 4;
+  }
+
+
+public:
+  unsigned int encode() const override { return code; }
+  unsigned int raw_value() const { return map_out(code); }
+
+  singleton_ptr_t shared_instance() {
+    return &shared_instances[code];
+  }
+
+  constexpr static bool valid_singleton_ptr(singleton_ptr_t ptr) {
+    return (ptr == nullptr
+         || ptr == &shared_instances[0]
+         || ptr == &shared_instances[1]
+         || ptr == &shared_instances[2]);
+  }
+
+  ChoraleRest(unsigned int c);
+  ChoraleRest(const QuantizedDuration &qd);
+};
+
+
 /* This type defines the event space we use to model chorales. ChoraleEvents
  * have as members all the different types that make up a chorale event (pitch,
  * duration, offset, etc.) */
-class ChoraleEvent {
-public:
-  const ChoralePitch pitch;
-  const ChoraleDuration duration;
-  const ChoraleKeySig key_sig;
-  const ChoraleTimeSig time_sig;
-  const unsigned int offset;
+struct ChoraleEvent {
+  ChoralePitch pitch;
+  ChoraleDuration duration;
+  ChoraleRest::singleton_ptr_t rest;
+
+  template<typename T>
+  T project() const;
+
+  template<typename T>
+  static std::vector<T>
+  lift(const std::vector<ChoraleEvent> &es);
+
+  template<typename P, typename Q>
+  static std::vector<std::pair<P,Q>>
+  lift(const std::vector<ChoraleEvent> &es);
 
   ChoraleEvent(const MidiPitch &mp, 
                const QuantizedDuration &dur, 
-               const KeySig &ks, 
-               const QuantizedDuration &bar_length,
-               const unsigned int pos) :
-    pitch(mp), duration(dur), key_sig(ks), time_sig(bar_length), offset(pos) {}
+               ChoraleRest::singleton_ptr_t rest_ptr) :
+    pitch(mp), duration(dur), rest(rest_ptr) {
+    assert(ChoraleRest::valid_singleton_ptr(rest_ptr));
+  }
 };
+
+template<>
+std::vector<ChoraleRest>
+inline ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
+  std::vector<ChoraleRest> result;
+  for (const auto &e : es) {
+    if (e.rest)
+      result.push_back(*e.rest);
+  }
+
+  return result;
+}
+
+template<typename T>
+std::vector<T>
+ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
+  std::vector<T> result;
+  std::transform(es.begin(), es.end(), std::back_inserter(result),
+      [](const ChoraleEvent &e) { return e.project<T>(); });
+  return result;
+}
+
+template<typename P, typename Q>
+std::vector<std::pair<P,Q>>
+ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
+  std::vector<std::pair<P,Q>> result;
+  std::transform(es.begin(), es.end(), std::back_inserter(result),
+      [](const ChoraleEvent &e) {
+        return std::make_pair<P,Q>(e.project<P>(), e.project<Q>());
+      });
+  return result;
+}
 
 /**********************************************************
  * Derived types for the chorales

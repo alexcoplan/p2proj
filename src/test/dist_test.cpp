@@ -30,6 +30,19 @@ TEST_CASE("Dummy event encoding works correctly", "[event]") {
   }
 }
 
+TEST_CASE("Pair encoding works correctly", "[event]") {
+  std::vector<char> chars{ 'G', 'A', 'B', 'D' };
+  for (auto x : chars) {
+    for (auto y : chars) {
+      DummyEvent ex(x);
+      DummyEvent ey(y);
+      EventPair<DummyEvent, DummyEvent> pair(ex,ey);
+      REQUIRE( pair.left().raw_value() == x );
+      REQUIRE( pair.right().raw_value() == y );
+    }
+  }
+}
+
 TEST_CASE("SequenceModel correctly abstracts around ContextModel", 
     "[seqmodel]") { 
   SequenceModel<DummyEvent> seq_model(3);

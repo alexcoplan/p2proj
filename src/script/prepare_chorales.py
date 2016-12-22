@@ -56,6 +56,7 @@ duration_mask = [False] * 64
 sharps_mask = [False] * 15
 timesig_mask = [False] * 32
 seqint_mask = [False] * 42
+rest_mask = [False] * 64
 
 # quantize to semiquavers
 def ql_quantize(ql):
@@ -112,13 +113,20 @@ for i in bcl.byRiemenschneider:
   c_notes = []
 
   prev_pitch = None
-
+  prev_end_q = None # end = offset + duration
+  
   for n in c.parts[0].flat.notes:
     if prev_pitch is not None:
       seqint_mask[n.pitch.midi - prev_pitch + 21] = True
     prev_pitch = n.pitch.midi
 
     duration_q = ql_quantize(n.duration.quarterLength)
+    offset_q = ql_quantize(n.offset)
+
+    if prev_end_q is not None:
+      rest_mask[offset_q - prev_end_q] = True
+    prev_end_q = offset_q + duration_q
+
     pitch_mask[n.pitch.midi - 1]  = True
     duration_mask[duration_q - 1] = True
     c_notes.append([
@@ -146,6 +154,7 @@ duration_domain = []
 sharps_domain = []
 time_sig_domain = []
 seqint_domain = []
+rest_domain = []
 
 for idx,val in enumerate(pitch_mask):
   if val:
@@ -181,6 +190,13 @@ for idx,val in enumerate(seqint_mask):
 
 print("Intervals used (seqint): ", end="")
 print(seqint_domain)
+
+for idx,val in enumerate(rest_mask):
+  if val:
+    rest_domain.append(idx)
+
+print("Rests used: ", end="")
+print(rest_domain)
 
 print("Compilation complete, writing JSON...")
 

@@ -14,39 +14,64 @@ int main(void) {
 
   BasicViewpoint<ChoralePitch> pitch_vp(3);
   BasicViewpoint<ChoraleDuration> duration_vp(3);
+  BasicViewpoint<ChoraleRest> rest_vp(3);
   IntervalViewpoint interval_vp(3);
 
-  using entry_t = 
-    std::pair<std::vector<ChoralePitch>, std::vector<ChoraleDuration>>;
-
-  std::vector<entry_t> corpus;
+  std::vector<std::vector<ChoraleEvent>> corpus;
 
   const auto num_chorales = j["corpus"].size();
   for (unsigned int i = 0; i < num_chorales; i++) {
     const auto &chorale_j = j["corpus"][i];
+    
+    std::vector<ChoraleEvent> chorale_events;
 
     std::cout << "Training (" << (i+1) << "/" << num_chorales << "): "
      <<  chorale_j["title"] << std::endl;
 
-    std::vector<ChoralePitch> ps;
-    std::vector<ChoraleDuration> ds;
 
-    for (const auto &note_j : chorale_j["notes"]) {
-      MidiPitch pitch(static_cast<unsigned int>(note_j[0]));
-      // auto offset = static_cast<unsigned int>(note_j[1]);
-      QuantizedDuration dur(static_cast<unsigned int>(note_j[2]));
+    const auto &notes_j = chorale_j["note"];
+    assert(notes_j.size() > 1);
 
-      // ChoraleEvent e(pitch, dur, ks, ts, offset);
-      ps.push_back(ChoralePitch(pitch));
-      ds.push_back(ChoraleDuration(dur));
+    const auto &first_note_j = notes_j[0];
+    unsigned int first_pitch   = first_note_j[0];
+    unsigned int prev_offset   = first_note_j[1];
+    unsigned int prev_duration = first_note_j[2];
+
+    chorale_events.push_back(ChoraleEvent(
+      MidiPitch(first_pitch), QuantizedDuration(prev_duration), nullptr
+    ));
+
+    for (unsigned int j = 1; i < notes_j.size(); j++) {
+      const auto &note_j = notes_j[j];
+
+      unsigned int pitch    = note_j[0];
+      unsigned int offset   = note_j[1];
+      unsigned int duration = note_j[2];
+
+      assert(offset >= prev_offset + prev_duration);
+      ChoraleRest rest(offset - prev_duration - prev_offset);
+
+      chorale_events.push_back(ChoraleEvent(
+        MidiPitch(pitch), QuantizedDuration(duration), rest.shared_instance()
+      ));
+
+      prev_offset = offset;
+      prev_duration = duration;
     }
 
-    pitch_vp.learn(ps);
-    duration_vp.learn(ds);
-    interval_vp.learn(ps);
+    const auto pitches = 
+      ChoraleEvent::lift<ChoralePitch>(chorale_events);
 
-    corpus.push_back(std::make_pair(ps, ds));
+    const auto rests =
+      ChoraleEvent::lift<ChoraleRest>(chorale_events);
+
+    pitch_vp.learn(pitches);
+    interval_vp.learn(pitches);
+    rest_vp.learn(ChoraleEvent::lift<ChoraleRest>(chorale_events));
+    duration_vp.learn(ChoraleEvent::lift<ChoraleDuration>(chorale_events));
   }
+
+  rest_vp.write_latex("out/tex/complete_rest.tex");
 
   /*
   pitch_vp.write_latex("out/tex/complete_pitch.tex");
@@ -54,7 +79,8 @@ int main(void) {
   interval_vp.write_latex("out/tex/complete_ival.tex");
   */
 
-  ChoraleMVS single_vp(1.0, {&pitch_vp}, {&duration_vp});
+  /*
+  ChoraleMVS single_vp(1.0, {&pitch_vp}, {&duration_vp}, {&rest_vp});
   ChoraleMVS multi_vp(1.0, {&pitch_vp, &interval_vp}, {&duration_vp});
 
   std::cout 
@@ -115,6 +141,8 @@ int main(void) {
       << " (stdev = " << std::sqrt(mvs_variance) << ")"
       << std::endl << std::endl;
   }
+
+  */
 }
 
 

@@ -52,7 +52,7 @@ bool ChoralePitch::is_valid_transposition(const ChoraleInterval &delta) const {
  ***************************************************/
 
 const std::array<unsigned int, ChoraleDuration::cardinality> 
-ChoraleDuration::duration_domain = {{1,2,3,4,6,8,12,16,24,64}};
+ChoraleDuration::duration_domain = {{1,2,3,4,6,8,12,16,24}};
 
 const std::array<const std::string, ChoraleDuration::cardinality>
 ChoraleDuration::pretty_durations = {{
@@ -65,7 +65,6 @@ ChoraleDuration::pretty_durations = {{
   "\\minimDotted",
   "\\semibreve",
   "\\semibreveDotted",
-  "$\\semibreve^4$"
 }};
 
 unsigned int ChoraleDuration::map_in(unsigned int quantized_duration) {
@@ -133,6 +132,32 @@ ChoraleTimeSig::ChoraleTimeSig(unsigned int c) : CodedEvent(c) {
 ChoraleTimeSig::ChoraleTimeSig(const QuantizedDuration &qd) :
   CodedEvent(map_in(qd.duration)) {}
 
+/***************************************************
+ * ChoraleRest implementation
+ ***************************************************/
+
+const std::array<const ChoraleRest, ChoraleRest::cardinality> 
+ChoraleRest::shared_instances = 
+  {{ ChoraleRest(0), ChoraleRest(1), ChoraleRest(2) }};
+
+ChoraleRest::ChoraleRest(unsigned int c) : CodedEvent(c) {
+  assert(c < cardinality);
+}
+
+ChoraleRest::ChoraleRest(const QuantizedDuration &qd) :
+  CodedEvent(map_in(qd.duration)) {
+  assert(code < cardinality);
+}
+
+/***************************************************
+ * ChoraleEvent implementation
+ ***************************************************/
+
+template<>
+ChoralePitch ChoraleEvent::project() const { return pitch; }
+
+template<>
+ChoraleDuration ChoraleEvent::project() const { return duration; }
 
 /********************************************************************
  * Derived types below, starting with ChoraleInterval implementation
