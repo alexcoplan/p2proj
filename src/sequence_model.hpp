@@ -9,6 +9,7 @@
 #include "event.hpp"
 #include "event_enumerator.hpp"
 #include "context_model.hpp"
+#include "random_source.hpp"
 
 // accuracy to which distributions must sum to 1
 #define DISTRIBUTION_EPS 1e-15 
@@ -81,6 +82,8 @@ public:
   double probability_for(const T &event) const;
   double entropy() const;
   double normalised_entropy() const;
+  T sample() const;
+  T sample_with_source(RandomSource *) const;
   void combine_in_place(const DistCombStrategy<T> &strategy, 
       const EventDistribution<T> &dist) {
     EventDistribution combined(strategy, {dist,*this});
@@ -150,6 +153,40 @@ double EventDistribution<T>::normalised_entropy() const {
     return entropy() / max_entropy();
   
   return 1.0;
+}
+
+template<class T>
+T EventDistribution<T>::sample_with_source(RandomSource *rs) const {
+  // build a cumulative frequency distribution and sample from that
+  std::array<double, T::cardinality> cfd{{0.0}};
+  double total_probability = 0.0;
+  for (unsigned int i = 0; i < T::cardinality; i++) {
+    total_probability += values[i];
+    cfd[i] = total_probability;
+  }
+
+  double target_probability = rs->sample();
+    
+  // binary search to find i s.t.
+  // cfd[i-1] < p <= cfd[i]
+  // or 0 <= p <= cfd[1] if p <= cfd[1]
+  unsigned int ub = T::cardinality; // exclusive
+  unsigned int lb = 0; // inclusive
+
+  while (ub - lb > 1) {
+    unsigned int midpoint = (ub + lb)/2;
+    if (target_probability <= cfd[midpoint - 1])
+      ub = midpoint;
+    else 
+      lb = midpoint;
+  }
+
+  return T(lb);
+}
+
+template<class T>
+T EventDistribution<T>::sample() const {
+  return sample_with_source(&DefaultRandomSource::shared_source);
 }
 
 /**************************************************

@@ -16,6 +16,8 @@ class DefaultRandomSource : public RandomSource {
   std::uniform_real_distribution<double> distribution;
 
 public:
+  static DefaultRandomSource shared_source;
+
   DefaultRandomSource();
   double sample() override { return distribution(engine); }
 };

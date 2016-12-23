@@ -1,5 +1,8 @@
 #include "random_source.hpp"
 
+DefaultRandomSource
+DefaultRandomSource::shared_source = DefaultRandomSource();
+
 DefaultRandomSource::DefaultRandomSource() : distribution{0.0, 1.0} {
   try {
     std::random_device rdev{};
