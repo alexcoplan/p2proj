@@ -34,7 +34,7 @@ interval between consecutive notes _does_ capture this relationship, however.
 Such a viewpoint, since it is derived from pitch, can also be used to predict
 pitch.
 
-By associating each viewpoint with a context model and combining thier
+By associating each viewpoint with a context model and combining their
 predictions, one obtains a _multiple viewpoint system_. It turns out that
 multiple viewpoint systems are objectively better predictors over single
 viewpoint systems (i.e. Markov chains): that is, they can predict music with
@@ -45,7 +45,6 @@ lower entropy.
 To compile the project you will need the [scons](http://www.scons.org/) build
 system. On macOS with [homebrew](http://brew.sh/):
 ```
-brew update
 brew install scons
 ```
 
@@ -61,7 +60,7 @@ and can be run with `scons test`:
 $ scons -Q test
 test/ctx_test.out
 ===============================================================================
-All tests passed (192 assertions in 13 test cases)
+All tests passed (272 assertions in 18 test cases)
 ```
 
 ## LaTeX Output
