@@ -267,3 +267,29 @@ IntervalViewpoint::predict(const std::vector<ChoraleEvent> &ctx) const {
   return EventDistribution<ChoralePitch>(new_values);
 }
 
+/***************************************************
+ * ChoraleMVS implementation
+ ***************************************************/
+
+std::vector<ChoraleEvent> ChoraleMVS::generate(unsigned int len) const {
+  assert(len > 1);
+
+  std::vector<ChoraleEvent> buffer;
+
+  auto first_pitch = predict<ChoralePitch>(buffer).sample();
+  auto first_dur   = predict<ChoraleDuration>(buffer).sample();
+
+  ChoraleEvent first_event(first_pitch, first_dur, nullptr);
+  buffer.push_back(first_event);
+
+  for (unsigned int i = 0; i < len - 1; i++) {
+    auto pitch = predict<ChoralePitch>(buffer).sample();
+    auto dur   = predict<ChoraleDuration>(buffer).sample();
+    auto rest_ptr = predict<ChoraleRest>(buffer).sample().shared_instance();
+    ChoraleEvent event(pitch, dur, rest_ptr);
+    buffer.push_back(event);
+  }
+
+  return buffer;
+}
+

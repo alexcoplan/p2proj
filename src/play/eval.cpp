@@ -6,39 +6,20 @@
 #include "viewpoint.hpp"
 
 using json = nlohmann::json;
+using corpus_t = std::vector<std::vector<ChoraleEvent>>;
 
-int main(void) {
-  std::ifstream corpus_file("corpus/chorale_dataset.json");
+void parse(const std::string corpus_path, corpus_t &corpus) {
+  std::ifstream corpus_file(corpus_path);
   json j;
   corpus_file >> j;
 
-  ChoraleMVS::BasicVP<ChoralePitch> pitch_vp(3);
-  ChoraleMVS::BasicVP<ChoraleDuration> duration_vp(3);
-  ChoraleMVS::BasicVP<ChoraleRest> rest_vp(3);
-  IntervalViewpoint interval_vp(3);
-
-  ChoraleMVS svs(2.0);
-  svs.add_viewpoint(&pitch_vp);
-  svs.add_viewpoint(&duration_vp);
-  svs.add_viewpoint(&rest_vp);
-
-  ChoraleMVS mvs(2.0);
-  mvs.add_viewpoint(&pitch_vp);
-  mvs.add_viewpoint(&interval_vp);
-  mvs.add_viewpoint(&duration_vp);
-  mvs.add_viewpoint(&rest_vp);
-
-  std::vector<std::vector<ChoraleEvent>> corpus;
+  std::cout << "Parsing corpus... " << std::flush;
 
   const auto num_chorales = j["corpus"].size();
   for (unsigned int i = 0; i < num_chorales; i++) {
     const auto &chorale_j = j["corpus"][i];
     
     std::vector<ChoraleEvent> chorale_events;
-
-    std::cout << "Training (" << (i+1) << "/" << num_chorales << "): "
-     <<  chorale_j["title"] << std::endl;
-
 
     const auto &notes_j = chorale_j["notes"];
     assert(notes_j.size() > 1);
@@ -71,33 +52,61 @@ int main(void) {
       prev_duration = duration;
     }
 
-    svs.learn(chorale_events);
-    mvs.learn(chorale_events);
     corpus.push_back(chorale_events);
   }
 
-  /*
-  pitch_vp.write_latex("out/tex/complete_pitch.tex");
-  duration_vp.write_latex("out/tex/complete_dur.tex");
-  interval_vp.write_latex("out/tex/complete_ival.tex");
-  */
+  std::cout << "done." << std::endl;
+}
+
+void train(const corpus_t &corpus, std::initializer_list<ChoraleMVS *> mvss) {
+  for (const auto &piece : corpus) {
+    for (auto mvs_ptr : mvss)
+      mvs_ptr->learn(piece);
+  }
+}
+
+void render(const std::vector<ChoraleEvent> &piece, 
+            const std::string &json_fname) {
+  json notes_j;
+
+  unsigned int offset = 0;
+  for (const auto &event : piece) {
+    unsigned int pitch = event.pitch.raw_value();
+    unsigned int duration = event.duration.raw_value();
+
+    if (event.rest)
+      offset += event.rest->raw_value();
+
+    notes_j.push_back({ pitch, offset, duration });
+    offset += duration;
+  }
+
+  json result_j;
+  result_j["notes"] = notes_j;
+
+  std::ofstream o(json_fname);
+  o << std::setw(2) << result_j << std::endl;
+}
+
+void evaluate(const corpus_t &corpus, double eb_min, double eb_max,
+    std::initializer_list<ChoraleMVS *> mvss) {
 
   std::cout 
     << std::endl
-    << "Training complete! Evaluating models..." 
+    << "Evaluating models..." 
     << std::endl << std::endl;
 
-  for (double eb = 6.0; eb < 7.0; eb += 1.0) {
-    svs.entropy_bias = eb;
-    mvs.entropy_bias = eb;
+  for (double eb = eb_min; eb < eb_max + 1.0; eb += 1.0) {
+    for (auto mvs_ptr : mvss)
+      mvs_ptr->entropy_bias = eb;
 
-    double svs_entropy = 0.0;
-    double mvs_entropy = 0.0;
+    std::vector<double> pitch_entropies(mvss.size());
+    for (auto &h : pitch_entropies)
+      h = 0.0;
 
-    double svs_entropy_2 = 0.0;
-    double mvs_entropy_2 = 0.0;
-
-    double dur_entropy = 0.0;
+    std::vector<double> dur_entropies(mvss.size());
+    for (auto &h : dur_entropies)
+      h = 0.0;
 
     unsigned int i = 1;
 
@@ -107,47 +116,88 @@ int main(void) {
       if (++i % 10 == 0)
         std::cout << "=" << std::flush;
 
-      double h_s = svs.avg_sequence_entropy<ChoralePitch>(c);
-      svs_entropy += h_s;
-      svs_entropy_2 += h_s * h_s;
-
-      double h_m = mvs.avg_sequence_entropy<ChoralePitch>(c);
-      mvs_entropy += h_m;
-      mvs_entropy_2 += h_m * h_m;
-
-      double h_dur = svs.avg_sequence_entropy<ChoraleDuration>(c);
-      dur_entropy += h_dur;
+      unsigned int j = 0;
+      for (auto mvs_ptr : mvss) {
+        double h_pitch = mvs_ptr->avg_sequence_entropy<ChoralePitch>(c);
+        double h_dur   = mvs_ptr->avg_sequence_entropy<ChoraleDuration>(c);
+        pitch_entropies[j] += h_pitch;
+        dur_entropies[j] += h_dur;
+        j++;
+      }
     }
 
-    svs_entropy /= corpus.size();
-    mvs_entropy /= corpus.size();
-    dur_entropy /= corpus.size();
-
-    auto mu_svs_2 = svs_entropy * svs_entropy;
-    auto mu_mvs_2 = mvs_entropy * mvs_entropy;
-    auto svs_variance = (svs_entropy_2 / corpus.size()) - mu_svs_2;
-    auto mvs_variance = (mvs_entropy_2 / corpus.size()) - mu_mvs_2;
+    for (auto &h : pitch_entropies)
+      h /= corpus.size(); 
+    for (auto &h : dur_entropies)
+      h /= corpus.size();
 
     std::cout 
       << std::endl
-      << "Average entropy of pitch using long-term model:" 
+      << "Average entropies using long-term model:" 
       << std::endl;
-   
-    std::cout 
-      << "--> Single VP (pitch): " 
-      << svs_entropy << " bits" 
-      << " (stdev = " << std::sqrt(svs_variance) << ")" << std::endl;
 
-    std::cout
-      << "--> Single VP (duration): "
-      << dur_entropy << " bits" << std::endl;
+    unsigned int j = 0;
+    for (auto mvs_ptr : mvss) {
+      std::cout << "    MVS " << mvs_ptr->name << ":" << std::endl;
 
-    std::cout 
-      << "--> Multi VP (pitch,interval): " 
-      << mvs_entropy << " bits" 
-      << " (stdev = " << std::sqrt(mvs_variance) << ")"
-      << std::endl << std::endl;
+      std::cout
+        << "--> pitch entropy: "
+        << pitch_entropies[j]
+        << std::endl;
+
+      std::cout
+        << "--> duration entropy: "
+        << dur_entropies[j]
+        << std::endl;
+
+      j++;
+    }
+    std::cout << std::endl;
   }
+}
+
+void generate(const ChoraleMVS &mvs, 
+              const unsigned int len, 
+              const std::string &json_fname) {
+  std::cout << "Generating piece of length " << len << "... " << std::flush;
+  auto piece = mvs.generate(len);
+  std::cout << "done." << std::endl;
+
+  std::cout << "Entropy of generated piece: " << std::endl << std::flush;
+  auto pitch_entropy = mvs.avg_sequence_entropy<ChoralePitch>(piece);
+  auto dur_entropy = mvs.avg_sequence_entropy<ChoraleDuration>(piece);
+  std::cout << "--> Pitch: " << pitch_entropy << std::endl;
+  std::cout << "--> Duration: " << dur_entropy << std::endl;
+
+  render(piece, json_fname);
+}
+
+int main(void) {
+  ChoraleMVS::BasicVP<ChoralePitch> pitch_vp(3);
+  ChoraleMVS::BasicVP<ChoraleDuration> duration_vp(3);
+  ChoraleMVS::BasicVP<ChoraleRest> rest_vp(3);
+  IntervalViewpoint interval_vp(3);
+
+  ChoraleMVS svs(2.0, "{pitch,duration,rest}");
+  svs.add_viewpoint(&pitch_vp);
+  svs.add_viewpoint(&duration_vp);
+  svs.add_viewpoint(&rest_vp);
+
+  ChoraleMVS mvs(6.0, "{pitch,interval,duration,rest}");
+  mvs.add_viewpoint(&pitch_vp);
+  mvs.add_viewpoint(&interval_vp);
+  mvs.add_viewpoint(&duration_vp);
+  mvs.add_viewpoint(&rest_vp);
+
+  corpus_t corpus;
+  parse("corpus/chorale_dataset.json", corpus);
+
+  std::cout << "Training... " << std::flush;
+  train(corpus, {&svs, &mvs});
+  std::cout << "done." << std::endl;
+
+  // evaluate(corpus, 5.0, 8.0, {&svs, &mvs});
+  generate(mvs, 42, "out/gend.json");
 }
 
 

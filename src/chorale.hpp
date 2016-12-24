@@ -210,6 +210,13 @@ struct ChoraleEvent {
     pitch(mp), duration(dur), rest(rest_ptr) {
     assert(ChoraleRest::valid_singleton_ptr(rest_ptr));
   }
+
+  ChoraleEvent(const ChoralePitch &cp,
+               const ChoraleDuration &cd,
+               ChoraleRest::singleton_ptr_t rest_ptr) :
+    pitch(cp), duration(cd), rest(rest_ptr) {
+    assert(ChoraleRest::valid_singleton_ptr(rest_ptr));
+  }
 };
 
 template<>
@@ -348,12 +355,15 @@ public:
   using BasicVP = BasicViewpoint<ChoraleEvent, T>;
 
   double entropy_bias;
+  const std::string name;
 
   template<typename T>
     EventDistribution<T> predict(const std::vector<ChoraleEvent> &ctx) const;
 
   template<typename T>
     double avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) const;
+
+  std::vector<ChoraleEvent> generate(unsigned int len) const;
 
   void learn(const std::vector<ChoraleEvent> &seq);
 
@@ -369,7 +379,8 @@ public:
     predictors<Q>().psuh_back(std::unique_ptr<Pred<Q>>(q->clone()));
   }
 
-  ChoraleMVS(double eb) : entropy_bias(eb) {}
+  ChoraleMVS(double eb, const std::string &mvs_name) : 
+    entropy_bias(eb), name(mvs_name) {}
 };
 
 // templated method implementations for ChoraleMVS
