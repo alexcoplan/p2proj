@@ -10,6 +10,13 @@
 *.sconsign.dblite
 src/out/*
 
+# IDE cruft
+*.idea
+
+# Tensorflow products
+src/rnn/checkpoint
+*__pycache__
+
 # Custom ignores
 diss/*.pdf
 rough_unchecked
@@ -25,4 +32,5 @@ rough_unchecked
 *.log
 *.run.xml
 *-blx.bib
+*.synctex.*
 

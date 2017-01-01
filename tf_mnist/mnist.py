@@ -63,9 +63,12 @@ for i in range(1000):
 # this returns a list of booleans.
 correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1)) 
 
+x_shape = tf.shape(x)
+
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 print(sess.run(accuracy, feed_dict={x: mnist.test.images, y_:
   mnist.test.labels}))
+print(sess.run(x_shape, feed_dict={x: mnist.test.images}))
 
 def inverted(vec):
   return [1.0 - x for x in vec]
@@ -96,17 +99,18 @@ def render(vec):
   for num, prob in pairs:
     print("%d : %.2f" % (num,prob))
 
-one = read_pbm("test_1.pbm")
-two = read_pbm("test_2.pbm")
-three = read_pbm("test_3.pbm")
-seven = read_pbm("test_7.pbm")
-eight = read_pbm("test_8.pbm")
-nine = read_pbm("test_9.pbm")
-feed_dict = {x: [one, two, three, seven, eight, nine]}
-class_out = y_out.eval(feed_dict)
 
-for vec in class_out:
-  print("vec ->")
-  render(vec)
-
-# print(class_out)
+# one = read_pbm("test_1.pbm")
+# two = read_pbm("test_2.pbm")
+# three = read_pbm("test_3.pbm")
+# seven = read_pbm("test_7.pbm")
+# eight = read_pbm("test_8.pbm")
+# nine = read_pbm("test_9.pbm")
+# feed_dict = {x: [one, two, three, seven, eight, nine]}
+# class_out = y_out.eval(feed_dict)
+# 
+# for vec in class_out:
+#   print("vec ->")
+#   render(vec)
+# 
+# # print(class_out)
