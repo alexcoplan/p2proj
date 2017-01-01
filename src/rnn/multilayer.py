@@ -35,28 +35,26 @@ n_classes  = 10  # number of MNIST classes
 x = tf.placeholder(tf.float32, [None, n_input])   # input
 y = tf.placeholder(tf.float32, [None, n_classes]) # target output placeholder
 
-# create model
-def multilayer_perceptron(x):
-  # hidden layer with ReLU activation
-  h1  = nn_layer(x,  n_input,    n_hidden_1, "hidden1")
-  h2  = nn_layer(h1, n_hidden_1, n_hidden_2, "hidden2")
-  out = nn_layer(h2, n_hidden_2, n_classes, "output_layer", act=tf.identity)
-  return out
+# create multilayer perceptron model
+#
+# hidden layers have ReLU activation
+h1    = nn_layer(x,  n_input,    n_hidden_1, "hidden1")
+h2    = nn_layer(h1, n_hidden_1, n_hidden_2, "hidden2")
+model = nn_layer(h2, n_hidden_2, n_classes, "output_layer", act=tf.identity)
 
-# construct model
-model = multilayer_perceptron(x)
-
+# useful to know this (e.g. for visualisations)
+n_input_rows = tf.shape(model)[0]
+  
 # define loss and optimiser
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(model, y))
 scalar_summary('cost', cost)
 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # set up tensors for visualisation
-output_img = tf.expand_dims(model, -1) # add single colour channel
-num_rows = tf.shape(model)[0]
+classifications_expanded = tf.expand_dims(model, -1) # add single colour channel
 new_width = tf.constant(n_classes * 50)
-new_img_dims = tf.pack([num_rows, new_width])
-resized_img = tf.image.resize_images(output_img, new_img_dims,
+new_img_dims = tf.pack([n_input_rows, new_width])
+resized_img = tf.image.resize_images(classifications_expanded, new_img_dims,
 method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 class_vis_img = tf.squeeze(resized_img)
 
@@ -72,24 +70,7 @@ def mnist_data_for_digit(n):
   imgs, labs = zip(*pairs)
   return np.array(imgs), np.array(labs)
 
-# launch the graph
-with tf.Session() as sess:
-  if args.checkpoint:
-    print("Loading model from saved file: %s" % args.checkpoint)
-    saver.restore(sess, args.checkpoint)
-    print("Model restored.")
-
-    zero_imgs, zero_labs = mnist_data_for_digit(2)
-
-    visualisation = sess.run(class_vis_img, feed_dict={x: zero_imgs, y: zero_labs})
-    print(sess.run(tf.shape(visualisation)))
-
-    plt.imshow(visualisation)
-    plt.show()
-
-    sess.close()
-    sys.exit()
-
+def train(sess):
   print("Training...")
   sess.run(init_op)
 
@@ -131,17 +112,37 @@ with tf.Session() as sess:
   accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
   print("Accuracy:", accuracy.eval({x: mnist.test.images, y: mnist.test.labels}))
 
-  # generate tensorboard summary when fed different digits
-  zero_imgs, zero_labs = mnist_data_for_digit(0)
-  four_imgs, four_labs = mnist_data_for_digit(4)
+def plot_classifications(sess):
+  plt.figure(1)
 
-  zero_writer = tf.summary.FileWriter('/tmp/multilayer/zero')
-  four_writer = tf.summary.FileWriter('/tmp/multilayer/four')
+  for i in range(9):
+    imgs, labs = mnist_data_for_digit(i)
+    visualisation = sess.run(class_vis_img, feed_dict={x: imgs, y: labs})
+    print(sess.run(tf.shape(visualisation)))
+    plt.subplot(3,3,i+1)
+    plt.imshow(visualisation)
 
-  zero_summary = sess.run(all_summaries, feed_dict={x: zero_imgs, y: zero_labs})
-  four_summary = sess.run(all_summaries, feed_dict={x: four_imgs, y: four_labs})
+  plt.show()
 
-  zero_writer.add_summary(zero_summary)
-  four_writer.add_summary(four_summary)
+def h2_activations(sess):
+  plt.figure(1)
+
+  for i in range(10):
+    imgs,labs = mnist_data_for_digit(i)
+    actvs = sess.run(h2, feed_dict={x: imgs, y: labs})
+    plt.subplot(1,10,i+1)
+    plt.imshow(actvs)
+
+  plt.show()
+
+# launch the graph
+with tf.Session() as sess:
+  if args.checkpoint:
+    print("Loading model from saved file: %s" % args.checkpoint)
+    saver.restore(sess, args.checkpoint)
+    print("Model restored.")
+
+    plot_classifications(sess)
+  else:
+    train(sess)
   
-
