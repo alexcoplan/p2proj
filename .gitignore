@@ -3,6 +3,12 @@
 *.swp
 *.bak
 
+# TensorFlow/NumPy/Pickle temporaries
+src/rnn/checkpoint
+*__pycache__
+*.pkl
+*.npy
+
 # Compilation products
 *.dSYM
 *.out
@@ -13,9 +19,6 @@ src/out/*
 # IDE cruft
 *.idea
 
-# Tensorflow products
-src/rnn/checkpoint
-*__pycache__
 
 # Custom ignores
 diss/*.pdf

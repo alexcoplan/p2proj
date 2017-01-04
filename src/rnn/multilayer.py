@@ -21,7 +21,7 @@ from mnist_util import digit_label
 
 # hyperparameters
 learning_rate = 0.001
-training_epochs = 16
+training_epochs = 30
 batch_size = 100
 display_step = 1
 
@@ -115,22 +115,25 @@ def train(sess):
 def plot_classifications(sess):
   plt.figure(1)
 
-  for i in range(9):
+  for i in range(10):
     imgs, labs = mnist_data_for_digit(i)
     visualisation = sess.run(class_vis_img, feed_dict={x: imgs, y: labs})
     print(sess.run(tf.shape(visualisation)))
-    plt.subplot(3,3,i+1)
+    plt.subplot(2,5,i+1)
     plt.imshow(visualisation)
 
   plt.show()
 
-def h2_activations(sess):
-  plt.figure(1)
+def plot_activations(sess, layer, label):
+  fig = plt.figure(1)
+  fig.suptitle("Activations in %s for MNIST test data" % label)
 
   for i in range(10):
     imgs,labs = mnist_data_for_digit(i)
-    actvs = sess.run(h2, feed_dict={x: imgs, y: labs})
-    plt.subplot(1,10,i+1)
+    actvs = sess.run(layer, feed_dict={x: imgs, y: labs})
+    ax = plt.subplot(1,10,i+1)
+    ax.set_title("Input %ss" % i)
+    ax.set_xlabel("Neurons")
     plt.imshow(actvs)
 
   plt.show()
@@ -142,7 +145,8 @@ with tf.Session() as sess:
     saver.restore(sess, args.checkpoint)
     print("Model restored.")
 
-    plot_classifications(sess)
+    plot_activations(sess, h2, "hidden layer 2")
+    # plot_classifications(sess)
   else:
     train(sess)
   
