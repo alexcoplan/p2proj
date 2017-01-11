@@ -99,17 +99,22 @@ class TextLoader():
   def reset_batch_pointer(self):
     self.pointer = 0
 
+  def inspect_batches(self, n_batches_to_inspect):
+    for batch_num in range(n_batches_to_inspect):
+      xs, ys = self.next_batch()
+      for idx,arr in enumerate(xs):
+        batch_str = ""
+        for code in arr:
+          batch_str += self.chars[code]
+
+        print("\n=== batch[%s], seq[%s] ===\n" % (batch_num,idx))
+        print(batch_str)
+
 
 loader = TextLoader("data", 10, 200)
+x,y = loader.next_batch()
+print(x)
 
-for batch_num in range(2):
-  xs, ys = loader.next_batch()
-  for idx,arr in enumerate(xs):
-    batch_str = ""
-    for code in arr:
-      batch_str += loader.chars[code]
-
-    print("\n=== batch[%s], seq[%s] ===\n" % (batch_num,idx))
-    print(batch_str)
+# loader.inspect_batches(2)
 
 
