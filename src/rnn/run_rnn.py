@@ -73,7 +73,7 @@ with tf.Session() as sess:
       total_steps = config.num_epochs * loader.num_batches
 
       lr = config.learning_rate * (config.lr_decay ** e)
-      print("{}/{} (epoch {}), loss = {:.3f}, time/batch = {:.3f}, lr = {}" \
+      print("{}/{} (epoch {}), loss = {:.3f}, time/batch = {:.3f}, lr = {:.4f}" \
         .format(global_step, total_steps, e, loss, end - start, lr))
 
       regular_save_step = (global_step % args.save_every) == 0

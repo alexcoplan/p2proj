@@ -1,6 +1,12 @@
 import tensorflow as tf
-
 import numpy as np
+
+from enum import Enum
+
+class SamplingMethod(Enum):
+  WEIGHTED_PICK = 0
+  HARD_MAX = 1
+  SAMPLE_ON_SPACES = 2
 
 class ModelConfig(object):
   max_grad_norm = 5
@@ -15,28 +21,34 @@ class ModelConfig(object):
     self.vocab_size = text_loader.vocab_size
 
 class Model(object):
+  rnn_dtype = tf.float32
+
   def __init__(self, config, is_training=True):
     # training hyperparams
     vocab_size = config.vocab_size
     batch_size = config.batch_size
     seq_length = config.seq_length
     hidden_units = config.hidden_size # width of LSTM hidden layer
-    param_dtype = tf.float32
+
+    # if we're not training, set up the RNN for sampling
+    if not is_training:
+      batch_size = 1
+      seq_length = 1
 
     lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_units, state_is_tuple=True)
-    multi_cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell], state_is_tuple=True)
+    self.cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell], state_is_tuple=True)
 
     self.input_data = tf.placeholder(tf.int32, [batch_size, seq_length])
     self.target_data = tf.placeholder(tf.int32, [batch_size, seq_length])
 
     # get initial state for our LSTM cell
-    self.initial_multicell_state = multi_cell.zero_state(batch_size, param_dtype)
+    self.initial_multicell_state = self.cell.zero_state(batch_size, self.rnn_dtype)
 
     # might need to add with tf.device("/cpu:0") here if training on GPU
     # create embedding variable which is randomly initialised
     # the network will learn a dense representation for the input vocabulary
     embedding = tf.get_variable("embedding", 
-    [vocab_size, hidden_units], dtype=param_dtype)
+    [vocab_size, hidden_units], dtype=self.rnn_dtype)
     inputs = tf.nn.embedding_lookup(embedding, self.input_data)
 
     # could add dropout here... see Zaremba et al. 2014
@@ -51,7 +63,8 @@ class Model(object):
     #
     # see the docs for tf.nn.rnn and the argument `inputs` to see why
     inputs = tf.unstack(inputs, num=seq_length, axis=1)
-    outputs, state = tf.nn.rnn(multi_cell, inputs, dtype=param_dtype)
+    outputs, state = tf.nn.rnn(self.cell, inputs,
+      initial_state=self.initial_multicell_state)
 
     # transform the outputs back into the input matrix form
     output = tf.reshape(tf.concat(1, outputs), [-1, hidden_units])
@@ -61,11 +74,14 @@ class Model(object):
     loss = tf.nn.seq2seq.sequence_loss_by_example(
         [logits],
         [tf.reshape(self.target_data, [-1])],
-        [tf.ones([batch_size * seq_length], dtype=param_dtype)],
+        [tf.ones([batch_size * seq_length], dtype=self.rnn_dtype)],
         vocab_size
     )
     # nb we are doing truncated backpropagation with the truncation point
     # set to seq_length
+
+    # create tensor which gives our probability distribution (used for sampling)
+    self.probs = tf.nn.softmax(logits)
 
     self.cost = tf.reduce_sum(loss) / batch_size
     self.final_state = state
@@ -87,8 +103,44 @@ class Model(object):
   def assign_lr(self, sess, lr_value):
     sess.run(self.lr_update, feed_dict={self.new_lr: lr_value})
 
+  def sample(self, sess, chars, vocab, num=200, prime_str='Harry ',
+    method=SamplingMethod.WEIGHTED_PICK):
+    # create initial state for our RNN (multi-)cell with a batch size of one
+    state = sess.run(self.cell.zero_state(1, self.rnn_dtype))
+    for char in prime_str[:-1]: # feed through all except last char
+      x = np.zeros((1,1)) # 1x1 zero tensor
+      x[0,0] = vocab[char] # encode char in this tensor
+      feed = { self.input_data: x, self.initial_multicell_state: state }
+      [state] = sess.run([self.final_state], feed)
 
-    
+    result = prime_str
+    curr_char = prime_str[-1]
+    for n in range(num):
+      x = np.zeros((1,1)) # 1x1 zero tensor
+      x[0,0] = vocab[char] # encode char in this tensor
+      feed = { self.input_data: x, self.initial_multicell_state: state }
+      [probs, state] = sess.run([self.probs, self.final_state], feed)
+      p = probs[0] # reduce 2D batch tensor to 1D distribution
+
+      def weighted_pick(weights):
+        t = np.cumsum(weights)
+        s = np.sum(weights)
+        return(int(np.searchsorted(t, np.random.rand(1)*s)))
+
+      if method == SamplingMethod.WEIGHTED_PICK:
+        sample = weighted_pick(p)
+      elif method == SamplingMethod.HARD_MAX:
+        sample = np.argmax(p)
+      else:
+        sample = weighted_pick(p) if char == ' ' else np.argmax(p)
+
+      decoded = chars[sample]
+      result += decoded
+      char = decoded
+
+    return result
+
+
 
     
 
