@@ -7,20 +7,20 @@ class ModelConfig(object):
   learning_rate = 1.0
   num_epochs = 20
   hidden_size = 128
-  lr_decay = 0.5
+  lr_decay = 0.8
 
-  def __init__(text_loader):
+  def __init__(self, text_loader):
     self.batch_size = text_loader.batch_size
     self.seq_length = text_loader.seq_length
     self.vocab_size = text_loader.vocab_size
 
 class Model(object):
-  def __init__(self, is_training, config):
+  def __init__(self, config, is_training=True):
     # training hyperparams
+    vocab_size = config.vocab_size
     batch_size = config.batch_size
     seq_length = config.seq_length
     hidden_units = config.hidden_size # width of LSTM hidden layer
-    num_steps = config.num_steps
     param_dtype = tf.float32
 
     lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_units, state_is_tuple=True)
@@ -37,7 +37,7 @@ class Model(object):
     # the network will learn a dense representation for the input vocabulary
     embedding = tf.get_variable("embedding", 
     [vocab_size, hidden_units], dtype=param_dtype)
-    inputs = tf.nn.embedding_lookup(embedding, input_data)
+    inputs = tf.nn.embedding_lookup(embedding, self.input_data)
 
     # could add dropout here... see Zaremba et al. 2014
 
@@ -51,14 +51,16 @@ class Model(object):
     #
     # see the docs for tf.nn.rnn and the argument `inputs` to see why
     inputs = tf.unstack(inputs, num=seq_length, axis=1)
-    outputs, state = tf.nn.rnn(multi_cell, inputs, initial_state=initial_state)
+    outputs, state = tf.nn.rnn(multi_cell, inputs, dtype=param_dtype)
 
+    # transform the outputs back into the input matrix form
+    output = tf.reshape(tf.concat(1, outputs), [-1, hidden_units])
     softmax_w = tf.get_variable("softmax_w", [hidden_units, vocab_size])
     softmax_b = tf.get_variable("softmax_b", [vocab_size])
     logits = tf.matmul(output, softmax_w) + softmax_b
     loss = tf.nn.seq2seq.sequence_loss_by_example(
         [logits],
-        [tf.reshape(target_data, [-1])],
+        [tf.reshape(self.target_data, [-1])],
         [tf.ones([batch_size * seq_length], dtype=param_dtype)],
         vocab_size
     )
@@ -79,11 +81,11 @@ class Model(object):
     optimizer = tf.train.GradientDescentOptimizer(self.lr)
     self.train_op = optimizer.apply_gradients(zip(grads, tvars))
     
-    self.new_lr = tf.placeholder(tf.float32, shape[], name="new_learning_rate")
+    self.new_lr = tf.placeholder(tf.float32, shape=[], name="new_learning_rate")
     self.lr_update = tf.assign(self.lr, self.new_lr)
 
-    def assign_lr(self, sess, lr_value):
-      sess.run(self.lr_update, feed_dict={self.new_lr: lr_value})
+  def assign_lr(self, sess, lr_value):
+    sess.run(self.lr_update, feed_dict={self.new_lr: lr_value})
 
 
     

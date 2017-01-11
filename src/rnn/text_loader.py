@@ -111,10 +111,5 @@ class TextLoader():
         print(batch_str)
 
 
-loader = TextLoader("data", 10, 200)
-x,y = loader.next_batch()
-print(x)
-
-# loader.inspect_batches(2)
 
 
