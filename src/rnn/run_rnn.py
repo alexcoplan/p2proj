@@ -13,7 +13,7 @@ from rnn_model import Model, ModelConfig
 from text_loader import TextLoader
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--data-dir", type=str, default="data/hp",
+parser.add_argument("--data-dir", type=str, default="data/hp/hp134",
   help="data directory containing input.txt")
 parser.add_argument("--save-dir", type=str, default="save",
   help="directory to store checkpointed models")

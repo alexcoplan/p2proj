@@ -1,0 +1,34 @@
+# HP1 Dataset
+
+ - Gradient descent optimizer.
+ - max_grad_norm = 5.
+ - seq_length = 100
+ - batch_size = 50
+ - no dropout.
+
+## Single layer
+
+ - epochs: 20, hidden: 32,  ldr: 0.7, loss: 167
+ - epochs: 30, hidden: 64,  ldr: 0.8, loss: 140
+ - epochs: 20, hidden: 64,  ldr: 0.7, loss: 148
+ - epochs: 20, hidden: 128, ldr: 0.7, loss: 134
+ - epochs: 20, hidden: 256, ldr: 0.7, loss: 121
+ - epochs: 20, hidden: 512, ldr: 0.7, loss: 111
+
+## Two layers
+
+ - epochs: 20, hidden: 256, ldr: 0.9,  loss: 169
+ - epochs: 30, hidden: 512, ldr: 0.75, loss: 168
+
+## Four layers
+
+ - epochs: 20, hidden: 32, ldr: 0.7, loss: 317 (!)
+
+# HP134 Dataset
+
+ - same params as above
+
+## Single layer
+
+ - epochs: 20, hidden: 256, ldr: 0.7, loss: 103
+ - epochs: 20, hidden: 512, ldr: 0.8, loss: 81

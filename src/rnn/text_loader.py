@@ -18,7 +18,7 @@ except:
    import pickle
 
 class TextLoader():
-  def __init__(self, data_dir, batch_size, seq_length, encoding='utf-8'):
+  def __init__(self, data_dir, batch_size, seq_length, encoding='ascii'):
     self.data_dir = data_dir
     self.batch_size = batch_size
     self.seq_length = seq_length

@@ -6,6 +6,7 @@
 # TensorFlow/NumPy/Pickle temporaries
 src/rnn/checkpoint
 src/rnn/save
+src/rnn/*-saved
 *__pycache__
 *.pkl
 *.npy

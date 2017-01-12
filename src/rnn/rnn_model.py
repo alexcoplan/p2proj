@@ -9,13 +9,13 @@ class SamplingMethod(Enum):
   SAMPLE_ON_SPACES = 2
 
 class ModelConfig(object):
-  max_grad_norm = 5
-  learning_rate = 1.0
-  num_epochs = 20
-  hidden_size = 128
-  lr_decay = 0.8
-
   def __init__(self, text_loader):
+    self.max_grad_norm = 5
+    self.learning_rate = 1.0
+    self.num_epochs = 20
+    self.hidden_size = 512
+    self.lr_decay = 0.80
+    self.num_layers = 1
     self.batch_size = text_loader.batch_size
     self.seq_length = text_loader.seq_length
     self.vocab_size = text_loader.vocab_size
@@ -36,7 +36,8 @@ class Model(object):
       seq_length = 1
 
     lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_units, state_is_tuple=True)
-    self.cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell], state_is_tuple=True)
+    cells = [lstm_cell] * config.num_layers
+    self.cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
 
     self.input_data = tf.placeholder(tf.int32, [batch_size, seq_length])
     self.target_data = tf.placeholder(tf.int32, [batch_size, seq_length])
@@ -117,7 +118,7 @@ class Model(object):
     curr_char = prime_str[-1]
     for n in range(num):
       x = np.zeros((1,1)) # 1x1 zero tensor
-      x[0,0] = vocab[char] # encode char in this tensor
+      x[0,0] = vocab[curr_char] # encode char in this tensor
       feed = { self.input_data: x, self.initial_multicell_state: state }
       [probs, state] = sess.run([self.probs, self.final_state], feed)
       p = probs[0] # reduce 2D batch tensor to 1D distribution
@@ -132,11 +133,11 @@ class Model(object):
       elif method == SamplingMethod.HARD_MAX:
         sample = np.argmax(p)
       else:
-        sample = weighted_pick(p) if char == ' ' else np.argmax(p)
+        sample = weighted_pick(p) if curr_char == ' ' else np.argmax(p)
 
       decoded = chars[sample]
       result += decoded
-      char = decoded
+      curr_char = decoded
 
     return result
 
