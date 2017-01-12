@@ -7,9 +7,9 @@
 src/rnn/checkpoint
 src/rnn/save
 src/rnn/*-saved
+src/rnn/data/**/*.npy
+src/rnn/data/**/*.pkl
 *__pycache__
-*.pkl
-*.npy
 
 # Compilation products
 *.dSYM
