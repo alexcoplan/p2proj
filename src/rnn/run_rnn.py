@@ -23,11 +23,50 @@ parser.add_argument("--batch-size", type=int, default=50,
   help="number of text chunks to simultaneously feed to the model")
 parser.add_argument("--seq-length", type=int, default=100,
   help="length of text chunks to feed to RNN")
+parser.add_argument("--init-from", type=str, default=None,
+  help=
+  """continue training from saved model at this path. 
+  path must contain the following files (saved by a previous training session):
+   - 'config.pkl'      : configuration
+   - 'chars_vocab.pkl' : vocabulary obtained from input
+   - 'checkpoint'      : tf list of checkpoints
+   - 'model.ckpt-*'    : actual model checkpoint files
+  """)
+
 
 args = parser.parse_args()
 
 loader = TextLoader(args.data_dir, args.batch_size, args.seq_length)
 config = ModelConfig(loader)
+
+ckpt = None
+
+if args.init_from is not None:
+  assert os.path.isdir(args.init_from),\
+    "%s must be a directory" % args.init_from
+  assert os.path.isfile(os.path.join(args.init_from, "config.pkl")),\
+    "could not find config.pkl"
+  assert os.path.isfile(os.path.join(args.init_from, "chars_vocab.pkl")),\
+    "could not find chars_vocab.pkl"
+  ckpt = tf.train.get_checkpoint_state(args.init_from)
+  assert ckpt, "No checkpoint found"
+  assert ckpt.model_checkpoint_path, "No model path found in checkpoint"
+
+  # check that the saved config is compatible with the current config
+  with open(os.path.join(args.init_from, "config.pkl"), "rb") as f:
+    saved_model_args = pickle.load(f)
+  to_check = ["hidden_size","num_layers","seq_length"]
+  for check in to_check:
+    assert vars(saved_model_args)[check] == vars(config)[check],\
+      "model config does not match loaded config"
+
+  # check if saved vocabulary is compatible with model
+  with open(os.path.join(args.init_from, "chars_vocab.pkl"), 'rb') as f:
+    saved_chars, saved_vocab = pickle.load(f)
+  assert saved_chars == loader.chars,\
+    "Data and loaded model disagree on charset!"
+  assert saved_vocab == loader.vocab,\
+    "Data and loaded model disagree on vocab!"
 
 # dump model config and the text loader's chars/vocab
 with open(os.path.join(args.save_dir, "config.pkl"), "wb") as f:
@@ -40,16 +79,21 @@ print("Initialising model, constructing graph...")
 model = Model(config)
 print("Starting session.")
 
-# TODO: code to restore model
-
 with tf.Session() as sess:
   sess.run(tf.global_variables_initializer())
   saver = tf.train.Saver(tf.global_variables())
+
+  if args.init_from is not None:
+    saver.restore(sess, ckpt.model_checkpoint_path)
+
+  prev_epoch_mean_loss = None
 
   for e in range(config.num_epochs):
     model.assign_lr(sess, config.learning_rate * (config.lr_decay ** e))
     loader.reset_batch_pointer()
     state = sess.run(model.initial_multicell_state)
+
+    total_perplexity = 0.0
 
     # note that we preserve the state across batches in this inner loop
     for b in range(loader.num_batches):
@@ -69,6 +113,8 @@ with tf.Session() as sess:
       
       end = time.time()
 
+      total_perplexity += loss
+
       global_step = e * loader.num_batches + b
       total_steps = config.num_epochs * loader.num_batches
 
@@ -82,5 +128,15 @@ with tf.Session() as sess:
         checkpoint_path = os.path.join(args.save_dir, "model.ckpt")
         saver.save(sess, checkpoint_path, global_step=global_step)
         print("model saved to {}".format(checkpoint_path))
+
+    # epoch stats
+    mean_loss = total_perplexity / loader.num_batches
+    print("--> epoch {} end. mean loss: {}.".format(e, mean_loss))
+    if prev_epoch_mean_loss is not None:
+      print("--> epoch improvement:", prev_epoch_mean_loss - mean_loss)
+    prev_epoch_mean_loss = mean_loss
+
+
+
 
 

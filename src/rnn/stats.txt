@@ -30,5 +30,11 @@
 
 ## Single layer
 
- - epochs: 20, hidden: 256, ldr: 0.7, loss: 103
- - epochs: 20, hidden: 512, ldr: 0.8, loss: 81
+ - epochs: 20, hidden: 256,  ldr: 0.7, loss: 103
+ - epochs: 20, hidden: 512,  ldr: 0.8, loss: 81
+ - epochs: 13, hidden: 1024, ldr: 0.8, loss: 66
+
+## Two layers
+
+ - epochs: 26, hidden: 256, ldr: 0.8, loss: 108
+

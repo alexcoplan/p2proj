@@ -12,8 +12,8 @@ class ModelConfig(object):
   def __init__(self, text_loader):
     self.max_grad_norm = 5
     self.learning_rate = 1.0
-    self.num_epochs = 20
-    self.hidden_size = 512
+    self.num_epochs = 10
+    self.hidden_size = 256
     self.lr_decay = 0.80
     self.num_layers = 1
     self.batch_size = text_loader.batch_size
