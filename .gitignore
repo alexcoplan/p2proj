@@ -3,13 +3,16 @@
 *.swp
 *.bak
 
+# Python
+*__pycache__
+*.pyc
+
 # TensorFlow/NumPy/Pickle temporaries
 src/rnn/checkpoint
 src/rnn/save
 src/rnn/*-saved
 src/rnn/data/**/*.npy
 src/rnn/data/**/*.pkl
-*__pycache__
 
 # Compilation products
 *.dSYM

@@ -6,19 +6,19 @@ from enum import Enum
 class SamplingMethod(Enum):
   WEIGHTED_PICK = 0
   HARD_MAX = 1
-  SAMPLE_ON_SPACES = 2
 
 class ModelConfig(object):
-  def __init__(self, text_loader):
+  def __init__(self, data_loader):
     self.max_grad_norm = 5
     self.learning_rate = 1.0
-    self.num_epochs = 10
+    self.num_epochs = 50
     self.hidden_size = 256
-    self.lr_decay = 0.80
-    self.num_layers = 1
-    self.batch_size = text_loader.batch_size
-    self.seq_length = text_loader.seq_length
-    self.vocab_size = text_loader.vocab_size
+    self.lr_decay = 0.95
+    self.num_layers = 2
+    self.mode       = data_loader.mode
+    self.batch_size = data_loader.batch_size
+    self.seq_length = data_loader.seq_length
+    self.vocab_size = data_loader.vocab_size
 
 class Model(object):
   rnn_dtype = tf.float32
@@ -104,21 +104,21 @@ class Model(object):
   def assign_lr(self, sess, lr_value):
     sess.run(self.lr_update, feed_dict={self.new_lr: lr_value})
 
-  def sample(self, sess, chars, vocab, num=200, prime_str='Harry ',
+  def sample(self, sess, events, vocab, num, prime_events,
     method=SamplingMethod.WEIGHTED_PICK):
     # create initial state for our RNN (multi-)cell with a batch size of one
     state = sess.run(self.cell.zero_state(1, self.rnn_dtype))
-    for char in prime_str[:-1]: # feed through all except last char
+    for event in prime_events[:-1]: # feed through all except last event
       x = np.zeros((1,1)) # 1x1 zero tensor
-      x[0,0] = vocab[char] # encode char in this tensor
+      x[0,0] = vocab[event] # encode event in this tensor
       feed = { self.input_data: x, self.initial_multicell_state: state }
       [state] = sess.run([self.final_state], feed)
 
-    result = prime_str
-    curr_char = prime_str[-1]
+    result = prime_events
+    curr_event = prime_events[-1]
     for n in range(num):
       x = np.zeros((1,1)) # 1x1 zero tensor
-      x[0,0] = vocab[curr_char] # encode char in this tensor
+      x[0,0] = vocab[curr_event] # encode event in this tensor
       feed = { self.input_data: x, self.initial_multicell_state: state }
       [probs, state] = sess.run([self.probs, self.final_state], feed)
       p = probs[0] # reduce 2D batch tensor to 1D distribution
@@ -133,11 +133,11 @@ class Model(object):
       elif method == SamplingMethod.HARD_MAX:
         sample = np.argmax(p)
       else:
-        sample = weighted_pick(p) if curr_char == ' ' else np.argmax(p)
+        raise NotImplementedError("Bad sampling type")
 
-      decoded = chars[sample]
-      result += decoded
-      curr_char = decoded
+      decoded = events[sample]
+      result.append(decoded)
+      curr_event = decoded
 
     return result
 

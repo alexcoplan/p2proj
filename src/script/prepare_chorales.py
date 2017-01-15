@@ -5,46 +5,23 @@
 
 from music21 import *
 import json
+import argparse
+
+from json_encoders import NoIndent, NoIndentEncoder
 
 # FIXME: de-duplicate since there are multiple harmonisation of the same melody!
 
-################################################################################
-# Custom JSON encoder
-#
-# Taken from here: http://stackoverflow.com/a/25935321/840973
-#
-# This is to pretty-print the output, but avoid pretty-printing the inner data
-# which we aren't particularly interested in when viewing the corpus.
-################################################################################
+parser = argparse.ArgumentParser()
+parser.add_argument("--output-file", type=str, 
+  default="corpus/chorale_dataset.json", help="path to output json to")
+parser.add_argument("--ignore-modes", default=False, action="store_true",
+  help="""
+  this option does not include the mode of each choarle in the output, allowing
+  those chorales for which the mode is not specified to be included in the
+  corpus
+  """)
 
-import uuid
-
-class NoIndent(object):
-  def __init__(self, value):
-    self.value = value
-
-
-class NoIndentEncoder(json.JSONEncoder):
-  def __init__(self, *args, **kwargs):
-    super(NoIndentEncoder, self).__init__(*args, **kwargs)
-    self.kwargs = dict(kwargs)
-    del self.kwargs['indent']
-    self._replacement_map = {}
-
-  def default(self, o):
-    if isinstance(o, NoIndent):
-      key = uuid.uuid4().hex
-      self._replacement_map[key] = json.dumps(o.value, **self.kwargs)
-      return "@@%s@@" % (key,)
-    else:
-      return super(NoIndentEncoder, self).default(o)
-
-  def encode(self, o):
-    result = super(NoIndentEncoder, self).encode(o)
-    for k, v in self._replacement_map.items():
-      result = result.replace('"@@%s@@"' % (k,), v)
-    return result
-
+args = parser.parse_args()
 
 ################################################################################
 # Begin main script
@@ -104,12 +81,14 @@ for i in bcl.byRiemenschneider:
 
   sharps_mask[ks.sharps + 7] = True
   key_sig_sharps = ks.sharps
-  key_sig_major = True
-  if isinstance(ks, key.Key):
-    key_sig_major = (ks.mode == "major")
-  else:
-    print(" * Skipping BWV %s has no mode specified." % info["bwv"])
-    continue # TODO: in future check these and see if any definitely fit a mode
+  
+  if not args.ignore_modes:
+    key_sig_major = True
+    if isinstance(ks, key.Key):
+      key_sig_major = (ks.mode == "major")
+    else:
+      print(" * Skipping BWV %s has no mode specified." % info["bwv"])
+      continue 
 
   c_notes = []
 
@@ -142,9 +121,11 @@ for i in bcl.byRiemenschneider:
       "bwv" : info["bwv"],
       "time_sig_semis" : time_sig_q,
       "key_sig_sharps" : key_sig_sharps,
-      "key_sig_major" : key_sig_major,
       "notes" : NoIndent(c_notes)
   } 
+
+  if not args.ignore_modes:
+    obj["key_sig_major"] = key_sig_major
 
   json_objects.append(obj)
 
@@ -208,12 +189,13 @@ outer_object = {
       "duration_domain" : NoIndent(duration_domain),
       "key_sig_sharps_domain" : NoIndent(sharps_domain),
       "time_sig_domain" : NoIndent(time_sig_domain),
-      "seqint_domain" : NoIndent(seqint_domain)
+      "seqint_domain" : NoIndent(seqint_domain),
+      "rest_domain" : NoIndent(rest_domain)
     },
     "corpus" : json_objects
 }
 
-with open('corpus/chorale_dataset.json', 'w') as outfile:
+with open(args.output_file, 'w') as outfile:
   outfile.write(json.dumps(outer_object, indent=2, cls=NoIndentEncoder))
 
 print("Done generating corpus!")

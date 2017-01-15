@@ -10,33 +10,36 @@ except:
   import pickle
 
 from rnn_model import Model, ModelConfig
-from text_loader import TextLoader
+from data_loader import DataLoader
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--mode", type=str, default="music", 
+  choices=["music", "text"],
+  help="music: RNN for music generation, text: char-level RNN")
 parser.add_argument("--data-dir", type=str, default="data/hp/hp134",
   help="data directory containing input.txt")
 parser.add_argument("--save-dir", type=str, default="save",
   help="directory to store checkpointed models")
 parser.add_argument("--save-every", type=int, default=500,
   help="save every n steps")
-parser.add_argument("--batch-size", type=int, default=50,
+parser.add_argument("--batch-size", type=int, default=40,
   help="number of text chunks to simultaneously feed to the model")
-parser.add_argument("--seq-length", type=int, default=100,
+parser.add_argument("--seq-length", type=int, default=40,
   help="length of text chunks to feed to RNN")
 parser.add_argument("--init-from", type=str, default=None,
   help=
   """continue training from saved model at this path. 
   path must contain the following files (saved by a previous training session):
    - 'config.pkl'      : configuration
-   - 'chars_vocab.pkl' : vocabulary obtained from input
+   - 'events_vocab.pkl' : vocabulary obtained from input
    - 'checkpoint'      : tf list of checkpoints
    - 'model.ckpt-*'    : actual model checkpoint files
   """)
 
 
 args = parser.parse_args()
-
-loader = TextLoader(args.data_dir, args.batch_size, args.seq_length)
+mode = DataLoader.Mode.MUSIC if args.mode == "music" else DataLoader.Mode.CHAR
+loader = DataLoader(mode, args.data_dir, args.batch_size, args.seq_length)
 config = ModelConfig(loader)
 
 ckpt = None
@@ -46,8 +49,8 @@ if args.init_from is not None:
     "%s must be a directory" % args.init_from
   assert os.path.isfile(os.path.join(args.init_from, "config.pkl")),\
     "could not find config.pkl"
-  assert os.path.isfile(os.path.join(args.init_from, "chars_vocab.pkl")),\
-    "could not find chars_vocab.pkl"
+  assert os.path.isfile(os.path.join(args.init_from, "events_vocab.pkl")),\
+    "could not find events_vocab.pkl"
   ckpt = tf.train.get_checkpoint_state(args.init_from)
   assert ckpt, "No checkpoint found"
   assert ckpt.model_checkpoint_path, "No model path found in checkpoint"
@@ -55,24 +58,24 @@ if args.init_from is not None:
   # check that the saved config is compatible with the current config
   with open(os.path.join(args.init_from, "config.pkl"), "rb") as f:
     saved_model_args = pickle.load(f)
-  to_check = ["hidden_size","num_layers","seq_length"]
+  to_check = ["mode","hidden_size","num_layers","seq_length"]
   for check in to_check:
     assert vars(saved_model_args)[check] == vars(config)[check],\
       "model config does not match loaded config"
 
   # check if saved vocabulary is compatible with model
-  with open(os.path.join(args.init_from, "chars_vocab.pkl"), 'rb') as f:
-    saved_chars, saved_vocab = pickle.load(f)
-  assert saved_chars == loader.chars,\
-    "Data and loaded model disagree on charset!"
+  with open(os.path.join(args.init_from, "events_vocab.pkl"), 'rb') as f:
+    saved_events, saved_vocab = pickle.load(f)
+  assert saved_events == loader.events,\
+    "Data and loaded model disagree on event symbols!"
   assert saved_vocab == loader.vocab,\
     "Data and loaded model disagree on vocab!"
 
-# dump model config and the text loader's chars/vocab
+# dump model config and the text loader's events/vocab
 with open(os.path.join(args.save_dir, "config.pkl"), "wb") as f:
   pickle.dump(config, f)
-with open(os.path.join(args.save_dir, "chars_vocab.pkl"),"wb") as f:
-  pickle.dump((loader.chars, loader.vocab), f)
+with open(os.path.join(args.save_dir, "events_vocab.pkl"),"wb") as f:
+  pickle.dump((loader.events, loader.vocab), f)
 
 
 print("Initialising model, constructing graph...")

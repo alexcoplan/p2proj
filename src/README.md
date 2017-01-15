@@ -19,7 +19,7 @@ generate a melody.
 Context models are a higher-order generalisation of Markov chains: they look at
 more than one element of history. For example, an order-2 context model over
 notes would predict a different distribution for the context `{G,A}` from that
-which it would predict for `{G,B}`. The following shows the internal data structure
+which it would predict for `{A,A}`. The following shows the internal data structure
 of a context model trained on the note durations of the chorale tune "Aus meines
 Herzens Grunde".
 

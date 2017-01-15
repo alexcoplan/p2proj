@@ -8,21 +8,21 @@
 
 ## Single layer
 
- - epochs: 20, hidden: 32,  ldr: 0.7, loss: 167
- - epochs: 30, hidden: 64,  ldr: 0.8, loss: 140
- - epochs: 20, hidden: 64,  ldr: 0.7, loss: 148
- - epochs: 20, hidden: 128, ldr: 0.7, loss: 134
- - epochs: 20, hidden: 256, ldr: 0.7, loss: 121
- - epochs: 20, hidden: 512, ldr: 0.7, loss: 111
+ - epochs: 20, hidden: 32,  lrd: 0.7, loss: 167
+ - epochs: 30, hidden: 64,  lrd: 0.8, loss: 140
+ - epochs: 20, hidden: 64,  lrd: 0.7, loss: 148
+ - epochs: 20, hidden: 128, lrd: 0.7, loss: 134
+ - epochs: 20, hidden: 256, lrd: 0.7, loss: 121
+ - epochs: 20, hidden: 512, lrd: 0.7, loss: 111
 
 ## Two layers
 
- - epochs: 20, hidden: 256, ldr: 0.9,  loss: 169
- - epochs: 30, hidden: 512, ldr: 0.75, loss: 168
+ - epochs: 20, hidden: 256, lrd: 0.9,  loss: 169
+ - epochs: 30, hidden: 512, lrd: 0.75, loss: 168
 
 ## Four layers
 
- - epochs: 20, hidden: 32, ldr: 0.7, loss: 317 (!)
+ - epochs: 20, hidden: 32, lrd: 0.7, loss: 317 (!)
 
 # HP134 Dataset
 
@@ -30,11 +30,28 @@
 
 ## Single layer
 
- - epochs: 20, hidden: 256,  ldr: 0.7, loss: 103
- - epochs: 20, hidden: 512,  ldr: 0.8, loss: 81
- - epochs: 13, hidden: 1024, ldr: 0.8, loss: 66
+ - epochs: 20, hidden: 256,  lrd: 0.7, loss: 103
+ - epochs: 20, hidden: 512,  lrd: 0.8, loss: 81
+ - epochs: 13, hidden: 1024, lrd: 0.8, loss: 66
 
 ## Two layers
 
- - epochs: 26, hidden: 256, ldr: 0.8, loss: 108
+ - epochs: 26, hidden: 256, lrd: 0.8, loss: 108
 
+# Chorale (unnormalised) dataset
+
+ - Gradient descent optimizer.
+ - max_grad_norm = 5.
+ - seq_length = 40
+ - batch_size = 40
+ - no dropout.
+
+## Single layer
+
+ - epochs: 30, hidden: 512, lrd: 0.8, loss: 87
+ - epochs: 30, hidden: 256, lrd: 0.8, loss: 88.7
+
+## Two layers
+
+ - epochs: 30, hidden: 256, lrd: 0.8,  loss: 134.0
+ - epochs: 50, hdiden: 256, lrd: 0.95, loss: 72.5

@@ -1,78 +1,85 @@
-"""
-This is a slightly modified verison of:
-  https://github.com/sherjilozair/char-rnn-tensorflow/blob/master/utils.py
-  Copyright (c) 2015 Sherjil Ozair
-
-However, this code is for implementing a char-level RNN, so will not be used in
-the final project.
-"""
-
+import json
 import codecs
 import os
-import collections
+from collections import Counter
+from rnn_music_rep import encode_json_notes 
+from enum import Enum
 import numpy as np
 
 try:
-   import cPickle as pickle
+  import cPickle as pickle
 except:
-   import pickle
+  import pickle
 
-class TextLoader():
-  def __init__(self, data_dir, batch_size, seq_length, encoding='ascii'):
+class DataLoader(object):
+  class Mode(Enum):
+    CHAR = 0
+    MUSIC = 1
+
+  def __init__(self, mode, data_dir, batch_size, seq_length):
+    self.mode = mode
     self.data_dir = data_dir
     self.batch_size = batch_size
     self.seq_length = seq_length
-    self.encoding = encoding
-
-    input_file = os.path.join(data_dir, "input.txt")
+    
+    fname = "input.txt" if self.mode == self.Mode.CHAR else "corpus.json"
+    input_file = os.path.join(data_dir, fname)
     vocab_file = os.path.join(data_dir, "vocab.pkl")
     tensor_file = os.path.join(data_dir, "data.npy")
 
     if not (os.path.exists(vocab_file) and os.path.exists(tensor_file)):
-      print("reading text file")
+      print("loading corpus from source file")
       self.preprocess(input_file, vocab_file, tensor_file)
     else:
-      print("loading preprocessed files")
+      print("loading preprocessed files...")
       self.load_preprocessed(vocab_file, tensor_file)
 
     self.create_batches()
     self.reset_batch_pointer()
 
   def preprocess(self, input_file, vocab_file, tensor_file):
-    with codecs.open(input_file, "r", encoding=self.encoding) as f:
-      data = f.read()
+    corpus_events = None 
 
-    # sort characters by most to least common in dataset
-    counter = collections.Counter(data)
+    if self.mode == self.Mode.MUSIC:
+      with open(input_file, "r") as f:
+        corpus = json.load(f)["corpus"]
+      corpus_events = []
+      for piece in corpus:
+        corpus_events += encode_json_notes(piece["notes"])
+    else: 
+      with open(input_file, "r") as f:
+        corpus_events = f.read()
+
+    print("There are", len(corpus_events), "events in the corpus.")
+
+    counter = Counter(corpus_events)
     count_pairs = sorted(counter.items(), key=lambda x: -x[1])
-    self.chars, _ = zip(*count_pairs)
-    print("Chars:", self.chars)
+    self.events, _ = zip(*count_pairs)
 
-    # vocab is an enumeration of the characters in the dataset
-    self.vocab_size = len(self.chars)
-    self.vocab = dict(zip(self.chars, range(len(self.chars))))
-    print("Vocab:", self.vocab)
-    with open(vocab_file, 'wb') as f:
-      pickle.dump(self.chars, f)
+    print("events:", self.events)
+    print("there are {} distinct events".format(len(self.events)))
+    with open(vocab_file, "wb") as f:
+      pickle.dump(self.events, f)
 
-    # encode the dataset using the enumeration in self.vocab
-    self.tensor = np.array(list(map(self.vocab.get, data)))
+    self.vocab_size = len(self.events)
+    self.vocab = dict(zip(self.events, range(self.vocab_size)))
+    print("vocab: ", self.vocab)
+    self.tensor = np.array(list(map(self.vocab.get, corpus_events)))
     np.save(tensor_file, self.tensor)
 
   def load_preprocessed(self, vocab_file, tensor_file):
     with open(vocab_file, 'rb') as f:
-      self.chars = pickle.load(f)
-
-    self.vocab_size = len(self.chars)
-    self.vocab = dict(zip(self.chars, range(len(self.chars))))
-    print("Restored vocab:", self.vocab)
+      self.events = pickle.load(f)
+    self.vocab_size = len(self.events)
+    self.vocab = dict(zip(self.events, range(self.vocab_size)))
     self.tensor = np.load(tensor_file)
 
   def create_batches(self):
     self.num_batches = self.tensor.size // (self.batch_size * self.seq_length)
-    print("Working with %s batches" % self.num_batches)
+
     if self.num_batches == 0:
-      assert False, "Not enouch data. Decrease seq_length and/or batch_size."
+      assert False, \
+        "Insufficient data. Make seq_length and/or batch_size smaller"
 
     # clip data so that it divides exactly among batches
     self.tensor = self.tensor[:self.num_batches * self.batch_size * self.seq_length]
@@ -90,7 +97,7 @@ class TextLoader():
 
     self.y_batches = np.split(ydata.reshape(self.batch_size, -1),
     self.num_batches, 1)
-
+        
   def next_batch(self):
     x,y = self.x_batches[self.pointer], self.y_batches[self.pointer]
     self.pointer += 1
@@ -105,11 +112,7 @@ class TextLoader():
       for idx,arr in enumerate(xs):
         batch_str = ""
         for code in arr:
-          batch_str += self.chars[code]
+          batch_str += self.events[code]
 
         print("\n=== batch[%s], seq[%s] ===\n" % (batch_num,idx))
         print(batch_str)
-
-
-
-
