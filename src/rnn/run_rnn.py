@@ -9,6 +9,8 @@ try:
 except:
   import pickle
 
+from tensorflow.contrib.tensorboard.plugins import projector
+
 from rnn_model import Model, ModelConfig
 from data_loader import DataLoader
 
@@ -20,7 +22,7 @@ parser.add_argument("--data-dir", type=str, default="data/hp/hp134",
   help="data directory containing input.txt")
 parser.add_argument("--save-dir", type=str, default="save",
   help="directory to store checkpointed models")
-parser.add_argument("--log-dir", type=str, default="/tmp/rnnlog",
+parser.add_argument("--log-dir", type=str, default="save",
   help="directory to store tensorboard summary logs")
 parser.add_argument("--save-every", type=int, default=500,
   help="save every n steps")
@@ -87,8 +89,15 @@ print("Starting session.")
 with tf.Session() as sess:
   sess.run(tf.global_variables_initializer())
   summary_op = tf.summary.merge_all()
-  train_writer = tf.summary.FileWriter(args.log_dir)
+  train_writer = tf.summary.FileWriter(args.log_dir, graph=sess.graph)
   saver = tf.train.Saver(tf.global_variables())
+
+  # set up RNN input embedding for visualisation in Tensorboard
+  proj_config = projector.ProjectorConfig()
+  emb = proj_config.embeddings.add()
+  emb.tensor_name = "embedding"
+  emb.metadata_path = os.path.join(args.data_dir, "event_metadata.tsv")
+  projector.visualize_embeddings(train_writer, proj_config)
 
   if args.init_from is not None:
     saver.restore(sess, ckpt.model_checkpoint_path)

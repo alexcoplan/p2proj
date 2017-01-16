@@ -13,6 +13,7 @@ src/rnn/save
 src/rnn/*-saved
 src/rnn/data/**/*.npy
 src/rnn/data/**/*.pkl
+src/rnn/data/**/*.tsv
 
 # Compilation products
 *.dSYM

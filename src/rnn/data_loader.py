@@ -2,7 +2,7 @@ import json
 import codecs
 import os
 from collections import Counter
-from rnn_music_rep import encode_json_notes 
+from rnn_music_rep import encode_json_notes, generate_metadata_tsv
 from enum import Enum
 import numpy as np
 
@@ -26,10 +26,16 @@ class DataLoader(object):
     input_file = os.path.join(data_dir, fname)
     vocab_file = os.path.join(data_dir, "vocab.pkl")
     tensor_file = os.path.join(data_dir, "data.npy")
+    metadata_file = os.path.join(data_dir, "event_metadata.tsv")
 
-    if not (os.path.exists(vocab_file) and os.path.exists(tensor_file)):
+    need_to_preprocess =\
+      not(os.path.exists(vocab_file)
+      and os.path.exists(tensor_file)
+      and os.path.exists(metadata_file))
+
+    if need_to_preprocess:
       print("loading corpus from source file")
-      self.preprocess(input_file, vocab_file, tensor_file)
+      self.preprocess(input_file, vocab_file, tensor_file, metadata_file)
     else:
       print("loading preprocessed files...")
       self.load_preprocessed(vocab_file, tensor_file)
@@ -37,7 +43,7 @@ class DataLoader(object):
     self.create_batches()
     self.reset_batch_pointer()
 
-  def preprocess(self, input_file, vocab_file, tensor_file):
+  def preprocess(self, input_file, vocab_file, tensor_file, metadata_file):
     corpus_events = None 
 
     if self.mode == self.Mode.MUSIC:
@@ -50,20 +56,25 @@ class DataLoader(object):
       with open(input_file, "r") as f:
         corpus_events = f.read()
 
-    print("There are", len(corpus_events), "events in the corpus.")
+    print("There are", len(corpus_events), "total events in the corpus.")
 
     counter = Counter(corpus_events)
     count_pairs = sorted(counter.items(), key=lambda x: -x[1])
     self.events, _ = zip(*count_pairs)
 
-    print("events:", self.events)
-    print("there are {} distinct events".format(len(self.events)))
+    print("There are {} distinct events in the corpus.".format(len(self.events)))
     with open(vocab_file, "wb") as f:
       pickle.dump(self.events, f)
 
+    # generate TensorBoard metadata
+    with open(metadata_file, "w") as f:
+      if self.mode == self.Mode.MUSIC:
+        f.write(generate_metadata_tsv(self.events))
+      else:
+        f.write("\n".join(self.events))
+
     self.vocab_size = len(self.events)
     self.vocab = dict(zip(self.events, range(self.vocab_size)))
-    print("vocab: ", self.vocab)
     self.tensor = np.array(list(map(self.vocab.get, corpus_events)))
     np.save(tensor_file, self.tensor)
 
