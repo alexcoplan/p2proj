@@ -20,6 +20,8 @@ parser.add_argument("--data-dir", type=str, default="data/hp/hp134",
   help="data directory containing input.txt")
 parser.add_argument("--save-dir", type=str, default="save",
   help="directory to store checkpointed models")
+parser.add_argument("--log-dir", type=str, default="/tmp/rnnlog",
+  help="directory to store tensorboard summary logs")
 parser.add_argument("--save-every", type=int, default=500,
   help="save every n steps")
 parser.add_argument("--batch-size", type=int, default=40,
@@ -84,6 +86,8 @@ print("Starting session.")
 
 with tf.Session() as sess:
   sess.run(tf.global_variables_initializer())
+  summary_op = tf.summary.merge_all()
+  train_writer = tf.summary.FileWriter(args.log_dir)
   saver = tf.train.Saver(tf.global_variables())
 
   if args.init_from is not None:
@@ -111,8 +115,8 @@ with tf.Session() as sess:
         feed[c] = state[i].c
         feed[h] = state[i].h
 
-      loss, state, _ = \
-        sess.run([model.cost, model.final_state, model.train_op], feed)
+      summaries, loss, state, _ = \
+        sess.run([summary_op, model.cost, model.final_state, model.train_op], feed)
       
       end = time.time()
 
@@ -120,6 +124,8 @@ with tf.Session() as sess:
 
       global_step = e * loader.num_batches + b
       total_steps = config.num_epochs * loader.num_batches
+
+      train_writer.add_summary(summaries, global_step)
 
       lr = config.learning_rate * (config.lr_decay ** e)
       print("{}/{} (epoch {}), loss = {:.3f}, time/batch = {:.3f}, lr = {:.4f}" \
@@ -138,8 +144,3 @@ with tf.Session() as sess:
     if prev_epoch_mean_loss is not None:
       print("--> epoch improvement:", prev_epoch_mean_loss - mean_loss)
     prev_epoch_mean_loss = mean_loss
-
-
-
-
-

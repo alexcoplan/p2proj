@@ -53,5 +53,12 @@
 
 ## Two layers
 
- - epochs: 30, hidden: 256, lrd: 0.8,  loss: 134.0
- - epochs: 50, hdiden: 256, lrd: 0.95, loss: 72.5
+ - epochs: 30,  hidden: 256, lrd: 0.8,  loss: 134.0
+ - epochs: 50,  hdiden: 256, lrd: 0.95, loss: 72.5
+ - epochs: 100, hidden: 256, lrd: 0.95, loss: 67.9
+ - epochs: 100, hidden: 128, lrd: 0.95, loss: 84.9
+ - epochs: 100, hidden: 256, lrd: 0.98, loss: 10.14(!)
+
+## Three layers
+
+ - epochs: 43,  hidden: 256, lrd: 0.8, loss: 142.9

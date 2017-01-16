@@ -11,9 +11,9 @@ class ModelConfig(object):
   def __init__(self, data_loader):
     self.max_grad_norm = 5
     self.learning_rate = 1.0
-    self.num_epochs = 50
+    self.num_epochs = 150
     self.hidden_size = 256
-    self.lr_decay = 0.95
+    self.lr_decay = 0.98
     self.num_layers = 2
     self.mode       = data_loader.mode
     self.batch_size = data_loader.batch_size
@@ -85,12 +85,14 @@ class Model(object):
     self.probs = tf.nn.softmax(logits)
 
     self.cost = tf.reduce_sum(loss) / batch_size
+    tf.summary.scalar('loss', self.cost)
     self.final_state = state
 
     if not is_training:
       return
 
     self.lr = tf.Variable(0.0, trainable=False)
+    tf.summary.scalar('learning_rate', self.lr)
     tvars = tf.trainable_variables()
     grads, _ = tf.clip_by_global_norm(tf.gradients(self.cost, tvars),
         config.max_grad_norm)
