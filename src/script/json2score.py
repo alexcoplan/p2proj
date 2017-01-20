@@ -1,7 +1,7 @@
 # turns generate JSON into score using music21
 
 from music21 import *
-from scoreutils import render_music21
+from score_utils import render_music21
 import json
 import sys
 

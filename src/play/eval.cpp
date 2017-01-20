@@ -196,8 +196,8 @@ int main(void) {
   train(corpus, {&svs, &mvs});
   std::cout << "done." << std::endl;
 
-  // evaluate(corpus, 5.0, 8.0, {&svs, &mvs});
-  generate(mvs, 42, "out/gend.json");
+  evaluate(corpus, 2.0, 8.0, {&svs, &mvs});
+  //generate(mvs, 42, "out/gend.json");
 }
 
 
