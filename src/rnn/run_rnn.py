@@ -1,15 +1,15 @@
 import argparse
-import tensorflow as tf
-import numpy as np
+import tensorflow as tf # type: ignore
+import numpy as np # type: ignore
 import time
 import os
 
 try:
-  import cPickle as pickle
+  import cPickle as pickle # type: ignore
 except:
-  import pickle
+  import pickle # type: ignore
 
-from tensorflow.contrib.tensorboard.plugins import projector
+from tensorflow.contrib.tensorboard.plugins import projector # type: ignore
 
 from rnn_model import Model, ModelConfig
 from data_loader import DataLoader
@@ -107,7 +107,9 @@ with tf.Session() as sess:
   for e in range(config.num_epochs):
     model.assign_lr(sess, config.learning_rate * (config.lr_decay ** e))
     loader.reset_batch_pointer()
-    state = sess.run(model.initial_multicell_state)
+
+    override_bs = { model.batch_size: config.batch_size }
+    state = sess.run(model.initial_multicell_state, feed_dict=override_bs)
 
     total_perplexity = 0.0
 
@@ -124,8 +126,14 @@ with tf.Session() as sess:
         feed[c] = state[i].c
         feed[h] = state[i].h
 
-      summaries, loss, state, _ = \
-        sess.run([summary_op, model.cost, model.final_state, model.train_op], feed)
+
+      ops = [
+          summary_op, 
+          model.loss, 
+          model.final_state, 
+          model.train_op # type: ignore
+      ]
+      summaries, loss, state, _ = sess.run(ops, feed)
       
       end = time.time()
 
@@ -153,3 +161,9 @@ with tf.Session() as sess:
     if prev_epoch_mean_loss is not None:
       print("--> epoch improvement:", prev_epoch_mean_loss - mean_loss)
     prev_epoch_mean_loss = mean_loss
+
+  x, y = loader.test_batch
+  test_feed = { model.input_data: x, model.target_data: y }
+  print("test set loss:", sess.run(model.loss, test_feed))
+
+

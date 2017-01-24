@@ -1,5 +1,5 @@
-import tensorflow as tf
-import numpy as np
+import tensorflow as tf # type: ignore
+import numpy as np # type: ignore
 
 from enum import Enum
 
@@ -11,12 +11,13 @@ class ModelConfig(object):
   def __init__(self, data_loader):
     self.max_grad_norm = 5
     self.learning_rate = 1.0
-    self.num_epochs = 150
-    self.hidden_size = 256
-    self.lr_decay = 0.98
-    self.num_layers = 2
+    self.num_epochs = 1
+    self.hidden_size = 64
+    self.lr_decay = 0.95
+    self.num_layers = 1
     self.mode       = data_loader.mode
     self.batch_size = data_loader.batch_size
+    self.num_test_examples = data_loader.num_test_examples
     self.seq_length = data_loader.seq_length
     self.vocab_size = data_loader.vocab_size
 
@@ -26,24 +27,34 @@ class Model(object):
   def __init__(self, config, is_training=True):
     # training hyperparams
     vocab_size = config.vocab_size
-    batch_size = config.batch_size
     seq_length = config.seq_length
     hidden_units = config.hidden_size # width of LSTM hidden layer
 
     # if we're not training, set up the RNN for sampling
     if not is_training:
-      batch_size = 1
       seq_length = 1
 
     lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_units, state_is_tuple=True)
     cells = [lstm_cell] * config.num_layers
     self.cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
 
-    self.input_data = tf.placeholder(tf.int32, [batch_size, seq_length])
-    self.target_data = tf.placeholder(tf.int32, [batch_size, seq_length])
+    # we use None here because we want to allow different batch sizes
+    # for train and test datasets
+    self.input_data = tf.placeholder(tf.int32, [None, seq_length], "inputs")
+    self.target_data = tf.placeholder(tf.int32, [None, seq_length], "labels")
+
+    # calculate batch_size implicitly from input_data
+    # n.b. we make this an accessible property since we sometimes need to
+    # override it (e.g. to get the zero cell state without feeding data in)
+    self.batch_size = tf.shape(self.input_data)[0]
+    num_labels = tf.shape(self.target_data)[0]
+
+    check_dims = tf.Assert(tf.equal(self.batch_size, num_labels),
+        [self.batch_size, num_labels], name="check_batch_sizes")
 
     # get initial state for our LSTM cell
-    self.initial_multicell_state = self.cell.zero_state(batch_size, self.rnn_dtype)
+    self.initial_multicell_state = \
+      self.cell.zero_state(self.batch_size, self.rnn_dtype)
 
     # might need to add with tf.device("/cpu:0") here if training on GPU
     # create embedding variable which is randomly initialised
@@ -72,33 +83,42 @@ class Model(object):
     softmax_w = tf.get_variable("softmax_w", [hidden_units, vocab_size])
     softmax_b = tf.get_variable("softmax_b", [vocab_size])
     logits = tf.matmul(output, softmax_w) + softmax_b
-    loss = tf.nn.seq2seq.sequence_loss_by_example(
-        [logits],
-        [tf.reshape(self.target_data, [-1])],
-        [tf.ones([batch_size * seq_length], dtype=self.rnn_dtype)],
-        vocab_size
-    )
+    
+    # enusre no. of inputs matches no. of labels before computing loss
+    with tf.control_dependencies([check_dims]):
+      # compute a weighted cross-entropy loss
+      # note that this function applies softmax to the logits for us
+      # since we want to weight all logits equally, we pass all 1s for the weights
+      loss_vector = tf.nn.seq2seq.sequence_loss_by_example(
+          [logits],
+          [tf.reshape(self.target_data, [-1])],
+          [tf.ones([self.batch_size * seq_length], dtype=self.rnn_dtype)],
+          vocab_size
+      )
+
     # nb we are doing truncated backpropagation with the truncation point
     # set to seq_length
 
     # create tensor which gives our probability distribution (used for sampling)
     self.probs = tf.nn.softmax(logits)
 
-    self.cost = tf.reduce_sum(loss) / batch_size
-    tf.summary.scalar('loss', self.cost)
+    batch_size_f = tf.cast(self.batch_size, tf.float32)
+    self.loss = tf.reduce_sum(loss_vector) / batch_size_f
+
+    tf.summary.scalar('loss', self.loss)
     self.final_state = state
 
     if not is_training:
       return
 
-    self.lr = tf.Variable(0.0, trainable=False)
+    self.lr = tf.Variable(0.0, trainable=False, name="learning_rate")
     tf.summary.scalar('learning_rate', self.lr)
     tvars = tf.trainable_variables()
-    grads, _ = tf.clip_by_global_norm(tf.gradients(self.cost, tvars),
+    grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars),
         config.max_grad_norm)
     
     optimizer = tf.train.GradientDescentOptimizer(self.lr)
-    self.train_op = optimizer.apply_gradients(zip(grads, tvars))
+    self.train_op = optimizer.apply_gradients(zip(grads, tvars)) # type: ignore
     
     self.new_lr = tf.placeholder(tf.float32, shape=[], name="new_learning_rate")
     self.lr_update = tf.assign(self.lr, self.new_lr)
