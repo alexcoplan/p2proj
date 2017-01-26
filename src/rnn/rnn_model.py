@@ -9,12 +9,13 @@ class SamplingMethod(Enum):
 
 class ModelConfig(object):
   def __init__(self, data_loader):
+    self.keep_prob = 0.5
     self.max_grad_norm = 5
     self.learning_rate = 1.0
-    self.num_epochs = 1
-    self.hidden_size = 64
-    self.lr_decay = 0.95
-    self.num_layers = 1
+    self.num_epochs = 100
+    self.hidden_size = 256
+    self.lr_decay = 0.98
+    self.num_layers = 2
     self.mode       = data_loader.mode
     self.batch_size = data_loader.batch_size
     self.num_test_examples = data_loader.num_test_examples
@@ -35,6 +36,11 @@ class Model(object):
       seq_length = 1
 
     lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_units, state_is_tuple=True)
+    if is_training and config.keep_prob < 1.0 and config.num_layers > 1:
+      # apply dropout to output of each layer
+      lstm_cell = tf.nn.rnn_cell.DropoutWrapper(
+          lstm_cell, output_keep_prob=config.keep_prob)
+
     cells = [lstm_cell] * config.num_layers
     self.cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
 
@@ -93,7 +99,7 @@ class Model(object):
           [logits],
           [tf.reshape(self.target_data, [-1])],
           [tf.ones([self.batch_size * seq_length], dtype=self.rnn_dtype)],
-          vocab_size
+          average_across_timesteps=True
       )
 
     # nb we are doing truncated backpropagation with the truncation point
@@ -103,7 +109,7 @@ class Model(object):
     self.probs = tf.nn.softmax(logits)
 
     batch_size_f = tf.cast(self.batch_size, tf.float32)
-    self.loss = tf.reduce_sum(loss_vector) / batch_size_f
+    self.loss = tf.reduce_sum(loss_vector) / (batch_size_f * seq_length)
 
     tf.summary.scalar('loss', self.loss)
     self.final_state = state

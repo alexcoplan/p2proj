@@ -4,7 +4,6 @@
  - max_grad_norm = 5.
  - seq_length = 100
  - batch_size = 50
- - no dropout.
 
 ## Single layer
 

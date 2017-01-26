@@ -1,12 +1,12 @@
-import tensorflow as tf
-import numpy as np
+import tensorflow as tf # type: ignore
+import numpy as np # type: ignore
 import argparse
 import os
 
 try:
-  import cPickle as pickle
+  import cPickle as pickle # type: ignore
 except:
-  import pickle
+  import pickle # type: ignore
 
 from rnn_model import Model, SamplingMethod
 from data_loader import DataLoader
@@ -35,7 +35,7 @@ with open(os.path.join(args.save_dir, "events_vocab.pkl"), "rb") as f:
 # so we lazy load this so as to not require this for a char-RNN
 if saved_config.mode == DataLoader.Mode.MUSIC:
   from rnn_music_rep import decode_events,divtoken
-  from score_utils import render_music21
+  from score_utils import render_music21 
 
 print("Loading model...\n")
 
@@ -56,7 +56,7 @@ with tf.Session() as sess:
       print("".join(events))
     else:
       print(events)
-      buff = []
+      buff = [] # type: List[List[int]]
       for e in events[1:]:
         if e == divtoken:
           render_music21(decode_events(buff))

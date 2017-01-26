@@ -61,10 +61,10 @@ if args.init_from is not None:
 
   # check that the saved config is compatible with the current config
   with open(os.path.join(args.init_from, "config.pkl"), "rb") as f:
-    saved_model_args = pickle.load(f)
-  to_check = ["mode","hidden_size","num_layers","seq_length"]
+    saved_config = pickle.load(f)
+  to_check = ["mode","num_test_examples","seq_length","batch_size","vocab_size"]
   for check in to_check:
-    assert vars(saved_model_args)[check] == vars(config)[check],\
+    assert vars(saved_config)[check] == vars(config)[check],\
       "model config does not match loaded config"
 
   # check if saved vocabulary is compatible with model
@@ -77,7 +77,10 @@ if args.init_from is not None:
 
 # dump model config and the text loader's events/vocab
 with open(os.path.join(args.save_dir, "config.pkl"), "wb") as f:
-  pickle.dump(config, f)
+  if args.init_from is not None:
+    pickle.dump(saved_config, f)
+  else:
+    pickle.dump(config, f)
 with open(os.path.join(args.save_dir, "events_vocab.pkl"),"wb") as f:
   pickle.dump((loader.events, loader.vocab), f)
 
@@ -125,7 +128,6 @@ with tf.Session() as sess:
       for i, (c,h) in enumerate(model.initial_multicell_state):
         feed[c] = state[i].c
         feed[h] = state[i].h
-
 
       ops = [
           summary_op, 

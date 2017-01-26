@@ -1,0 +1,34 @@
+# HP1 Dataset
+
+base params:
+ - seq_length: 200
+ - learning_rate (initial): 1.0
+ - max_grad_norm: 5
+
+## one layer
+ - h64,  e50, lrd0.95 => loss: (2.135 train, 2.180 test)
+ - h64,  e50, lrd0.98 => loss: (1.945 train, 2.051 test)
+ - h128, e50, lrd0.98 => loss: (1.534 train, 1.671 test)
+
+## two layers
+ - h64,  e100, lrd0.98 => loss: (1.840 train, 1.901 test)
+ - h128, e100, lrd0.98 => loss: (1.608 train, 1.712 test)
+
+# Chorale (inflated: +/-3) dataset
+
+base params:
+ - seq_length: 80
+ - learning_rate (initial): 1.0
+ - max_grad_norm: 5
+
+## one layer
+ - h128, seqlen40, e100, lrd0.98 => loss(2.162 train, 2.410 test)
+   - further 40 epochs => loss(1.837 train, 2.403 test)
+   - further 40 epochs => loss(1.596 train, 2.512 test)
+ - h512, seqlen40, e40, lrd0.98 => loss(1.595 train, 2.551 test)
+
+## two layers
+ - h256, seqlen80, e100, lrd0.98 => loss(2.131 train, 2.672 test)
+ - h256, seqlen40, e100, lrd0.98 => loss(1.157 train, 3.024 test)
+ - h256, seqlen40, e80,  lrd0.98, drop0.8 => loss(1.921 train, 2.590 test)
+ - h256, seqlen40, e100, lrd0.98, drop0.5 => loss(
