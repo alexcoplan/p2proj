@@ -7,13 +7,23 @@ class SamplingMethod(Enum):
   WEIGHTED_PICK = 0
   HARD_MAX = 1
 
+# this is passed to Model's constructor to determine how to build the RNN
+#  - TRAIN adds dropout and configures the RNN to accept batched sequences
+#   in bulk. 
+#  - SAMPLE configures the RNN to process one event at a time (no dropout).
+#  - TEST is like TRAIN but without dropout.
+class RNNMode(Enum):
+  TRAIN = 0
+  SAMPLE = 1
+  TEST = 2
+
 class ModelConfig(object):
   def __init__(self, data_loader):
     self.keep_prob = 0.5
     self.max_grad_norm = 5
     self.learning_rate = 1.0
     self.num_epochs = 100
-    self.hidden_size = 256
+    self.hidden_size = 512
     self.lr_decay = 0.98
     self.num_layers = 2
     self.mode       = data_loader.mode
@@ -25,18 +35,18 @@ class ModelConfig(object):
 class Model(object):
   rnn_dtype = tf.float32
 
-  def __init__(self, config, is_training=True):
+  def __init__(self, config, op_mode=RNNMode.TRAIN):
     # training hyperparams
     vocab_size = config.vocab_size
     seq_length = config.seq_length
     hidden_units = config.hidden_size # width of LSTM hidden layer
 
-    # if we're not training, set up the RNN for sampling
-    if not is_training:
+    if op_mode == RNNMode.SAMPLE:
       seq_length = 1
 
     lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_units, state_is_tuple=True)
-    if is_training and config.keep_prob < 1.0 and config.num_layers > 1:
+    if op_mode == RNNMode.TRAIN and \
+       config.keep_prob < 1.0 and config.num_layers > 1:
       # apply dropout to output of each layer
       lstm_cell = tf.nn.rnn_cell.DropoutWrapper(
           lstm_cell, output_keep_prob=config.keep_prob)
@@ -114,7 +124,7 @@ class Model(object):
     tf.summary.scalar('loss', self.loss)
     self.final_state = state
 
-    if not is_training:
+    if op_mode != RNNMode.TRAIN:
       return
 
     self.lr = tf.Variable(0.0, trainable=False, name="learning_rate")

@@ -8,12 +8,12 @@ try:
 except:
   import pickle # type: ignore
 
-from rnn_model import Model, SamplingMethod
+from rnn_model import Model,SamplingMethod,RNNMode
 from data_loader import DataLoader
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--save-dir", type=str, default='save',
-  help="model directory to store checkpointed models")
+  help="model directory containing checkpointed models")
 parser.add_argument("-n", type=int, default=500,
   help="number of events to sample")
 parser.add_argument("--prime", type=str, default=u'Harry ',
@@ -39,7 +39,7 @@ if saved_config.mode == DataLoader.Mode.MUSIC:
 
 print("Loading model...\n")
 
-model = Model(saved_config, is_training=False)
+model = Model(saved_config, op_mode=RNNMode.SAMPLE)
 with tf.Session() as sess:
   sess.run(tf.global_variables_initializer())
   saver = tf.train.Saver(tf.global_variables())

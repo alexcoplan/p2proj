@@ -167,5 +167,8 @@ with tf.Session() as sess:
   x, y = loader.test_batch
   test_feed = { model.input_data: x, model.target_data: y }
   print("test set loss:", sess.run(model.loss, test_feed))
+  if config.keep_prob < 1.0 and config.num_layers > 1:
+    print("warning: dropout applied to test result, need to test on clean model.")
+    print("use test_rnn.py")
 
 
