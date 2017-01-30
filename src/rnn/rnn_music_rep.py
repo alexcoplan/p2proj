@@ -18,8 +18,19 @@ def encode_note(pitch, duration):
   assert type(pitch) is int
   return "n{}d{}".format(pitch, duration)
 
-def encode_json_notes(notes):
+""" 
+takes a sequence of notes in our internal JSON encoding and turns it into a form
+consumable by the RNN
+
+returns (events, clock) pair
+
+ts_semis: the number of semiquavers in a bar
+ since the only possible time signatures for chorales are 3/4 or 4/4,
+ this uniquely identifies a time signature.
+"""
+def encode_json_notes(notes, ts_semis):
   events = [divtoken]
+  clock = [0]
 
   prev_end = 0
 
@@ -30,10 +41,12 @@ def encode_json_notes(notes):
     delta = offset - prev_end
     if delta > 0:
       events.append(encode_rest(delta))
+      clock.append(((prev_end % ts_semis) // 4) + 1)
     events.append(encode_note(pitch, duration))
+    clock.append(((offset % ts_semis) // 4) + 1)
     prev_end = offset + duration
 
-  return events
+  return events, clock
 
 pitch_table = [
   "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"

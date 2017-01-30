@@ -22,9 +22,9 @@ class ModelConfig(object):
     self.keep_prob = 0.5
     self.max_grad_norm = 5
     self.learning_rate = 1.0
-    self.num_epochs = 100
-    self.hidden_size = 512
-    self.lr_decay = 0.98
+    self.num_epochs = 60
+    self.hidden_size = 256
+    self.lr_decay = 0.95
     self.num_layers = 2
     self.mode       = data_loader.mode
     self.batch_size = data_loader.batch_size
@@ -79,7 +79,7 @@ class Model(object):
     [vocab_size, hidden_units], dtype=self.rnn_dtype)
     inputs = tf.nn.embedding_lookup(embedding, self.input_data)
 
-    # could add dropout here... see Zaremba et al. 2014
+    self.debug_inputs = inputs
 
     # construct the graph for an unrolled RNN
     # 

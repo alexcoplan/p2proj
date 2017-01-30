@@ -65,18 +65,23 @@ sharps_mask = [False] * 15
 timesig_mask = [False] * 32
 seqint_mask = [False] * 42
 rest_mask = [False] * 64
+intref_mask = [False] * 43
+
+ref_map = [68,63,70,65,60,67,62,69,64]
 
 # quantize to semiquavers
 def ql_quantize(ql):
   return round(ql/0.25)
 
-def m21_to_internal(m21_notes):
+def m21_to_internal(m21_notes, referent):
   c_notes = []
 
   prev_pitch = None
   prev_end_q = None # end = offset + duration
   
   for n in m21_notes:
+    intref_mask[n.pitch.midi - referent + 21] = True
+
     if prev_pitch is not None:
       seqint_mask[n.pitch.midi - prev_pitch + 21] = True
     prev_pitch = n.pitch.midi
@@ -135,6 +140,9 @@ for i in bcl.byRiemenschneider:
   if info["bwv"] == "36.4-2" or info["bwv"] == "432":
     print(" * WARNING: skipping due to inconvenient ornament.")
     continue
+  elif info["bwv"] == "123.6":
+    print(" * WARNING: skipping this chorale in double time.")
+    continue
 
   # calculate anacrusis
   anac_bar_ql = c.measures(0,0).duration.quarterLength
@@ -151,6 +159,7 @@ for i in bcl.byRiemenschneider:
 
   sharps_mask[ks.sharps + 7] = True
   key_sig_sharps = ks.sharps
+  referent = ref_map[key_sig_sharps + 4]
   
   if not args.ignore_modes:
     key_sig_major = True
@@ -174,7 +183,7 @@ for i in bcl.byRiemenschneider:
     else:
       title_ext = " ({} {})".format(direction, amt) 
 
-    internal_fmt = m21_to_internal(transd.notes)
+    internal_fmt = m21_to_internal(transd.notes, referent)
 
     obj = {
         "title" : title + title_ext,
@@ -237,6 +246,7 @@ sharps_domain = []
 time_sig_domain = []
 seqint_domain = []
 rest_domain = []
+intref_domain = []
 
 for idx,val in enumerate(pitch_mask):
   if val:
@@ -272,6 +282,13 @@ for idx,val in enumerate(seqint_mask):
 
 print("Intervals used (seqint): ", end="")
 print(seqint_domain)
+
+for idx,val in enumerate(intref_mask):
+  if val:
+    intref_domain.append(idx - 21)
+
+print("intref domain:", end="")
+print(intref_domain)
 
 for idx,val in enumerate(rest_mask):
   if val:

@@ -26,8 +26,11 @@ class DataLoader(object):
     input_file = os.path.join(data_dir, fname)
     vocab_file = os.path.join(data_dir, "vocab.pkl")
     train_tensor_file = os.path.join(data_dir, "train_data.npy")
+    train_clock_file = os.path.join(data_dir, "train_clock.npy")
     test_tensor_file = os.path.join(data_dir, "test_data.npy")
-    tensor_files = (train_tensor_file, test_tensor_file)
+    test_clock_file = os.path.join(data_dir, "test_clock.npy")
+    tensor_files = \
+      (train_tensor_file, test_tensor_file, train_clock_file, test_clock_file)
     metadata_file = os.path.join(data_dir, "event_metadata.tsv")
 
     need_to_preprocess =\
@@ -35,6 +38,10 @@ class DataLoader(object):
       and os.path.exists(train_tensor_file)
       and os.path.exists(test_tensor_file)
       and os.path.exists(metadata_file))
+
+    if mode == self.Mode.MUSIC and (not need_to_preprocess):
+      need_to_preprocess = not \
+        (os.path.exists(train_clock_file) and os.path.exists(test_clock_file))
 
     if need_to_preprocess:
       print("loading corpus from source file")
@@ -50,7 +57,7 @@ class DataLoader(object):
   def preprocess(self, input_file, vocab_file, tensor_files, metadata_file):
     corpus_events = None 
 
-    train_tensor_file, test_tensor_file = tensor_files
+    train_tensor_f, test_tensor_f, train_clock_f, test_clock_f = tensor_files
 
     if self.mode == self.Mode.MUSIC:
       with open(input_file, "r") as f:
@@ -60,10 +67,17 @@ class DataLoader(object):
         corpora = (train_corpus, test_corpus)
 
       corpus_events = train_events, test_events = [],[]
-      for event_list,corpus in zip(corpus_events, corpora):
+      corpus_ticks = train_ticks, test_ticks = [],[]
+      for event_list,tick_list,corpus in zip(corpus_events, corpus_ticks, corpora):
         for piece in corpus:
-          event_list += encode_json_notes(piece["notes"])
+          ts_semis = piece["time_sig_amt"]
+          assert ts_semis <= 16 # we do not support longer bars in the RNN
+          events, ticks = encode_json_notes(piece["notes"], ts_semis)
+          event_list += events
+          tick_list += ticks
 
+      assert len(train_events) == len(train_ticks)
+      assert len(test_events) == len(test_ticks)
     else: 
       with open(input_file, "r") as f:
         # for now we just take the first 10% of the input file to be a
@@ -99,24 +113,36 @@ class DataLoader(object):
     self.vocab = dict(zip(self.events, range(self.vocab_size)))
     self.train_tensor = np.array(list(map(self.vocab.get, train_events)))
     self.test_tensor = np.array(list(map(self.vocab.get, test_events)))
-    np.save(train_tensor_file, self.train_tensor)
-    np.save(test_tensor_file, self.test_tensor)
+    np.save(train_tensor_f, self.train_tensor)
+    np.save(test_tensor_f, self.test_tensor)
+    
+    if self.mode == self.Mode.MUSIC:
+      self.train_clock_tensor = np.array(train_ticks)
+      self.test_clock_tensor = np.array(test_ticks)
+      np.save(train_clock_f, self.train_clock_tensor)
+      np.save(test_clock_f, self.test_clock_tensor)
 
   def load_preprocessed(self, vocab_file, tensor_files):
-    train_tensor_file, test_tensor_file = tensor_files
+    train_tensor_f, test_tensor_f, train_clock_f, test_clock_f = tensor_files
 
     with open(vocab_file, 'rb') as f:
       self.events = pickle.load(f)
     self.vocab_size = len(self.events)
     self.vocab = dict(zip(self.events, range(self.vocab_size)))
-    self.train_tensor = np.load(train_tensor_file)
-    self.test_tensor = np.load(test_tensor_file)
+    self.train_tensor = np.load(train_tensor_f)
+    self.test_tensor = np.load(test_tensor_f)
+    if self.mode == self.mode.MUSIC:
+      self.train_clock_tensor = np.load(train_clock_f)
+      self.test_clock_tensor = np.load(test_clock_f)
+
 
   def create_test_batch(self):
     self.num_test_examples = self.test_tensor.size // self.seq_length
 
     # clip data to fit into rows of length seq_length
-    self.test_tensor = self.test_tensor[:self.num_test_examples * self.seq_length]
+    clip_len = self.num_test_examples * self.seq_length
+    self.test_tensor = self.test_tensor[:clip_len]
+    
     xdata = self.test_tensor
     ydata = np.copy(self.test_tensor)
 
@@ -127,6 +153,10 @@ class DataLoader(object):
     test_xdata = xdata.reshape(-1, self.seq_length)
     test_ydata = ydata.reshape(-1, self.seq_length)
     self.test_batch = (test_xdata, test_ydata)
+    if self.mode == self.Mode.MUSIC:
+      self.test_clock_tensor = self.test_clock_tensor[:clip_len]
+      self.test_clock = self.test_clock_tensor.reshape(-1, self.seq_length)
+      assert self.test_clock.shape == test_xdata.shape == test_ydata.shape
 
   def create_train_batches(self):
     self.num_batches = self.train_tensor.size // (self.batch_size * self.seq_length)
@@ -135,7 +165,9 @@ class DataLoader(object):
       "Insufficient data. Make seq_length and/or batch_size smaller"
 
     # clip data so that it divides exactly among batches
-    self.train_tensor = self.train_tensor[:self.num_batches * self.batch_size * self.seq_length]
+    clip_len = self.num_batches * self.batch_size * self.seq_length
+    self.train_tensor = self.train_tensor[:clip_len]
+
     xdata = self.train_tensor
     ydata = np.copy(self.train_tensor)
 
@@ -150,14 +182,31 @@ class DataLoader(object):
 
     self.y_batches = np.split(ydata.reshape(self.batch_size, -1),
     self.num_batches, 1)
+
+    # process clock data if music mode is enabled
+    if self.mode == self.Mode.MUSIC:
+      self.train_clock_tensor = self.train_clock_tensor[:clip_len]
+      clkdat = self.train_clock_tensor
+      self.clock_batches = np.split(clkdat.reshape(self.batch_size, -1),
+          self.num_batches, 1)
+      assert len(self.x_batches) == \
+             len(self.y_batches) == len(self.clock_batches)
         
   def next_batch(self):
     x,y = self.x_batches[self.pointer], self.y_batches[self.pointer]
     self.pointer += 1
     return x,y
 
+  def next_clock_batch(self):
+    assert self.mode == self.Mode.MUSIC, \
+      "next_clock_batch() may only be called in music mode"
+    clk_batch = self.clock_batches[self.clock_pointer]
+    self.clock_pointer += 1
+    return clk_batch
+
   def reset_batch_pointer(self):
     self.pointer = 0
+    self.clock_pointer = 0
 
   def inspect_batches(self, n_batches_to_inspect):
     for batch_num in range(n_batches_to_inspect):

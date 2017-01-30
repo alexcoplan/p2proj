@@ -11,6 +11,7 @@ rs_numbers = [] # type: List[int]
 min_pitches = [] # type: List[int]
 max_pitches = [] # type: List[int]
 pitch_ranges = [] # type: List[int]
+timesig_strs = [] # type: List[str]
 
 # we just take pitches from some arbitrary chorale 
 a_chorale_bwv = 'bwv26.6'
@@ -50,6 +51,14 @@ for i in bcl.byRiemenschneider:
   if ks.sharps > max_sharps:
     max_sharps = ks.sharps
     max_sharps_bwv = bwv
+
+  # process time signature
+  ts = c.recurse().getElementsByClass('TimeSignature')[0]
+  if ts.ratioString not in timesig_strs:
+    timesig_strs.append(ts.ratioString)
+
+  if ts.ratioString == "3/2":
+    print("--> this one in 3/2!")
 
   # process min/max pitches
   melody_pitches = c.parts[0].flat.pitches
@@ -101,6 +110,8 @@ print("min sharps:", min_sharps,
 print("max sharps:", max_sharps, 
       "bwv:", max_sharps_bwv, "rs:", bwv_to_rs_num_map[max_sharps_bwv])
 
+print("time sig used:", timesig_strs)
+
 plt.figure(1)
 plt.title("Min/max pitches in chorale corpus")
 plt.plot(rs_numbers, min_pitches)
@@ -112,7 +123,14 @@ plt.ylabel('Pitch')
 plt.figure(2)
 plt.title("Distribution of keys in chorales")
 plt.hist(num_sharps, bins=range(min(num_sharps), max(num_sharps)+2))
+
 plt.show()
 
+# plt.figure(3)
+# plt.title("Distribution of time signatures in chorales")
+# plt.plot(timesig_denoms, timesig_nums)
+# plt.xlabel('Division')
+# plt.ylabel('Bar length')
+# plt.show()
 
 

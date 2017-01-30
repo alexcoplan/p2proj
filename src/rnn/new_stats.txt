@@ -30,8 +30,10 @@ base params:
 ## two layers
  - h256, seqlen80, e100, lrd0.98 => loss(2.131 train, 2.672 test)
  - h256, seqlen40, e100, lrd0.98 => loss(1.157 train, 3.024 test)
- - h256, seqlen40, e80,  lrd0.98, drop0.8 => loss(1.921 train, 2.590* test)
- - h256, seqlen40, e100, lrd0.98, drop0.5 => loss(2.205 train, 2.601* test)
- - h512, seqlen40, e100, lrd0.98, drop0.5 => loss(1.832 train, 2.726* test)
+ - h256, seqlen40, e80,  lrd0.98, drop0.8 => loss(1.921 train, 2.456 test)
+ - h256, seqlen40, e100, lrd0.98, drop0.5 => loss(2.205 train, 2.421 test)
+  - further 9  epochs => loss(2.197 train, 2.367 test)
+  - further 11 epochs => loss(2.075 train, 2.348 test)
+ - h512, seqlen40, e100, lrd0.98, drop0.5 => loss(1.832 train, 2.549 test)
 * provisional: test readings on nets with dropout may be incorrect
 
