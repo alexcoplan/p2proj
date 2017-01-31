@@ -42,5 +42,8 @@ with tf.Session() as sess:
   if ckpt and ckpt.model_checkpoint_path:
     saver.restore(sess, ckpt.model_checkpoint_path)
     x,y = loader.test_batch
-    test_feed = { model.input_data: x, model.target_data: y }
+    clk = loader.test_clock
+    test_feed = { 
+      model.input_data: x, model.target_data: y, model.clock_input: clk
+    }
     print("test loss:", sess.run(model.loss, feed_dict=test_feed))

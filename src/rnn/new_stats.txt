@@ -37,3 +37,28 @@ base params:
  - h512, seqlen40, e100, lrd0.98, drop0.5 => loss(1.832 train, 2.549 test)
 * provisional: test readings on nets with dropout may be incorrect
 
+# Chorale (inflated +/-3) dataset with time sig clock (1)
+
+based on sampling from these nets, I determined that the clock encoding
+might not be optimal. instead, perhaps we should give the bar position in
+semiquavers?
+
+better sampling algorithms would obviously help as well
+
+base:
+ - seqlen40
+
+## one layer
+
+ - h256, e60, lrd0.95 => loss(1.913 train, 2.391 test)
+
+## two layers
+
+ - h512, e100, keep0.5, lrd0.98 => loss(1.810 train, 2.413 test)
+
+# Chorale infl3 with clock mode (3): semiquaver-level clock
+
+## one layer
+
+ - h256, e60, lrd0.95 => loss(1.957 train, 2.402 test)
+ - h320, e60, lrd0.95 => loss(1.924 train, 2.413 test)

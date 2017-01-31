@@ -2,10 +2,8 @@ import tensorflow as tf # type: ignore
 import numpy as np # type: ignore
 
 from enum import Enum
-
-class SamplingMethod(Enum):
-  WEIGHTED_PICK = 0
-  HARD_MAX = 1
+from typing import List
+from data_loader import DataLoader
 
 # this is passed to Model's constructor to determine how to build the RNN
 #  - TRAIN adds dropout and configures the RNN to accept batched sequences
@@ -18,28 +16,44 @@ class RNNMode(Enum):
   TEST = 2
 
 class ModelConfig(object):
-  def __init__(self, data_loader):
+  def __init__(self, data_loader : DataLoader) -> None:
     self.keep_prob = 0.5
     self.max_grad_norm = 5
     self.learning_rate = 1.0
     self.num_epochs = 60
-    self.hidden_size = 256
+    self.hidden_size = 320
     self.lr_decay = 0.95
-    self.num_layers = 2
-    self.mode       = data_loader.mode
-    self.batch_size = data_loader.batch_size
-    self.num_test_examples = data_loader.num_test_examples
-    self.seq_length = data_loader.seq_length
-    self.vocab_size = data_loader.vocab_size
+    self.num_layers = 1
+    self.mode         = data_loader.mode
+    self.batch_size   = data_loader.batch_size
+    self.seq_length   = data_loader.seq_length
+    self.vocab_size   = data_loader.vocab_size
+
+    if data_loader.mode == DataLoader.Mode.MUSIC:
+      self.clock_width = data_loader.clock_width
+      self.clock_quantize = data_loader.clock_quantize
+
+def generate_clock_embedding(clock_width : int) -> List[List[int]]:
+  one_hot = []
+  for i in range(clock_width):
+    one_hot.append([0] * i + [1] + [0] * (clock_width-i-1))
+  zero_state = [0] * clock_width
+  return [zero_state] + one_hot
+    
 
 class Model(object):
   rnn_dtype = tf.float32
 
-  def __init__(self, config, op_mode=RNNMode.TRAIN):
+  def __init__(self, config : ModelConfig, op_mode=RNNMode.TRAIN) -> None:
     # training hyperparams
     vocab_size = config.vocab_size
     seq_length = config.seq_length
     hidden_units = config.hidden_size # width of LSTM hidden layer
+
+    if config.mode == DataLoader.Mode.MUSIC:
+      state_size = hidden_units - config.clock_width
+    else:
+      state_size = hidden_units
 
     if op_mode == RNNMode.SAMPLE:
       seq_length = 1
@@ -76,11 +90,23 @@ class Model(object):
     # create embedding variable which is randomly initialised
     # the network will learn a dense representation for the input vocabulary
     embedding = tf.get_variable("embedding", 
-    [vocab_size, hidden_units], dtype=self.rnn_dtype)
+    [vocab_size, state_size], dtype=self.rnn_dtype)
     inputs = tf.nn.embedding_lookup(embedding, self.input_data)
 
-    self.debug_inputs = inputs
+    # if we're in music mode, add some input neurons to the RNN to support
+    # a time signature clock input
+    if config.mode == DataLoader.Mode.MUSIC:
+      clock_w = config.clock_width
+      clock_states = clock_w + 1
+      emb_dat = generate_clock_embedding(clock_w)
+      clock_emb = tf.constant(emb_dat, shape=[clock_states, clock_w], 
+        name="clk_embedding", dtype=tf.float32)
 
+      self.clock_input = \
+        tf.placeholder(tf.int32, [None, seq_length], "clock_input")
+      clock_data = tf.nn.embedding_lookup(clock_emb, self.clock_input)
+      inputs = tf.concat(2, [inputs, clock_data], name='concat_clock')
+      
     # construct the graph for an unrolled RNN
     # 
     # tf.unstack here transforms the inputs into a list of tensors of length
@@ -94,7 +120,7 @@ class Model(object):
     outputs, state = tf.nn.rnn(self.cell, inputs,
       initial_state=self.initial_multicell_state)
 
-    # transform the outputs back into the input matrix form
+    # transform the outputs back into the input tensor form
     output = tf.reshape(tf.concat(1, outputs), [-1, hidden_units])
     softmax_w = tf.get_variable("softmax_w", [hidden_units, vocab_size])
     softmax_b = tf.get_variable("softmax_b", [vocab_size])
@@ -142,8 +168,30 @@ class Model(object):
   def assign_lr(self, sess, lr_value):
     sess.run(self.lr_update, feed_dict={self.new_lr: lr_value})
 
-  def sample(self, sess, events, vocab, num, prime_events,
-    method=SamplingMethod.WEIGHTED_PICK):
+  # returns (state, sample) so we can use this in an iterative fashion
+  # with some external code generating the correct clock values
+  def clocked_sample_iter(self, sess, value : int, clock : int, state=None):
+    if state == None:
+      state = sess.run(self.cell.zero_state(1, self.rnn_dtype))
+
+    x = np.array([[value]])
+    clk = np.array([[clock]])
+    
+    feed = {
+      self.input_data: x, self.initial_multicell_state: state,
+      self.clock_input: clk
+    }
+    [probs,state] = sess.run([self.probs, self.final_state], feed)
+    dist = probs[0] # reduce 2D batch tensor to 1D distribution
+
+    cdf = np.cumsum(dist)
+    total = np.sum(dist)
+    sample = int(np.searchsorted(cdf, np.random.rand(1)*total))
+    
+    return state, sample
+
+
+  def sample(self, sess, events, vocab, num, prime_events):
     # create initial state for our RNN (multi-)cell with a batch size of one
     state = sess.run(self.cell.zero_state(1, self.rnn_dtype))
     for event in prime_events[:-1]: # feed through all except last event
@@ -166,13 +214,7 @@ class Model(object):
         s = np.sum(weights)
         return(int(np.searchsorted(t, np.random.rand(1)*s)))
 
-      if method == SamplingMethod.WEIGHTED_PICK:
-        sample = weighted_pick(p)
-      elif method == SamplingMethod.HARD_MAX:
-        sample = np.argmax(p)
-      else:
-        raise NotImplementedError("Bad sampling type")
-
+      sample = weighted_pick(p)
       decoded = events[sample]
       result.append(decoded)
       curr_event = decoded

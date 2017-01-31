@@ -21,7 +21,7 @@ class DataLoader(object):
     self.data_dir = data_dir
     self.batch_size = batch_size
     self.seq_length = seq_length
-    
+
     fname = "input.txt" if self.mode == self.Mode.CHAR else "corpus.json"
     input_file = os.path.join(data_dir, fname)
     vocab_file = os.path.join(data_dir, "vocab.pkl")
@@ -39,8 +39,20 @@ class DataLoader(object):
       and os.path.exists(test_tensor_file)
       and os.path.exists(metadata_file))
 
-    if mode == self.Mode.MUSIC and (not need_to_preprocess):
-      need_to_preprocess = not \
+    if mode == self.Mode.MUSIC: 
+      # clock settings
+      #  - max_bar_semis: maximum bar length in semiquavers
+      #  - clock_quantize: quantization amount for input clock.
+      #    - 1 => no quantizaiton (semiquaver-level clock)
+      #    - 2 => quaver quantization (quaver-level clock)
+      #    - 4 => crotchet quantization (...)
+      #  - clock_width: number of resulting input clock neurons needed
+      self.max_bar_semis = 16 # support music in {1,2,3}/4
+      self.clock_quantize = 1 # no quantization (encoding method (3))
+      self.clock_width = self.max_bar_semis // self.clock_quantize
+
+      if not need_to_preprocess:
+        need_to_preprocess= not \
         (os.path.exists(train_clock_file) and os.path.exists(test_clock_file))
 
     if need_to_preprocess:
@@ -71,8 +83,10 @@ class DataLoader(object):
       for event_list,tick_list,corpus in zip(corpus_events, corpus_ticks, corpora):
         for piece in corpus:
           ts_semis = piece["time_sig_amt"]
-          assert ts_semis <= 16 # we do not support longer bars in the RNN
-          events, ticks = encode_json_notes(piece["notes"], ts_semis)
+          assert ts_semis <= self.max_bar_semis,\
+            "Time signature not supported (adjust clock settings)"
+          quant = self.clock_quantize
+          events, ticks = encode_json_notes(piece["notes"], quant, ts_semis)
           event_list += events
           tick_list += ticks
 

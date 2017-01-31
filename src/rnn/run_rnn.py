@@ -120,7 +120,10 @@ with tf.Session() as sess:
     for b in range(loader.num_batches):
       start = time.time()
       x,y = loader.next_batch()
-      feed = { model.input_data: x, model.target_data: y }
+      clk = loader.next_clock_batch()
+      feed = { 
+        model.input_data: x, model.target_data: y, model.clock_input: clk 
+      }
       
       # for each cell in the initial state for our MultiRNNCell
       # we feed the correct bit of the initial state to the corresponding
@@ -164,8 +167,12 @@ with tf.Session() as sess:
       print("--> epoch improvement:", prev_epoch_mean_loss - mean_loss)
     prev_epoch_mean_loss = mean_loss
 
-  x, y = loader.test_batch
-  test_feed = { model.input_data: x, model.target_data: y }
+  x,y = loader.test_batch
+  clk = loader.test_clock
+  test_feed = { 
+    model.input_data: x, model.target_data: y, model.clock_input: clk 
+  }
+
   print("test set loss:", sess.run(model.loss, test_feed))
   if config.keep_prob < 1.0 and config.num_layers > 1:
     print("warning: dropout applied to test result, need to test on clean model.")

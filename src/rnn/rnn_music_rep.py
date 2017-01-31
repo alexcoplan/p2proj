@@ -28,7 +28,7 @@ ts_semis: the number of semiquavers in a bar
  since the only possible time signatures for chorales are 3/4 or 4/4,
  this uniquely identifies a time signature.
 """
-def encode_json_notes(notes, ts_semis):
+def encode_json_notes(notes, quantization, ts_semis):
   events = [divtoken]
   clock = [0]
 
@@ -41,9 +41,9 @@ def encode_json_notes(notes, ts_semis):
     delta = offset - prev_end
     if delta > 0:
       events.append(encode_rest(delta))
-      clock.append(((prev_end % ts_semis) // 4) + 1)
+      clock.append(((prev_end % ts_semis) // quantization) + 1)
     events.append(encode_note(pitch, duration))
-    clock.append(((offset % ts_semis) // 4) + 1)
+    clock.append(((offset % ts_semis) // quantization) + 1)
     prev_end = offset + duration
 
   return events, clock
@@ -125,3 +125,13 @@ def decode_events(events):
       offset += duration
   return output_notes
 
+def str_to_duration(e):
+  if e[0] == "n":
+    _, note = e.split("n")
+    _, dur_s = note.split("d")
+    return int(dur_s)
+  elif e[0] == "r":
+    _, dur_s = e.split("r")
+    return int(dur_s)
+  else:
+    return None
