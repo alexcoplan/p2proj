@@ -20,10 +20,10 @@ class ModelConfig(object):
     self.keep_prob = 0.5
     self.max_grad_norm = 5
     self.learning_rate = 1.0
-    self.num_epochs = 60
-    self.hidden_size = 320
+    self.num_epochs = 50
+    self.hidden_size = 256
     self.lr_decay = 0.95
-    self.num_layers = 1
+    self.num_layers = 2
     self.mode         = data_loader.mode
     self.batch_size   = data_loader.batch_size
     self.seq_length   = data_loader.seq_length

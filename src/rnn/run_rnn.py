@@ -62,7 +62,7 @@ if args.init_from is not None:
   # check that the saved config is compatible with the current config
   with open(os.path.join(args.init_from, "config.pkl"), "rb") as f:
     saved_config = pickle.load(f)
-  to_check = ["mode","num_test_examples","seq_length","batch_size","vocab_size"]
+  to_check = ["mode","seq_length","batch_size","vocab_size"]
   for check in to_check:
     assert vars(saved_config)[check] == vars(config)[check],\
       "model config does not match loaded config"

@@ -42,6 +42,7 @@ base params:
 based on sampling from these nets, I determined that the clock encoding
 might not be optimal. instead, perhaps we should give the bar position in
 semiquavers?
+=> this was likely due to a sampling bug where the clock was offset!
 
 better sampling algorithms would obviously help as well
 
@@ -51,6 +52,7 @@ base:
 ## one layer
 
  - h256, e60, lrd0.95 => loss(1.913 train, 2.391 test)
+ - h320, e60, lrd0.95 => loss(1.859 train, 2.431 test)
 
 ## two layers
 
@@ -62,3 +64,19 @@ base:
 
  - h256, e60, lrd0.95 => loss(1.957 train, 2.402 test)
  - h320, e60, lrd0.95 => loss(1.924 train, 2.413 test)
+
+note here that we do better with a bigger model than the quantized mode.
+with more data this clock mode (3) should win out.
+
+# Chorale infl5 with clock mode (3): semiq-level clock
+
+## one layer
+ - _todo_: h256
+ - h320, e60, lrd0.95 => loss(1.663 train, 2.422 test)
+
+## two layers
+ - h256, e80, keep0.5, lrd0.95 => loss(2.444 train, 2.589 test)
+   - base + 30 epochs => loss(2.089 train, 2.328 test) (*: best vloss)
+   - base + 50 epochs => loss(2.014 train, 2.335 test) 
+
+
