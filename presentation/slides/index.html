@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Part II Project Presentation</title>
+    <link rel="stylesheet" type="text/css" href="css/main.css?1">
+    <script type="text/javascript" src="js/jquery-2.2.1.min.js"></script>
+    <link rel="stylesheet" href="js/katex/katex.min.css">
+    <script type="text/javascript" src="js/katex/katex.min.js"></script>
+    <script type="text/javascript" src="js/katex/contrib/auto-render.min.js"></script>
+    <script type="text/javascript" src="js/impress-slide-num.js"></script>
+    <script type="text/javascript" src="js/talk.js"></script>
+</head>
+<body>
+
+<div id="impress" class="impress-not-supported">
+
+	<div class="fallback-message">
+	Sorry, but your browser doesn't support this presentation software. Works best in Chrome or Safari.
+	</div>
+
+	<div class="step" id="intro" data-x="0" data-y="0">
+		<div class="mid">
+			<h1>Progress Presentation</h1>
+			<div class="sub">A Comparison of Statistical Models and Recurrent Neural
+        Networks for the Generation of Music</div>
+			<img src="img/dvp.svg" width="900">
+			<p class="sub">Alex Coplan</p>
+			<p class="subsub">9th February 2017</p>
+		</div>
+	</div>
+	
+	<div class="step" id="overview" data-x="1600" data-y="0" data-rotate-y="20">
+		<h1>Overview</h1>
+		<div class="bluebg info">
+			<ul>
+        <li>Focus on <b>melody</b> generation in specific style.</li>
+        <li><b>Predictive</b> model together with <b>sampling</b> algorithm
+          enables generation.</li>
+        <li>High-level goal: <b>explicit</b> knowledge encoding vs. <b>learned</b>
+          representations.</li>
+			</ul>
+		</div>
+	</div>
+
+	<div class="step" id="context-models" data-x="1600" data-y="800" data-z="0" data-rotate-y="20">
+    <h1>Context Models</h1>
+    <ul class="down-boy">
+      <li>Higher-order <b>Markov</b> or <b>n-gram</b> models.</li>
+      <li>Implemented to arbitrary order, and over arbitrary events (using C++
+        templates).</li>
+      <li>Implementation uses <b>PPM</b> for smoothing.</li>
+    </ul>
+    $$ \mathbb{P}(e' | e_1^k) = 
+    \begin{cases} 
+    \frac{C(e_1^k::e')}{1+C(e_1^k)} && e_1^k::e' \text{ seen} \\
+      \frac{1}{1+C(e_1^k)} \cdot \mathbb{P}(e' | e_2^k) && \text{otherwise}
+    \end{cases} $$
+	</div>
+
+	<div class="step" id="viewpoints" data-x="1600" data-y="1600" data-z="0" data-rotate-y="20">
+		<h1>Viewpoints</h1>
+    <ul class="down-boy">
+      <li>Musical event space <span class="inline-math">\zeta</span> such as 
+        <span class="inline-math">\quad \zeta = \text{pitch} \otimes
+          \text{duration} \otimes \text{onset} \otimes \cdots</span></li>
+      <li>Types <span class="inline-math">\tau</span> with syntactic
+        members <span class="inline-math">[\tau]</span>.</li>
+      <li>A <b>viewpoint</b> modelling type <span class="inline-math">\tau</span> is:</li>
+      <ul>
+        <li>a projection function <span class="inline-math">\Psi_\tau : \zeta^* \rightharpoonup [\tau]</span></li>
+        <li>a <b>context model</b> of sequences in <span class="inline-math">[\tau]^*</span></li>
+      </ul>
+    </ul>
+	</div>
+
+
+	<div class="step" id="mvs" data-x="3200" data-y="1600" data-z="-450" data-rotate-y="20">
+		<h1>Multiple Viewpoint Systems</h1>
+    <ul>
+      <li>Viewpoints modelling a common surface type <span
+          class="inline-math">\tau</span> each predict distributions over <span
+          class="inline-math">[\tau]</span>.
+      </li>
+      <li>Distribution combination implemented using a <b>weighted entropy
+        scheme</b>.
+    $$ w_i = \hat{H}(X_i)^{-b},\ b &gt; 0 $$
+      </li>
+    <li>
+      Implemented basic and derived viewpoints.
+      $$ \Psi_{seqint}(e_1^k::e'::e'') = \Psi_{pitch}(e'') - \Psi_{pitch}(e') $$
+    </li>
+    </ul>
+	</div>
+
+	<div class="step" id="rnn-arch" data-x="4500" data-y="1600" data-z="0" data-rotate-y="-70">
+		<h1>RNN Architecture</h1>
+    <img src="img/rnn_arch.svg" width="750">
+	</div>
+
+	<div class="step" id="results" data-x="4500" data-y="2400" data-z="0" data-rotate-y="-70">
+		<h1>Results</h1>
+    todo.
+	</div>
+
+	<div class="step" id="plan" data-x="4500" data-y="3200" data-z="0" data-rotate-y="-70">
+		<h1>Plan</h1>
+    todo.
+	</div>
+
+  <!--
+  <div class="step" id="thank-you" data-z="5000" data-y="-4000" data-rotate-x="40" data-rotate-y="90">
+    <h1>Thank you</h1>
+    <div class="finished info">
+      Any questions?
+    </div>
+  </div>
+  -->
+	
+</div>
+
+<script src="js/impress.js"></script>
+<script>impress().init();</script>
+
+</body>
+</html>

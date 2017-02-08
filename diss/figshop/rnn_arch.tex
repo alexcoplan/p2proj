@@ -1,0 +1,73 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb}
+\usepackage[active,tightpage]{preview}
+\usepackage{fontspec}
+\usepackage{lilyglyphs}
+\newcommand{\flatten}[1]{#1\hspace{0.08em}\flat{}}
+\setlength\PreviewBorder{10pt}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,shapes.misc,positioning}
+\usepackage{dot2texi}
+\begin{document}
+\begin{preview}
+  \begin{tikzpicture}[-latex,auto,node distance=1.5cm]
+  \tikzstyle{n} = [draw,shape=rectangle]
+  \tikzset{every text node part/.style={align=center}}
+  %% nodes for t = 0
+  \node (t0) {$t = 0$};
+  \node[n] (input-0) [below left of=t0] {Input};
+  \node[n] (clk-0) [below right of=t0] {Clock};
+  \node[n] (embed-0) [below of=input-0] {Embedding \\ $\Sigma \rightarrow
+    \mathbb{R}^h$};
+  \node [n] (lstm-l1-0) [below right of=embed-0] {LSTM 1};
+  \node [n] (lstm-l2-0) [below of=lstm-l1-0] {LSTM 2};
+  \node [n] (softmax-0) [below of=lstm-l2-0] {Softmax \\ $\mathbb{R}^h \rightarrow
+      [0,1]^{|\Sigma|}$};
+
+  %% nodes for t = 1
+  \node (t1) [right = 3.5cm of t0] {$t = 1$};
+  \node[n] (input-1) [below left of=t1] {Input};
+  \node[n] (clk-1) [below right of=t1] {Clock};
+  \node[n] (embed-1) [below of=input-1] {Embedding};
+  \node[n] (lstm-l1-1) [below right of=embed-1] {LSTM 1};
+  \node[n] (lstm-l2-1) [below of=lstm-l1-1] {LSTM 2};
+  \node[n] (softmax-1) [below of=lstm-l2-1] {Softmax};
+
+  %% nodes for t = 2
+  \node (input-2) [right = 1.05cm of clk-1] {$\cdots$};
+  \node (lstm-l1-2) [right = 1.9cm of lstm-l1-1] {$\cdots$};
+  \node (lstm-l2-2) [right = 1.9cm of lstm-l2-1] {$\cdots$};
+  
+  %% edges for t = 0
+  \path (input-0) edge (embed-0)
+        (input-0) edge [dashed] (clk-0)
+        (clk-0) edge [bend left=20] (lstm-l1-0)
+        (embed-0) edge (lstm-l1-0)
+        (lstm-l1-0) edge node[anchor=base,draw,strike out,-]{} node {$p=0.5$}
+        (lstm-l2-0) 
+        (lstm-l2-0) edge node[anchor=base,draw,strike out,-]{} node {$p=0.5$}
+        (softmax-0);
+
+  %% edges t = 0 -> t = 0
+  \path (softmax-0.east) edge [out=0,in=180,dashed,looseness=0.5]
+    node[sloped,pos=0.7,scale=0.8]{sample} (input-1.west)
+    (lstm-l1-0) edge (lstm-l1-1)
+    (lstm-l2-0) edge (lstm-l2-1);
+
+  %% edges for t = 1
+  \path (input-1) edge [dashed] (clk-1)
+    (input-1) edge (embed-1)
+    (embed-1) edge (lstm-l1-1)
+    (clk-1) edge [bend left=20] (lstm-l1-1)
+    (lstm-l1-1) edge node[anchor=base,draw,strike out,-]{} (lstm-l2-1)
+    (lstm-l2-1) edge node[anchor=base,draw,strike out,-]{} (softmax-1);
+
+  %% edges out to infinity
+  \path (softmax-1.east) edge [out=0,in=180,dashed,looseness=0.5]
+    node[sloped,pos=0.7,scale=0.8]{sample} (input-2.west)
+    (lstm-l1-1) edge (lstm-l1-2)
+    (lstm-l2-1) edge (lstm-l2-2);
+
+\end{tikzpicture}
+\end{preview}
+\end{document}
