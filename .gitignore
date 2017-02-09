@@ -29,6 +29,7 @@ src/out/*
 diss/*.pdf
 rough_unchecked
 */MNIST_DATA/*
+src/rnn/json_out
 
 # LaTeX files
 *.aux

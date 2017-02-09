@@ -187,8 +187,11 @@ class Model(object):
     cdf = np.cumsum(dist)
     total = np.sum(dist)
     sample = int(np.searchsorted(cdf, np.random.rand(1)*total))
+
+    xent = -np.log2(dist[sample])
+    dent = -np.sum(dist * np.log2(dist))
     
-    return state, sample
+    return state, float(xent), float(dent), sample
 
 
   def sample(self, sess, events, vocab, num, prime_events):

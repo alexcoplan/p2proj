@@ -391,6 +391,15 @@ td {
 	margin-top:5px;
 }
 
+#results div {
+  text-align:center;
+}
+
+#results .graphs img {
+  margin-right:20px;
+  margin-left:20px;
+}
+
 .finished {
 background: #50a903;
 background: -moz-linear-gradient(top,  #50a903 0%, #449002 44%, #336e00 100%);

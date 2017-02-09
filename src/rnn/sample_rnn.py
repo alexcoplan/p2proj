@@ -2,6 +2,7 @@ import tensorflow as tf # type: ignore
 import numpy as np # type: ignore
 import argparse
 import os
+import json
 from typing import List
 
 try:
@@ -21,6 +22,8 @@ parser.add_argument("--prime", type=str, default=u'Harry ',
   help="text with which to prime (warm up) the RNN")
 parser.add_argument("--sample", type=int, default=0,
   help="0: weighted selection, 1: greedy max, 2: weight on word boundaries")
+parser.add_argument("--output-file", type=str, default="json_out/rnn.json",
+  help="location of JSON file to store output")
 
 args = parser.parse_args()
 
@@ -59,21 +62,40 @@ with tf.Session() as sess:
       sample = vocab["|"]
       state = None
       result : List[str] = []
+      xentropies : List[float] = []
+      dentropies : List[float] = []
       
       for _ in range(args.n):
         prev_str = events[sample]
         prev_dur = str_to_duration(prev_str)
         print("offset:", offset, "clock:", clock, "prev:", prev_str)
-        state, sample = model.clocked_sample_iter(sess, sample, clock, state)
+        state, xent, dent, sample = model.clocked_sample_iter(sess, sample, clock, state)
+        xentropies.append(xent)
+        dentropies.append(dent)
+
         event_str = events[sample]
         if event_str == "|":
+          clock = 1
           if len(result) == 0:
-            clock = 1
             continue
+          
+          json_object = {
+            "notes" : decode_events(result),
+            "entropies" : {
+              "cross_entropies" : xentropies,
+              "dist_entropies" : dentropies
+            }
+          }
+
+          with open(args.output_file, "w") as f:
+            f.write(json.dumps(json_object))
+
           render_music21(decode_events(result))
+
+          break # take first output
+
           result = []
           offset = 0
-          clock = 1
         else:
           result.append(event_str)
           if prev_dur is not None:
