@@ -1,0 +1,432 @@
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+.all-the-borders td {
+	border-width:2px;
+}
+
+
+body {
+    font-family: 'PT Sans', sans-serif;
+    min-height: 740px;
+    
+    background: rgb(215, 215, 215);
+    background: -webkit-gradient(radial, 50% 50%, 0, 50% 50%, 500, from(rgb(240, 240, 240)), to(rgb(190, 190, 190)));
+    background: -webkit-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
+    background:    -moz-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
+    background:     -ms-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
+    background:      -o-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
+    background:         radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));    
+}
+
+
+/* bring back some defaults */
+b, strong { font-weight: bold }
+i, em { font-style: italic }
+ul { list-style:disc; }
+
+/********************************************************************
+ * KaTeX
+ ********************************************************************/
+
+.maths .katex-display {
+	margin-top:0;
+	margin-left:0;
+}
+
+.maths {
+	text-align:left;
+}
+
+.maths.small {
+	font-size:20pt;
+	margin-top:20px;
+}
+
+/********************************************************************
+ * Slide numbering
+ ********************************************************************/
+
+#slide-div {
+  position:absolute;
+  bottom:0;
+  right:5%;
+  padding: 10px;
+  background-color:#3363CC;
+  border-top-left-radius:5px;
+  border-top-right-radius:5px;
+  color:#FFF;
+  box-shadow:#333 0 0 5px;
+}
+
+p#slide-text {
+  font-size: 20px;
+  text-align: center;
+}
+
+/********************************************************************
+ * Custom generics
+ ********************************************************************/
+
+h1 {
+	font-size:70px;
+	margin-bottom:10px;
+}
+
+p.subsubsub {
+	font-size:14pt;
+	color:#666;
+	margin-top:20px;
+}
+
+h2 {
+	margin-bottom:40px;
+	font-size:36pt;
+}
+
+code {
+	font-family:'Courier New', Courier;
+	color:#333;
+}
+
+li {
+	margin-bottom:20px;
+}
+
+li:last-child {
+	margin-bottom:0;
+}
+
+.down-boy {
+	margin-top:40px;
+}
+
+button.audio-icon {
+	background-image:url(../img/audio.svg);
+	background-repeat:no-repeat;
+	background-position:center center;
+	background-size:25%;
+}
+
+
+button.play {
+	background-color:#EC4141;
+	box-shadow:#333 0 0 5px;
+	border-radius:5px;
+	min-width:80px;
+	height:40px;
+	border:none;
+	padding-left:10px;
+	padding-right:10px;
+
+	transition:background-color 0.2s;
+}
+
+button.play:hover {
+	background-color:#F20D0D;
+	cursor:pointer;
+}
+
+button {
+	outline:none;
+}
+
+.neben {
+	display:inline-block;
+	vertical-align:top;
+}
+
+.step {
+    position: relative;
+    width: 1200px;
+    padding: 40px;
+
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing:    border-box;
+    -ms-box-sizing:     border-box;
+    -o-box-sizing:      border-box;
+    box-sizing:         border-box;
+
+    font-family: 'PT Serif', georgia, serif;
+    font-size: 42px;
+    line-height: 1.2;
+}
+.impress-enabled .step {
+    margin: 0;
+    opacity: 0.3;
+
+    -webkit-transition: opacity 1s;
+    -moz-transition:    opacity 1s;
+    -ms-transition:     opacity 1s;
+    -o-transition:      opacity 1s;
+    transition:         opacity 1s;
+}
+
+.impress-enabled .step.active { opacity: 1 }
+
+.step ul {
+	margin-left:50px;
+}
+
+.step img {
+	margin-top:20px;
+}
+
+.step > img {
+	vertical-align:top;
+}
+
+.push-right {
+	margin-left:20px;
+}
+
+.sub {
+	font-size:40px;
+	color:#666;
+}
+
+.mid {
+	display:inline-block;
+	vertical-align:middle;
+}
+
+.bluebg {
+	background: -moz-linear-gradient(top,  rgba(135,224,253,0.49) 0%, rgba(83,203,241,0.49) 40%, rgba(0,149,219,0.49) 100%);
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(135,224,253,0.49)), color-stop(40%,rgba(83,203,241,0.49)), color-stop(100%,rgba(0,149,219,0.49)));
+	background: -webkit-linear-gradient(top,  rgba(135,224,253,0.49) 0%,rgba(83,203,241,0.49) 40%,rgba(0,149,219,0.49) 100%);
+	background: -o-linear-gradient(top,  rgba(135,224,253,0.49) 0%,rgba(83,203,241,0.49) 40%,rgba(0,149,219,0.49) 100%);
+	background: -ms-linear-gradient(top,  rgba(135,224,253,0.49) 0%,rgba(83,203,241,0.49) 40%,rgba(0,149,219,0.49) 100%);
+	background: linear-gradient(top,  rgba(135,224,253,0.49) 0%,rgba(83,203,241,0.49) 40%,rgba(0,149,219,0.49) 100%);
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#7d87e0fd', endColorstr='#7d0095db',GradientType=0 );
+}
+
+.problem {
+	background: #a90329;
+	background: -moz-linear-gradient(top,  #a90329 0%, #8f0222 44%, #6d0019 100%);
+	background: -webkit-linear-gradient(top,  #a90329 0%,#8f0222 44%,#6d0019 100%);
+	background: linear-gradient(to bottom,  #a90329 0%,#8f0222 44%,#6d0019 100%);
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#a90329', endColorstr='#6d0019',GradientType=0 );
+	color:#EEE;
+}
+
+.solution {
+background: #50a903;
+background: -moz-linear-gradient(top,  #50a903 0%, #449002 44%, #336e00 100%);
+background: -webkit-linear-gradient(top,  #50a903 0%,#449002 44%,#336e00 100%);
+background: linear-gradient(to bottom,  #50a903 0%,#449002 44%,#336e00 100%);
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#50a903', endColorstr='#336e00',GradientType=0 );
+color:#EEE;
+}
+
+.problem code {
+	color:#DDD;
+}
+
+.rndlist {
+	border-radius:40px;
+	padding:30px;
+	font-size:40px;
+	font-family:"Helvetica Neue", "Helvetica", Helvetica !important;
+}
+
+.rndlist > div {
+	line-height:0.7 !important;
+	margin-bottom:20px;
+	padding-bottom:20px;
+	border-bottom-width:1px;
+	border-style:solid;
+	border-color:#666;
+}
+
+.rndlist > div:last-child {
+	margin-bottom:0;
+	border-bottom-width:0;
+	padding-bottom:0;
+}
+
+.rndlist h3 {
+	margin-bottom:0;
+}
+
+.rndlist .sub {
+	font-size:18px;
+}
+
+.bluebg .sub {
+	color:#333;
+}
+
+.info {
+	border-radius:20px;
+	padding:20px;
+	font-size:28pt;
+	font-family:"Helvetica Neue", Helvetica, Arial, sans-serif;
+	line-height:1.5;
+	width:900px;
+	margin-top:10px;
+}
+
+.info.thin {
+	width:600px;
+	font-size:24pt;
+	padding:10px;
+	padding-left:0;
+	padding-right:0;
+}
+
+.info.vthin {
+	width:400px;
+}
+
+.info p {
+	margin:10px;
+}
+
+.info img {
+	margin:10px;
+}
+
+.step > h3 {
+	margin-bottom:10px;
+}
+
+/********************************************************************
+ * Table styling
+ ********************************************************************/
+
+table {
+	text-align:center;
+	font-size:16pt;
+}
+
+.borderless {
+	border:none;
+}
+
+td {
+	border-style:solid;
+	border-color:#222;
+	padding:5px;
+}
+
+.hlab {
+	border-bottom-width:2px;
+}
+
+.vlab {
+	border-right-width:2px;
+}
+
+.borderful td {
+	border-width:2px;
+}
+
+.bd {
+	border-width:2px;
+}
+
+/********************************************************************
+ * Slide-specific 
+ ********************************************************************/
+
+#intro div.sub {
+	margin-top:5px;
+	margin-bottom:30px;
+}
+
+#intro img {
+	margin-top:0;
+	margin-left:-20px;
+}
+
+#intro p.sub {
+	margin-top:20px;
+	color:#111;
+}
+
+#intro p.subsub {
+	color:#444;
+	font-size:20pt;
+	margin-top:5px;
+}
+
+#results div {
+  text-align:center;
+}
+
+#results .graphs img {
+  margin-right:20px;
+  margin-left:20px;
+}
+
+.finished {
+background: #50a903;
+background: -moz-linear-gradient(top,  #50a903 0%, #449002 44%, #336e00 100%);
+background: -webkit-linear-gradient(top,  #50a903 0%,#449002 44%,#336e00 100%);
+background: linear-gradient(to bottom,  #50a903 0%,#449002 44%,#336e00 100%);
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#50a903', endColorstr='#336e00',GradientType=0 );
+color:#EEE;
+}
+
+/********************************************************************
+ * impress.js 
+ ********************************************************************/
+
+.fallback-message {
+	border-radius:10px;
+	padding:20px;
+
+	background-color:#333;
+	color:#DDD;
+	display:block;
+}
+
+.impress-supported .fallback-message {
+	display:none !important;
+}
+
+.impress-not-supported .fallback-message {
+	display:block;
+}
+
