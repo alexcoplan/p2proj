@@ -8,16 +8,13 @@
 using json = nlohmann::json;
 using corpus_t = std::vector<std::vector<ChoraleEvent>>;
 
-void parse(const std::string corpus_path, corpus_t &corpus) {
-  std::ifstream corpus_file(corpus_path);
-  json j;
-  corpus_file >> j;
-
-  std::cout << "Parsing corpus... " << std::flush;
-
-  const auto num_chorales = j["corpus"].size();
+void parse_subcorpus(
+  const json &subcorp_j,
+  corpus_t &subcorp
+) {
+  const auto num_chorales = subcorp_j.size();
   for (unsigned int i = 0; i < num_chorales; i++) {
-    const auto &chorale_j = j["corpus"][i];
+    const auto &chorale_j = subcorp_j[i];
     
     std::vector<ChoraleEvent> chorale_events;
 
@@ -56,8 +53,26 @@ void parse(const std::string corpus_path, corpus_t &corpus) {
       prev_duration = duration;
     }
 
-    corpus.push_back(chorale_events);
+    subcorp.push_back(chorale_events);
   }
+}
+
+void parse(
+  const std::string corpus_path, 
+  corpus_t &train_corpus, 
+  corpus_t &test_corpus
+) {
+  std::ifstream corpus_file(corpus_path);
+  json j;
+  corpus_file >> j;
+
+  std::cout << "Parsing corpus... " << std::endl << std::flush;
+
+  const auto &corpus_j = j["corpus"];
+  std::cerr << "loading train corpus" << std::endl;
+  parse_subcorpus(corpus_j["train"], train_corpus);
+  std::cerr << "loading test corpus" << std::endl;
+  parse_subcorpus(corpus_j["validate"], test_corpus);
 
   std::cout << "done." << std::endl;
 }
@@ -221,15 +236,16 @@ int main(void) {
   mvs.add_viewpoint(&duration_vp);
   mvs.add_viewpoint(&rest_vp);
 
-  corpus_t corpus;
-  parse("corpus/chorale_dataset.json", corpus);
+  corpus_t train_corp;
+  corpus_t test_corp;
+  parse("corpus/chorales_t3.json", train_corp, test_corp);
 
   std::cout << "Training... " << std::flush;
-  train(corpus, {&svs, &mvs});
+  train(train_corp, {&svs, &mvs});
   std::cout << "done." << std::endl;
 
-  //evaluate(corpus, 2.0, 8.0, {&svs, &mvs});
-  generate(mvs, 42, "out/gend.json");
+  evaluate(test_corp, 2.0, 8.0, {&svs, &mvs});
+  //generate(mvs, 42, "out/gend.json");
 }
 
 
