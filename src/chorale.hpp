@@ -363,6 +363,14 @@ public:
   template<typename T>
     double avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) const;
 
+  template<typename T>
+    std::vector<double>
+    cross_entropies(const std::vector<ChoraleEvent> &seq) const;
+
+  template<typename T>
+    std::vector<double>
+    dist_entropies(const std::vector<ChoraleEvent> &seq) const;
+
   std::vector<ChoraleEvent> generate(unsigned int len) const;
 
   void learn(const std::vector<ChoraleEvent> &seq);
@@ -460,6 +468,41 @@ ChoraleMVS::avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) const {
   }
   
   return total_entropy / seq.size();
+}
+
+template<typename T>
+std::vector<double>
+ChoraleMVS::cross_entropies(const std::vector<ChoraleEvent> &seq) const {
+  std::vector<ChoraleEvent> ngram_buf;
+  std::vector<double> entropies;
+
+  auto dist = predict<T>({});
+
+  for (const auto &e : seq) {
+    const auto v = e.project<T>();
+    entropies.push_back(-std::log2(dist.probability_for(v)));
+    ngram_buf.push_back(e);
+    dist = predict<T>(ngram_buf);
+  }
+
+  return entropies;
+}
+
+template<typename T>
+std::vector<double>
+ChoraleMVS::dist_entropies(const std::vector<ChoraleEvent> &seq) const {
+  std::vector<ChoraleEvent> ngram_buf;
+  std::vector<double> entropies;
+
+  auto dist = predict<T>({});
+
+  for (const auto &e : seq) {
+    entropies.push_back(dist.entropy());
+    ngram_buf.push_back(e);
+    dist = predict<T>(ngram_buf);
+  }
+
+  return entropies;
 }
 
 #endif

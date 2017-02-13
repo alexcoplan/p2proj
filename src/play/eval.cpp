@@ -66,6 +66,7 @@ void train(const corpus_t &corpus, std::initializer_list<ChoraleMVS *> mvss) {
 }
 
 void render(const std::vector<ChoraleEvent> &piece, 
+            const std::map<std::string, std::vector<double>> entropies,
             const std::string &json_fname) {
   json notes_j;
 
@@ -83,6 +84,15 @@ void render(const std::vector<ChoraleEvent> &piece,
 
   json result_j;
   result_j["notes"] = notes_j;
+
+  json entropies_j;
+  for (const auto &kv : entropies) {
+    auto k = kv.first;
+    auto v = kv.second;
+    entropies_j[k] = v;
+  }
+
+  result_j["entropies"] = entropies_j;
 
   std::ofstream o(json_fname);
   o << std::setw(2) << result_j << std::endl;
@@ -169,7 +179,23 @@ void generate(const ChoraleMVS &mvs,
   std::cout << "--> Pitch: " << pitch_entropy << std::endl;
   std::cout << "--> Duration: " << dur_entropy << std::endl;
 
-  render(piece, json_fname);
+  // TODO: include rest entropy calculations
+  auto pitch_xents = mvs.cross_entropies<ChoralePitch>(piece);
+  auto dur_xents = mvs.cross_entropies<ChoraleDuration>(piece);
+  auto pitch_dents = mvs.dist_entropies<ChoralePitch>(piece);
+  auto dur_dents = mvs.dist_entropies<ChoraleDuration>(piece);
+  std::vector<double> total_xents(piece.size());
+  std::vector<double> total_dents(piece.size());
+  for (unsigned int i = 0; i < piece.size(); i++) {
+    total_xents[i] = pitch_xents.at(i) + dur_xents.at(i);
+    total_dents[i] = pitch_dents.at(i) + dur_dents.at(i);
+  }
+
+  std::map<std::string, std::vector<double>> entropy_map;
+  entropy_map.insert({"cross_entropies", total_xents});
+  entropy_map.insert({"dist_entropies", total_dents});
+
+  render(piece, entropy_map, json_fname);
 }
 
 int main(void) {
@@ -196,8 +222,8 @@ int main(void) {
   train(corpus, {&svs, &mvs});
   std::cout << "done." << std::endl;
 
-  evaluate(corpus, 2.0, 8.0, {&svs, &mvs});
-  //generate(mvs, 42, "out/gend.json");
+  //evaluate(corpus, 2.0, 8.0, {&svs, &mvs});
+  generate(mvs, 42, "out/gend.json");
 }
 
 

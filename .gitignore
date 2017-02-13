@@ -25,11 +25,11 @@ src/out/*
 # IDE cruft
 *.idea
 
-
 # Custom ignores
 diss/*.pdf
 rough_unchecked
 */MNIST_DATA/*
+src/rnn/json_out
 
 # LaTeX files
 *.aux
@@ -43,3 +43,5 @@ rough_unchecked
 *-blx.bib
 *.synctex.*
 
+# Font files for presentation
+presentation/slides/js/katex/fonts
