@@ -49,8 +49,9 @@ public:
   CodedEvent(unsigned int c) : code(c) {}
 };
 
-// forward declare to use in ChoralePitch
+// some forward declarations of types used in other types
 class ChoraleInterval;
+class ChoraleIntref;
 
 /** Empirically (c.f. script/prepare_chorales.py) the domain for the pitch of
  * chorales in MIDI notation is the integers in [60,81]. */
@@ -76,9 +77,9 @@ public:
   }
 
   // check if transposition by the interval delta gives a valid chorale pitch
-  bool is_valid_transposition(const ChoraleInterval &delta) const;
+  bool is_valid_transposition(const MidiInterval &delta) const;
   MidiInterval operator-(const ChoralePitch &rh_pitch) const;
-  ChoralePitch operator+(const ChoraleInterval &delta) const;
+  ChoralePitch operator+(const MidiInterval &delta) const;
 
   // need the "code" constructor for enumeration etc. to work 
   ChoralePitch(unsigned int code);
@@ -107,6 +108,9 @@ public:
 };
 
 class ChoraleKeySig : public CodedEvent {
+public:
+  constexpr static int cardinality = 9;
+
 private:
   constexpr static int min_sharps = -4;
   constexpr static unsigned int map_in(int num_sharps) {
@@ -116,11 +120,15 @@ private:
     return some_code + min_sharps;
   }
 
-public:
-  constexpr static int cardinality = 9;
+  const static std::array<unsigned int, cardinality> referent_map;
 
+public:
   unsigned int encode() const override { return code; } 
   unsigned int raw_value() const { return map_out(code); } 
+  bool intref_gives_valid_pitch(const ChoraleIntref &intref) const;
+  ChoralePitch referent() const { 
+    return ChoralePitch(MidiPitch(referent_map[code]));
+  }
 
   // need the "code" constructor for enumeration etc. to work 
   ChoraleKeySig(unsigned int code);
@@ -189,6 +197,7 @@ public:
  * have as members all the different types that make up a chorale event (pitch,
  * duration, offset, etc.) */
 struct ChoraleEvent {
+  ChoraleKeySig keysig;
   ChoralePitch pitch;
   ChoraleDuration duration;
   ChoraleRest::singleton_ptr_t rest;
@@ -204,17 +213,19 @@ struct ChoraleEvent {
   static std::vector<std::pair<P,Q>>
   lift(const std::vector<ChoraleEvent> &es);
 
-  ChoraleEvent(const MidiPitch &mp, 
+  ChoraleEvent(const KeySig &ks,
+               const MidiPitch &mp, 
                const QuantizedDuration &dur, 
                ChoraleRest::singleton_ptr_t rest_ptr) :
-    pitch(mp), duration(dur), rest(rest_ptr) {
+    keysig(ks), pitch(mp), duration(dur), rest(rest_ptr) {
     assert(ChoraleRest::valid_singleton_ptr(rest_ptr));
   }
 
-  ChoraleEvent(const ChoralePitch &cp,
+  ChoraleEvent(const ChoraleKeySig &ks,
+               const ChoralePitch &cp,
                const ChoraleDuration &cd,
                ChoraleRest::singleton_ptr_t rest_ptr) :
-    pitch(cp), duration(cd), rest(rest_ptr) {
+    keysig(ks), pitch(cp), duration(cd), rest(rest_ptr) {
     assert(ChoraleRest::valid_singleton_ptr(rest_ptr));
   }
 };
@@ -279,7 +290,7 @@ private:
 public:
   unsigned int encode() const override { return code; }
   int raw_value() const { return map_out(code); }
-
+  MidiInterval midi_interval() const { return MidiInterval(raw_value()); }
   std::string string_render() const override;
 
   ChoraleInterval(const MidiInterval &delta_pitch);
@@ -287,6 +298,26 @@ public:
   ChoraleInterval(unsigned int code);
 };
 
+class ChoraleIntref : public CodedEvent {
+public:
+  constexpr static unsigned int cardinality = 32;
+private:
+  constexpr static int min_intref = -17;
+  constexpr static int max_intref = 14;
+  constexpr static unsigned int 
+    map_in(int delta_p) { return delta_p - min_intref; }
+  constexpr static int
+    map_out(unsigned int code) { return (int)code + min_intref; }
+
+public:
+  unsigned int encode() const override { return code; }
+  int raw_value() const { return map_out(code); }
+  MidiInterval midi_interval() const { return MidiInterval(raw_value()); }
+  std::string string_render() const override;
+
+  ChoraleIntref(unsigned int code);
+  ChoraleIntref(const MidiInterval &delta_pitch);
+};
 
 /**********************************************************
  * Chorale Viewpoints
@@ -297,36 +328,64 @@ class IntervalViewpoint :
 private:
   using ParentVP = Viewpoint<ChoraleEvent, ChoraleInterval, ChoralePitch>;
 
-  std::unique_ptr<ChoraleInterval>
-    project(const std::vector<ChoralePitch> &pitches, unsigned int upto) 
-    const override;
-
   std::vector<ChoraleInterval>
-    lift(const std::vector<ChoralePitch> &pitches) const override;
+    lift(const std::vector<ChoraleEvent> &events) const override;
 
 public:
   IntervalViewpoint(unsigned int h) : ParentVP(h) {}
 
-  bool can_predict(const std::vector<ChoraleEvent> &pitches) const override {
-    return pitches.size() > 1;
+  bool can_predict(const std::vector<ChoraleEvent> &ctx) const override {
+    return ctx.size() > 1;
   }
-
-  EventDistribution<ChoralePitch>
-    predict(const std::vector<ChoraleEvent> &pitches) const override;
 
   IntervalViewpoint *clone() const override { 
     return new IntervalViewpoint(*this);
   }
 
-  void debug();
+  EventDistribution<ChoralePitch>
+    predict(const std::vector<ChoraleEvent> &pitches) const override;
+
 };
 
+class IntrefViewpoint :
+  public Viewpoint<ChoraleEvent, ChoraleIntref, ChoralePitch> {
+private:
+  using ParentVP = Viewpoint<ChoraleEvent, ChoraleIntref, ChoralePitch>;
+
+  std::vector<ChoraleIntref>
+    lift(const std::vector<ChoraleEvent> &events) const override;
+
+public:
+  IntrefViewpoint(unsigned int h) : ParentVP(h) {}
+
+  bool can_predict(const std::vector<ChoraleEvent> &ctx) const override {
+    return !ctx.empty(); // don't need any context to predict
+  }
+
+  IntrefViewpoint *clone() const override {
+    return new IntrefViewpoint(*this);
+  }
+
+  EventDistribution<ChoralePitch>
+   predict(const std::vector<ChoraleEvent> &ctx) const override;
+
+  EventDistribution<ChoralePitch> predict_given_key(
+    const std::vector<ChoraleEvent> &ctx, 
+    const ChoraleKeySig &ks
+  ) const;
+};
 
 /**********************************************************
  * Chorale Multiple Viewpoint System
  **********************************************************/
 
 class ChoraleMVS {
+public:
+  template<class T>
+  using BasicVP =
+    BasicViewpoint<ChoraleEvent, T>;
+
+private:
   template<class T>
   using Pred =
     Predictor<ChoraleEvent, T>;
@@ -335,10 +394,10 @@ class ChoraleMVS {
   using PredictorList = 
     std::vector<std::unique_ptr<Pred<T>>>;
 
-private:
   PredictorList<ChoralePitch> pitch_predictors;
   PredictorList<ChoraleDuration> duration_predictors;
   PredictorList<ChoraleRest> rest_predictors;
+  BasicVP<ChoraleKeySig> key_distribution;
 
   template<typename T>
     PredictorList<T> &predictors();
@@ -349,11 +408,6 @@ private:
   }
 
 public:
-  // for convenience when creating viewpoints on chorale types 
-  // outside of this class
-  template<class T>
-  using BasicVP = BasicViewpoint<ChoraleEvent, T>;
-
   double entropy_bias;
   const std::string name;
 
@@ -388,6 +442,7 @@ public:
   }
 
   ChoraleMVS(double eb, const std::string &mvs_name) : 
+    key_distribution(1), // order-1 viewpoint
     entropy_bias(eb), name(mvs_name) {}
 };
 
@@ -413,6 +468,8 @@ ChoraleMVS::predictors<ChoraleRest>() {
 
 void
 inline ChoraleMVS::learn(const std::vector<ChoraleEvent> &seq) {
+  key_distribution.learn({seq[0]});
+
   for (auto &vp_ptr : predictors<ChoralePitch>())
     vp_ptr->learn(seq);
   for (auto &vp_ptr : predictors<ChoraleDuration>())

@@ -7,6 +7,9 @@ import music21 # type: ignore
 import json
 import argparse
 
+from collections import Counter # for counting events in a given types domain
+from typing import Dict,List # type annotations
+
 from json_encoders import NoIndent, NoIndentEncoder
 
 parser = argparse.ArgumentParser()
@@ -58,16 +61,25 @@ individual_chorale_rs_nums = [
 
 validation_nums = individual_chorale_rs_nums[0:args.validation_chorales]
 
-# mask out which elements of each type are actually used
-pitch_mask = [False] * 127
-duration_mask = [False] * 64
-sharps_mask = [False] * 15
-timesig_mask = [False] * 32
-seqint_mask = [False] * 42
-rest_mask = [False] * 64
-intref_mask = [False] * 43
+# event counters: these determine which values syntactic values of a given type
+# are actually used in the corpus
+counters : Dict[str, Counter] = {} 
+types = ["pitch", "duration", "keysig", "timesig", "seqint", "intref", "rest"]
+for t in types:
+  counters[t] = Counter()
 
-ref_map = [68,63,70,65,60,67,62,69,64]
+# this maps number of sharps in key -> pitch of referent
+ref_map = {
+  -4 : 68,
+  -3 : 75,
+  -2 : 70,
+  -1 : 77,
+   0 : 72,
+   1 : 67,
+   2 : 74,
+   3 : 69,
+   4 : 76
+}
 
 # quantize to semiquavers
 def ql_quantize(ql):
@@ -80,10 +92,11 @@ def m21_to_internal(m21_notes, referent):
   prev_end_q = None # end = offset + duration
   
   for n in m21_notes:
-    intref_mask[n.pitch.midi - referent + 21] = True
+    counters["intref"].update([n.pitch.midi - referent])
 
     if prev_pitch is not None:
-      seqint_mask[n.pitch.midi - prev_pitch + 21] = True
+      counters["seqint"].update([n.pitch.midi - prev_pitch])
+
     prev_pitch = n.pitch.midi
 
     duration_q = ql_quantize(n.duration.quarterLength)
@@ -91,11 +104,11 @@ def m21_to_internal(m21_notes, referent):
     offset_q = ql_quantize(n.offset)
 
     if prev_end_q is not None:
-      rest_mask[offset_q - prev_end_q] = True
+      counters["rest"].update([offset_q - prev_end_q])
     prev_end_q = offset_q + duration_q
 
-    pitch_mask[n.pitch.midi - 1]  = True
-    duration_mask[duration_q - 1] = True
+    counters["pitch"].update([n.pitch.midi])
+    counters["duration"].update([duration_q])
     c_notes.append([
       n.pitch.midi, 
       ql_quantize(n.offset + anacrusis_ql), 
@@ -150,16 +163,16 @@ for i in bcl.byRiemenschneider:
 
   anacrusis_ql = first_bar_ql - anac_bar_ql # size of anacrusis
   time_sig_q = ql_quantize(first_bar_ql) # use first bar to determine time signature
-  timesig_mask[time_sig_q - 1] = True
+  counters["timesig"].update([time_sig_q])
 
   # get time/key signature information
   ts = c.recurse().getElementsByClass('TimeSignature')[0]
   ks = c.recurse().getElementsByClass('KeySignature')[0]
   time_sig_str = ts.ratioString
 
-  sharps_mask[ks.sharps + 7] = True
+  counters["keysig"].update([ks.sharps])
   key_sig_sharps = ks.sharps
-  referent = ref_map[key_sig_sharps + 4]
+  referent = ref_map[key_sig_sharps]
   
   if not args.ignore_modes:
     key_sig_major = True
@@ -186,11 +199,11 @@ for i in bcl.byRiemenschneider:
     internal_fmt = m21_to_internal(transd.notes, referent)
 
     obj = {
-        "title" : title + title_ext,
-        "bwv" : bwv,
-        "time_sig_amt" : time_sig_q,
-        "key_sig_sharps" : ks_transd.sharps,
-        "notes" : NoIndent(internal_fmt)
+      "title" : title + title_ext,
+      "bwv" : bwv,
+      "time_sig_amt" : time_sig_q,
+      "key_sig_sharps" : ks_transd.sharps,
+      "notes" : NoIndent(internal_fmt)
     }
 
     global train_chorales_added, validate_chorales_added
@@ -239,79 +252,26 @@ print("Validation set percentage: %.3f%%." % validation_percentage)
 print("Transposition inflation: %.3f." %
     (total_chorales_added/base_chorales_added))
 
-# work out possible values of each type based on masks
-pitch_domain = []
-duration_domain = []
-sharps_domain = []
-time_sig_domain = []
-seqint_domain = []
-rest_domain = []
-intref_domain = []
+metadata_obj : Dict[str,NoIndent] = {}
 
-for idx,val in enumerate(pitch_mask):
-  if val:
-    pitch_domain.append(idx + 1)
+print("\nSyntactic domains of musical types:")
 
-print("Pitches used: ", end="")
-print(pitch_domain)
+# get syntactic domains for each type from counter objects
+for t in types:
+  label = t + "_domain"
+  keys = list(counters[t].keys())
+  keys.sort()
+  print("{}: {}".format(label, keys))
+  metadata_obj[label] = NoIndent(keys)
 
-for idx,val in enumerate(duration_mask):
-  if val:
-    duration_domain.append(idx + 1)
-
-print("Durations used: ", end="")
-print(duration_domain)
-
-for idx,val in enumerate(sharps_mask):
-  if val:
-    sharps_domain.append(idx - 7)
-
-print("Sharps used: ", end="")
-print(sharps_domain)
-
-for idx,val in enumerate(timesig_mask):
-  if val:
-    time_sig_domain.append(idx + 1)
-
-print("Time signatures used: ", end="")
-print(time_sig_domain)
-
-for idx,val in enumerate(seqint_mask):
-  if val:
-    seqint_domain.append(idx - 21)
-
-print("Intervals used (seqint): ", end="")
-print(seqint_domain)
-
-for idx,val in enumerate(intref_mask):
-  if val:
-    intref_domain.append(idx - 21)
-
-print("intref domain:", end="")
-print(intref_domain)
-
-for idx,val in enumerate(rest_mask):
-  if val:
-    rest_domain.append(idx)
-
-print("Rests used: ", end="")
-print(rest_domain)
-
-print("Compilation complete, writing JSON...")
+print("\nCompilation complete, writing JSON...")
 
 outer_object = {
-    "metadata" : {
-      "pitch_domain" : NoIndent(pitch_domain),
-      "duration_domain" : NoIndent(duration_domain),
-      "key_sig_sharps_domain" : NoIndent(sharps_domain),
-      "time_sig_domain" : NoIndent(time_sig_domain),
-      "seqint_domain" : NoIndent(seqint_domain),
-      "rest_domain" : NoIndent(rest_domain)
-    },
-    "corpus" : {
-      "train" : train_json,
-      "validate" : validate_json
-    }
+  "metadata" : metadata_obj,
+  "corpus" : {
+    "train" : train_json,
+    "validate" : validate_json
+  }
 }
 
 with open(args.output_file, 'w') as outfile:

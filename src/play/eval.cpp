@@ -29,8 +29,11 @@ void parse(const std::string corpus_path, corpus_t &corpus) {
     unsigned int prev_offset   = first_note_j[1];
     unsigned int prev_duration = first_note_j[2];
 
+    unsigned int num_sharps = chorale_j["key_sig_sharps"];
+    KeySig ks(num_sharps);
+
     chorale_events.push_back(ChoraleEvent(
-      MidiPitch(first_pitch), QuantizedDuration(prev_duration), nullptr
+      ks, MidiPitch(first_pitch), QuantizedDuration(prev_duration), nullptr
     ));
 
     for (unsigned int j = 1; j < notes_j.size(); j++) {
@@ -45,6 +48,7 @@ void parse(const std::string corpus_path, corpus_t &corpus) {
       ChoraleRest rest{QuantizedDuration(rest_amt)};
 
       chorale_events.push_back(ChoraleEvent(
+        ks,
         MidiPitch(pitch), QuantizedDuration(duration), rest.shared_instance()
       ));
 
@@ -203,6 +207,7 @@ int main(void) {
   ChoraleMVS::BasicVP<ChoraleDuration> duration_vp(3);
   ChoraleMVS::BasicVP<ChoraleRest> rest_vp(3);
   IntervalViewpoint interval_vp(3);
+  IntrefViewpoint intref_vp(3);
 
   ChoraleMVS svs(2.0, "{pitch,duration,rest}");
   svs.add_viewpoint(&pitch_vp);
@@ -212,6 +217,7 @@ int main(void) {
   ChoraleMVS mvs(6.0, "{pitch,interval,duration,rest}");
   mvs.add_viewpoint(&pitch_vp);
   mvs.add_viewpoint(&interval_vp);
+  mvs.add_viewpoint(&intref_vp);
   mvs.add_viewpoint(&duration_vp);
   mvs.add_viewpoint(&rest_vp);
 

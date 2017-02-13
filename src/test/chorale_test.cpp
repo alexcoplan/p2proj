@@ -6,18 +6,33 @@
 struct ChoraleMocker {
   static const MidiPitch default_pitch;
   static const QuantizedDuration default_dur; 
+  static const KeySig default_key;
 
   static ChoraleEvent mock(const ChoralePitch &p) {
-    return ChoraleEvent(MidiPitch(p.raw_value()), default_dur, nullptr);
+    return ChoraleEvent(
+      default_key, 
+      MidiPitch(p.raw_value()), 
+      default_dur, 
+      nullptr
+    );
   }
 
   static ChoraleEvent mock(const ChoraleDuration &d) {
-    return 
-      ChoraleEvent(default_pitch, QuantizedDuration(d.raw_value()), nullptr);
+    return ChoraleEvent(
+      default_key, 
+      default_pitch, 
+      QuantizedDuration(d.raw_value()),
+      nullptr
+    );
   }
 
   static ChoraleEvent mock(ChoraleRest::singleton_ptr_t ptr) {
-    return ChoraleEvent(default_pitch, default_dur, ptr);
+    return ChoraleEvent(
+      default_key,
+      default_pitch, 
+      default_dur, 
+      ptr
+    );
   }
   
   template<typename T>
@@ -36,6 +51,8 @@ ChoraleMocker::default_pitch = MidiPitch(60);
 const QuantizedDuration 
 ChoraleMocker::default_dur = QuantizedDuration(4);
 
+const KeySig
+ChoraleMocker::default_key = KeySig(0);
 
 
 TEST_CASE("Check Chorale event encodings", "[chorale][events]") {
@@ -59,7 +76,7 @@ TEST_CASE("Check Chorale event operaitons", "[chorale][events]") {
     REQUIRE((p2 - p1).delta_pitch == 2);
     REQUIRE((p1 - p2).delta_pitch == -2);
 
-    ChoraleInterval ival(p2 - p1);
+    MidiInterval ival(p2 - p1);
     REQUIRE((p1 + ival) == p2);
   }
 }
@@ -104,12 +121,14 @@ TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
 TEST_CASE("Check ChoraleEvent template magic") {
   std::vector<ChoraleEvent> test_events {
     ChoraleEvent(
-        MidiPitch(60), QuantizedDuration(4), nullptr
+      ChoraleMocker::default_key, MidiPitch(60), QuantizedDuration(4), nullptr
     ),
     ChoraleEvent(
+      ChoraleMocker::default_key,
       MidiPitch(62), QuantizedDuration(6), ChoraleRest(2).shared_instance()
     ),
     ChoraleEvent(
+      ChoraleMocker::default_key,
       MidiPitch(64), QuantizedDuration(4), ChoraleRest(0).shared_instance()
     )
   };

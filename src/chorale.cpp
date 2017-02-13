@@ -37,12 +37,12 @@ MidiInterval ChoralePitch::operator-(const ChoralePitch &rhs) const {
   return MidiInterval(midi_pitch_to - midi_pitch_from);
 }
 
-ChoralePitch ChoralePitch::operator+(const ChoraleInterval &delta) const {
-  return ChoralePitch(MidiPitch(this->raw_value() + delta.raw_value()));
+ChoralePitch ChoralePitch::operator+(const MidiInterval &delta) const {
+  return ChoralePitch(MidiPitch(this->raw_value() + delta.delta_pitch));
 }
 
-bool ChoralePitch::is_valid_transposition(const ChoraleInterval &delta) const {
-  auto new_val = this->raw_value() + delta.raw_value();
+bool ChoralePitch::is_valid_transposition(const MidiInterval &delta) const {
+  auto new_val = this->raw_value() + delta.delta_pitch;
   return new_val >= lowest_midi_pitch && 
          new_val < lowest_midi_pitch + cardinality;
 }
@@ -102,12 +102,17 @@ ChoraleKeySig::ChoraleKeySig(const KeySig &ks) :
   assert(sharps < min_sharps + cardinality);
 }
 
+const std::array<unsigned int, ChoraleKeySig::cardinality> 
+ChoraleKeySig::referent_map = {{
+  68,75,70,77,72,67,74,69,76
+}};
+
 /***************************************************
  * ChoraleTimeSig implementation
  ***************************************************/
 
 const std::array<unsigned int, ChoraleTimeSig::cardinality> 
-ChoraleTimeSig::time_sig_domain = {{12,16,24}};
+ChoraleTimeSig::time_sig_domain = {{12,16}};
 
 unsigned int ChoraleTimeSig::map_in(unsigned int dur) {
   switch (dur) {
@@ -115,8 +120,6 @@ unsigned int ChoraleTimeSig::map_in(unsigned int dur) {
       return 0;
     case 16:
       return 1;
-    case 24:
-      return 2;
     default:
       assert(! "Bad time signature!");
   }
@@ -160,6 +163,9 @@ ChoraleRest::ChoraleRest(const QuantizedDuration &qd) :
  ***************************************************/
 
 template<>
+ChoraleKeySig ChoraleEvent::project() const { return keysig; }
+
+template<>
 ChoralePitch ChoraleEvent::project() const { return pitch; }
 
 template<>
@@ -171,7 +177,7 @@ ChoraleDuration ChoraleEvent::project() const { return duration; }
 
 ChoraleInterval::ChoraleInterval(unsigned int c) :
   CodedEvent(c)  {
-    assert(c < cardinality);
+  assert(c < cardinality);
 }
 
 ChoraleInterval::ChoraleInterval(const MidiInterval &ival) :
@@ -192,25 +198,31 @@ std::string ChoraleInterval::string_render() const {
     ((ival > 0) ? "$\\uparrow$" : (ival < 0) ? "$\\downarrow$" : "");
 }
 
+ChoraleIntref::ChoraleIntref(unsigned int c) :
+  CodedEvent(c) {
+  assert(c < cardinality);
+}
+
+ChoraleIntref::ChoraleIntref(const MidiInterval &ival) :
+  CodedEvent(map_in(ival.delta_pitch)) {
+  auto dp = ival.delta_pitch;
+  assert(dp >= min_intref && dp <= max_intref);
+}
+
+std::string ChoraleIntref::string_render() const {
+  auto delta_p = raw_value();
+  auto num_str = std::to_string(delta_p);
+  return (delta_p < 0) ? num_str : ("+" + num_str);
+}
+
 /********************************************************************
  * Viewpoint implementations below
  ********************************************************************/
 
-std::unique_ptr<ChoraleInterval>
-IntervalViewpoint::
-project(const std::vector<ChoralePitch> &pitches, unsigned int upto) const {
-  assert(upto <= pitches.size());
-
-  if (upto <= 1)
-    return std::unique_ptr<ChoraleInterval>();
-
-  auto from = pitches[upto - 2];
-  auto to = pitches[upto - 1];
-  return std::unique_ptr<ChoraleInterval>(new ChoraleInterval(to - from));
-}
-
 std::vector<ChoraleInterval>
-IntervalViewpoint::lift(const std::vector<ChoralePitch> &pitches) const {
+IntervalViewpoint::lift(const std::vector<ChoraleEvent> &events) const {
+  auto pitches = ChoraleEvent::template lift<ChoralePitch>(events);
+
   if (pitches.size() <= 1)
     return {};
 
@@ -224,23 +236,15 @@ IntervalViewpoint::lift(const std::vector<ChoralePitch> &pitches) const {
   return result;
 }
 
-void IntervalViewpoint::debug() {
-  for (ChoraleInterval iv : EventEnumerator<ChoraleInterval>()) {
-    std::cout << iv.string_render() << " (" << iv.raw_value() << "): "
-      << this->model.count_of({iv}) << std::endl;
-  }
-}
-
 EventDistribution<ChoralePitch>
 IntervalViewpoint::predict(const std::vector<ChoraleEvent> &ctx) const {
   if (ctx.empty())
     throw ViewpointPredictionException("Viewpoint seqint needs at least one\
  pitch to be able to predict further pitches.");
 
-  auto pitch_ctx = ChoraleEvent::lift<ChoralePitch>(ctx);
-  auto interval_ctx = lift(pitch_ctx);
+  auto interval_ctx = lift(ctx);
   auto interval_dist = model.gen_successor_dist(interval_ctx);
-  auto last_pitch = pitch_ctx.back();
+  auto last_pitch = ctx.back().project<ChoralePitch>();
 
   std::array<double, ChoralePitch::cardinality> new_values{{0.0}};
 
@@ -248,10 +252,11 @@ IntervalViewpoint::predict(const std::vector<ChoraleEvent> &ctx) const {
   unsigned int valid_predictions = 0;
 
   for (auto interval : EventEnumerator<ChoraleInterval>()) { 
-    if (!last_pitch.is_valid_transposition(interval))
+    auto midi_interval = interval.midi_interval();
+    if (!last_pitch.is_valid_transposition(midi_interval))
       continue;
 
-    auto candidate_pitch = last_pitch + interval;
+    auto candidate_pitch = last_pitch + midi_interval;
     auto prob = interval_dist.probability_for(interval);
     new_values[candidate_pitch.encode()] = prob;
     total_probability += prob;
@@ -267,6 +272,68 @@ IntervalViewpoint::predict(const std::vector<ChoraleEvent> &ctx) const {
   return EventDistribution<ChoralePitch>(new_values);
 }
 
+std::vector<ChoraleIntref>
+IntrefViewpoint::lift(const std::vector<ChoraleEvent> &events) const {
+  if (events.empty())
+    return {};
+
+  auto pitches = ChoraleEvent::template lift<ChoralePitch>(events);
+  auto referent = events.front().project<ChoraleKeySig>().referent();
+  
+  std::vector<ChoraleIntref> result;
+  for (const auto &p : pitches)
+    result.push_back(p - referent);
+
+  return result;
+}
+
+EventDistribution<ChoralePitch>
+IntrefViewpoint::predict_given_key(
+  const std::vector<ChoraleEvent> &ctx,
+  const ChoraleKeySig &ks
+) const {
+  auto referent = ks.referent();
+  auto intref_ctx = lift(ctx);
+  auto intref_dist = model.gen_successor_dist(intref_ctx);
+
+  std::array<double, ChoralePitch::cardinality> new_values{{0.0}};
+
+  double total_probability = 0.0;
+  unsigned int valid_predictions = 0;
+
+  for (auto intref : EventEnumerator<ChoraleIntref>()) {
+    auto midi_interval = intref.midi_interval();
+    if (!referent.is_valid_transposition(midi_interval))
+      continue;
+
+    auto candidate_pitch = referent + midi_interval;
+    auto prob = intref_dist.probability_for(intref);
+    new_values[candidate_pitch.encode()] = prob;
+    total_probability += prob;
+    valid_predictions++;
+  }
+
+  if (valid_predictions == ChoraleIntref::cardinality)
+    return EventDistribution<ChoralePitch>(new_values);
+
+  for (auto &v : new_values)
+    v /= total_probability;
+
+  return EventDistribution<ChoralePitch>(new_values);
+}
+
+
+EventDistribution<ChoralePitch>
+IntrefViewpoint::predict(const std::vector<ChoraleEvent> &ctx) const {
+  if (ctx.empty()) {
+    const std::string msg = "Need context to predict with intref viewpoint";
+    throw ViewpointPredictionException(msg);
+  }
+
+  auto ks = ctx.front().project<ChoraleKeySig>();
+  return predict_given_key(ctx, ks);
+}
+
 /***************************************************
  * ChoraleMVS implementation
  ***************************************************/
@@ -276,17 +343,18 @@ std::vector<ChoraleEvent> ChoraleMVS::generate(unsigned int len) const {
 
   std::vector<ChoraleEvent> buffer;
 
+  auto keysig = key_distribution.predict({}).sample();
   auto first_pitch = predict<ChoralePitch>(buffer).sample();
   auto first_dur   = predict<ChoraleDuration>(buffer).sample();
 
-  ChoraleEvent first_event(first_pitch, first_dur, nullptr);
+  ChoraleEvent first_event(keysig, first_pitch, first_dur, nullptr);
   buffer.push_back(first_event);
 
   for (unsigned int i = 0; i < len - 1; i++) {
     auto pitch = predict<ChoralePitch>(buffer).sample();
     auto dur   = predict<ChoraleDuration>(buffer).sample();
     auto rest_ptr = predict<ChoraleRest>(buffer).sample().shared_instance();
-    ChoraleEvent event(pitch, dur, rest_ptr);
+    ChoraleEvent event(keysig, pitch, dur, rest_ptr);
     buffer.push_back(event);
   }
 

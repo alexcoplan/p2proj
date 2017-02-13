@@ -26,16 +26,12 @@ class Viewpoint : public Predictor<EventStructure, T_surface> {
 protected:
   SequenceModel<T_viewpoint> model;
 
-  virtual std::unique_ptr<T_viewpoint> 
-    project(const std::vector<T_surface> &events, unsigned int up_to) const = 0;
-
   virtual std::vector<T_viewpoint> 
-    lift(const std::vector<T_surface> &events) const; 
+    lift(const std::vector<EventStructure> &events) const = 0; 
 
 public:
   void learn(const std::vector<EventStructure> &events) override {
-    auto surface_seq = EventStructure::template lift<T_surface>(events);
-    model.learn_sequence(lift(surface_seq));
+    model.learn_sequence(lift(events));
   }
 
   Viewpoint(int history) : model(history) {}
@@ -45,28 +41,12 @@ public:
   }
 };
 
-template<class EventStructure, class T_viewpoint, class T_surface> 
-std::vector<T_viewpoint>
-Viewpoint<EventStructure, T_viewpoint, T_surface>
-::lift(const std::vector<T_surface> &events) const {
-  std::vector<T_viewpoint> result;
-  for (unsigned int i = 1; i <= events.size(); i++) {
-    auto projection = project(events, i);
-    if (projection)
-      result.push_back(T_viewpoint(*projection));
-  }
-
-  return result;
-}
-
 template<class EventStructure, class T_basic>
 class BasicViewpoint : public Viewpoint<EventStructure, T_basic, T_basic> {
   using VPBase = Viewpoint<EventStructure, T_basic, T_basic>;
 
-  std::vector<T_basic> lift(const std::vector<T_basic> &events) const override;
-
-  std::unique_ptr<T_basic> 
-    project(const std::vector<T_basic> &es, unsigned int up_to) const override;
+  std::vector<T_basic> 
+    lift(const std::vector<EventStructure> &events) const override;
 
 public:
   EventDistribution<T_basic> 
@@ -83,21 +63,13 @@ public:
   BasicViewpoint(int history) : VPBase(history) {}
 };
 
-template<class EventStructure, class T> std::unique_ptr<T>
-BasicViewpoint<EventStructure,T>
-::project(const std::vector<T> &events, unsigned int up_to) const {
-  if (up_to == 0)
-    return std::unique_ptr<T>();
-  return std::unique_ptr<T>(new T(events[up_to - 1]));
-}
-
 /* In basic viewpoints, we override `lift` for efficiency, since there is no
  * need to use the projection function and allocate a load of events on the
  * heap, we can just return the original sequence! */
 template<class ES, class T> 
 std::vector<T> 
-BasicViewpoint<ES,T>::lift(const std::vector<T> &events) const {
-  return events;
+BasicViewpoint<ES,T>::lift(const std::vector<ES> &events) const {
+  return ES::template lift<T>(events);
 }
 
 template<class EventStructure, class T>
