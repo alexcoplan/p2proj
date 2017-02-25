@@ -497,7 +497,7 @@ ChoraleMVS::predict(const std::vector<ChoraleEvent> &ctx) const {
   if (vps.size() == 1)
     return prediction;
 
-  WeightedEntropyCombination<T> comb_strategy(entropy_bias);
+  ArithmeticEntropyCombination<T> comb_strategy(entropy_bias);
 
   for (; it != vps.end(); ++it) {
     if ((*it)->can_predict(ctx)) {

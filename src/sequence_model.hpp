@@ -27,17 +27,17 @@ template<class T> class EventDistribution;
 template<class T>
 struct DistCombStrategy {
   virtual std::array<double, T::cardinality>
-    combine(std::initializer_list<EventDistribution<T>> list) const = 0;
+    combine(const std::vector<EventDistribution<T>> &list) const = 0;
 };
 
 template<class T>
-struct WeightedEntropyCombination : public DistCombStrategy<T> {
+struct ArithmeticEntropyCombination : public DistCombStrategy<T> {
   const double re_exponent;
 
   using values_t = std::array<double, T::cardinality>;
 
   values_t 
-  combine(std::initializer_list<EventDistribution<T>> list) const override {
+  combine(const std::vector<EventDistribution<T>> &list) const override {
     values_t result = {{0.0}};
 
     double sum_of_weights = 0.0;
@@ -61,7 +61,56 @@ struct WeightedEntropyCombination : public DistCombStrategy<T> {
     return result;
   }
 
-  WeightedEntropyCombination(double exponent) : re_exponent(exponent) {}
+  ArithmeticEntropyCombination(double exponent) : re_exponent(exponent) {}
+};
+
+template<class T>
+struct GeometricEntropyCombination : public DistCombStrategy<T> {
+  const double re_exponent;
+
+  using values_t = std::array<double, T::cardinality>;
+
+  values_t
+  combine(const std::vector<EventDistribution<T>> &list) const override {
+    values_t result;
+    for (auto &v : result)
+      v = 1.0;
+
+    double sum_of_weights = 0.0;
+    std::vector<double> dist_weights;
+
+    for (auto dist : list) {
+      double norm_entropy = dist.normalised_entropy();
+      if (norm_entropy == 0.0)
+        assert(! "distribution must be non-exclusive");
+
+      double weight = std::pow(norm_entropy, -re_exponent);
+      sum_of_weights += weight;
+      dist_weights.push_back(weight);
+    }
+
+    assert(dist_weights.size() == list.size());
+
+    double total_probability = 0.0;
+    for (const auto &e : EventEnumerator<T>()) {
+      unsigned int j = e.encode();
+      unsigned int i = 0;
+      for (const auto &dist : list)
+        result[j] *= std::pow(dist.probability_for(e), dist_weights[i++]);
+      result[j] = std::pow(result[j], 1.0 / sum_of_weights);
+      total_probability += result[j];
+    }
+
+    // normalise (n.b. normalisation constant cannot be computed in advance for
+    // geometric combination)
+    for (auto &v : result)
+      v /= total_probability;
+
+    return result;
+  }
+
+  GeometricEntropyCombination(double exponent) :
+    re_exponent(exponent) {}
 };
 
 /**************************************************
@@ -75,7 +124,7 @@ private:
 public:
   EventDistribution(const std::array<double, T::cardinality> &vs);
   EventDistribution(const DistCombStrategy<T> &strategy, 
-      std::initializer_list<EventDistribution>);
+      const std::vector<EventDistribution> &dist);
   constexpr static double max_entropy() { return std::log2(T::cardinality); }
   EventDistribution<T> weighted_combination (
       const std::vector<EventDistribution<T> &> &vector);
@@ -124,7 +173,7 @@ EventDistribution<T>::EventDistribution(
  * combine the distributions */
 template<class T>
 EventDistribution<T>::EventDistribution(const DistCombStrategy<T> &strategy,
-    std::initializer_list<EventDistribution<T>> distributions) :
+    const std::vector<EventDistribution<T>> &distributions) :
   EventDistribution(strategy.combine(distributions)) {}
 
 template<class T>
