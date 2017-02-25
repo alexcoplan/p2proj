@@ -61,6 +61,7 @@ class ContextModel {
 
 public:
   void learn_sequence(const std::vector<unsigned int> &seq);
+  void update_from_tail(const std::vector<unsigned int> &seq);
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   unsigned int count_of(const std::vector<unsigned int> &seq) const;
   unsigned int count_of(const std::vector<unsigned int> &seq);
@@ -271,6 +272,18 @@ void ContextModel<b>::learn_sequence(const std::vector<unsigned int> &seq) {
   for (size_t end = history; end <= seq.size(); end++) 
     for (size_t beg = end - history; beg <= end; beg++) 
       addOrIncrement(seq, beg, end);
+}
+
+// takes h-, (h-1)-, ..., 1-grams from the end of a sequence
+// and updates the context model with them.
+//
+// this is used for models which are dynamically trained on a sequence which is
+// continually growing (such as the short-term model in a MVS)
+template<int b> 
+void ContextModel<b>::update_from_tail(const std::vector<unsigned int> &seq) {
+  size_t pos = seq.size() >= history ? (seq.size() - history) : 0;
+  for (; pos <= seq.size(); pos++) 
+    addOrIncrement(seq, pos, seq.size());
 }
 
 template<int b> void
