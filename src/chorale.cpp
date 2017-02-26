@@ -338,6 +338,15 @@ IntrefViewpoint::predict(const std::vector<ChoraleEvent> &ctx) const {
  * ChoraleMVS implementation
  ***************************************************/
 
+void ChoraleVPLayer::learn(const std::vector<ChoraleEvent> &seq) {
+  for (auto &vp_ptr : predictors<ChoralePitch>())
+    vp_ptr->learn(seq);
+  for (auto &vp_ptr : predictors<ChoraleDuration>())
+    vp_ptr->learn(seq);
+  for (auto &vp_ptr : predictors<ChoraleRest>())
+    vp_ptr->learn(seq);
+}
+
 std::vector<ChoraleEvent> ChoraleMVS::generate(unsigned int len) const {
   assert(len > 1);
 

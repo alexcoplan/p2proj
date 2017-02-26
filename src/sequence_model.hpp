@@ -81,8 +81,11 @@ struct GeometricEntropyCombination : public DistCombStrategy<T> {
 
     for (auto dist : list) {
       double norm_entropy = dist.normalised_entropy();
-      if (norm_entropy == 0.0)
-        assert(! "distribution must be non-exclusive");
+      if (norm_entropy == 0.0) {
+        std::cerr << "Exclusive distribution! Values:" << std::endl;
+        std::cerr << dist.debug_summary() << std::endl;
+        assert(! "Distribution must be non-exclusive.");
+      }
 
       double weight = std::pow(norm_entropy, -re_exponent);
       sum_of_weights += weight;
@@ -138,11 +141,23 @@ public:
     EventDistribution combined(strategy, {dist,*this});
     values = combined.values;
   }
+  std::string debug_summary() const;
 };
 
 /**************************************************
  * EventDistribution: public methods
  **************************************************/
+
+template<class T>
+std::string
+EventDistribution<T>::debug_summary() const {
+  std::string result = "";
+  for (unsigned int i = 0; i < T::cardinality; i++) {
+    result += "P(" + std::to_string(i) + ") = " + 
+      std::to_string(values[i]) + "\n";
+  }
+  return result;
+}
 
 template<class T> 
 EventDistribution<T>::EventDistribution(
@@ -251,6 +266,7 @@ private:
 public:
   SequenceModel(unsigned int history);
   void learn_sequence(const std::vector<T> &seq);
+  void update_from_tail(const std::vector<T> &seq);
   double probability_of(const std::vector<T> &seq) const;
   double avg_sequence_entropy(const std::vector<T> &seq) const;
   unsigned int count_of(const std::vector<T> &seq) const;
@@ -279,6 +295,11 @@ SequenceModel<T>::SequenceModel(unsigned int h) : model(h) {
 template<class T> 
 void SequenceModel<T>::learn_sequence(const std::vector<T> &seq) {
   model.learn_sequence(encode_sequence(seq));
+}
+
+template<class T>
+void SequenceModel<T>::update_from_tail(const std::vector<T> &seq) {
+  model.update_from_tail(encode_sequence(seq));
 }
 
 template<class T>

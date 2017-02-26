@@ -379,13 +379,12 @@ public:
  * Chorale Multiple Viewpoint System
  **********************************************************/
 
-class ChoraleMVS {
-public:
+class ChoraleVPLayer {
+private:
   template<class T>
   using BasicVP =
     BasicViewpoint<ChoraleEvent, T>;
 
-private:
   template<class T>
   using Pred =
     Predictor<ChoraleEvent, T>;
@@ -397,15 +396,102 @@ private:
   PredictorList<ChoralePitch> pitch_predictors;
   PredictorList<ChoraleDuration> duration_predictors;
   PredictorList<ChoraleRest> rest_predictors;
-  BasicVP<ChoraleKeySig> key_distribution;
 
   template<typename T>
     PredictorList<T> &predictors();
 
-  template<typename T>
-    const PredictorList<T> &predictors() const {
-      return const_cast<ChoraleMVS *>(this)->predictors<T>();
+  template<typename T> const PredictorList<T> &predictors() const {
+      return const_cast<ChoraleVPLayer *>(this)->predictors<T>();
   }
+
+public:
+  double entropy_bias; // used for intra-layer combination of VPs
+
+  template<class T>
+  void add_viewpoint(Pred<T> *p) {
+    predictors<T>().push_back(std::unique_ptr<Pred<T>>(p->clone()));
+  }
+
+  template<class P, class Q>
+  void add_viewpoint(Pred<P> *p) {
+    predictors<P>().push_back(std::unique_ptr<Pred<P>>(p->clone()));
+    Pred<Q> *q = static_cast<Pred<Q>>(p);
+    predictors<Q>().psuh_back(std::unique_ptr<Pred<Q>>(q->clone()));
+  }
+
+  template<class T>
+  EventDistribution<T> predict(const std::vector<ChoraleEvent> &ctx) const;
+
+  void learn(const std::vector<ChoraleEvent> &seq);
+
+  ChoraleVPLayer(double eb) : entropy_bias(eb) {}
+};
+
+template<class T>
+EventDistribution<T>
+ChoraleVPLayer::predict(const std::vector<ChoraleEvent> &ctx) const {
+  const auto &vps = predictors<T>();
+
+  auto it = vps.begin();
+  for (; it != vps.end(); ++it) {
+    if ((*it)->can_predict(ctx))
+      break;
+  }
+
+  if (it == vps.end())
+    throw ViewpointPredictionException("No viewpoints can predict context");
+
+  if (vps.size() == 1)
+    return (*it)->predict(ctx);
+
+  ArithmeticEntropyCombination<T> comb_strategy(entropy_bias);
+  std::vector<EventDistribution<T>> predictions;
+
+  for (; it != vps.end(); ++it) {
+    if ((*it)->can_predict(ctx)) {
+      auto new_prediction = (*it)->predict(ctx);
+      predictions.push_back(new_prediction);
+    }
+  }
+
+  EventDistribution<T> combined(comb_strategy, predictions);
+  return combined;
+}
+
+
+// ChoraleVPLayer template implementations 
+template<>
+inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoralePitch>>> &
+ChoraleVPLayer::predictors() {
+  return pitch_predictors;
+}
+
+template<>
+inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoraleDuration>>> &
+ChoraleVPLayer::predictors<ChoraleDuration>() {
+  return duration_predictors;
+}
+
+template<>
+inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoraleRest>>> &
+ChoraleVPLayer::predictors<ChoraleRest>() {
+  return rest_predictors;
+}
+
+class ChoraleMVS {
+public:
+  template<class T>
+  using BasicVP =
+    BasicViewpoint<ChoraleEvent, T>;
+
+private:
+  template<class T>
+  using Pred =
+    Predictor<ChoraleEvent, T>;
+
+  ChoraleVPLayer short_term_layer;
+  ChoraleVPLayer long_term_layer;
+  BasicVP<ChoraleKeySig> key_distribution;
 
 public:
   double entropy_bias;
@@ -431,82 +517,28 @@ public:
 
   template<class T>
   void add_viewpoint(Pred<T> *p) {
-    predictors<T>().push_back(std::unique_ptr<Pred<T>>(p->clone()));
-  }
-
-  template<class P, class Q>
-  void add_viewpoint(Pred<P> *p) {
-    predictors<P>().push_back(std::unique_ptr<Pred<P>>(p->clone()));
-    Pred<Q> *q = static_cast<Pred<Q>>(p);
-    predictors<Q>().psuh_back(std::unique_ptr<Pred<Q>>(q->clone()));
+    short_term_layer.add_viewpoint(p);
+    long_term_layer.add_viewpoint(p);
   }
 
   ChoraleMVS(double eb, const std::string &mvs_name) : 
+    short_term_layer(1.0),
+    long_term_layer(4.0),
     key_distribution(1), // order-1 viewpoint
     entropy_bias(eb), name(mvs_name) {}
 };
 
-// templated method implementations for ChoraleMVS
-
-template<>
-inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoralePitch>>> &
-ChoraleMVS::predictors<ChoralePitch>() {
-  return pitch_predictors;
-}
-
-template<>
-inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoraleDuration>>> &
-ChoraleMVS::predictors<ChoraleDuration>() {
-  return duration_predictors;
-}
-
-template<>
-inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoraleRest>>> &
-ChoraleMVS::predictors<ChoraleRest>() {
-  return rest_predictors;
-}
-
 void
 inline ChoraleMVS::learn(const std::vector<ChoraleEvent> &seq) {
   key_distribution.learn({seq[0]});
-
-  for (auto &vp_ptr : predictors<ChoralePitch>())
-    vp_ptr->learn(seq);
-  for (auto &vp_ptr : predictors<ChoraleDuration>())
-    vp_ptr->learn(seq);
-  for (auto &vp_ptr : predictors<ChoraleRest>())
-    vp_ptr->learn(seq);
+  long_term_layer.learn(seq);
 }
 
 template<typename T>
 EventDistribution<T>
 ChoraleMVS::predict(const std::vector<ChoraleEvent> &ctx) const {
-  const auto &vps = predictors<T>();
-
-  auto it = vps.begin();
-  for (; it != vps.end(); ++it) {
-    if ((*it)->can_predict(ctx))
-      break;
-  }
-
-  if (it == vps.end())
-    throw ViewpointPredictionException("No viewpoints can predict context");
-
-  auto prediction = (*it)->predict(ctx);
-  
-  if (vps.size() == 1)
-    return prediction;
-
-  ArithmeticEntropyCombination<T> comb_strategy(entropy_bias);
-
-  for (; it != vps.end(); ++it) {
-    if ((*it)->can_predict(ctx)) {
-      auto new_prediction = (*it)->predict(ctx);
-      prediction.combine_in_place(comb_strategy, new_prediction);
-    }
-  }
-
-  return prediction;
+  // just use the long-term model for now
+  return long_term_layer.predict<T>(ctx); 
 }
 
 template<typename T>
@@ -523,6 +555,9 @@ ChoraleMVS::avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) const {
     ngram_buf.push_back(e);
     dist = predict<T>(ngram_buf);
   }
+
+  if (total_entropy/seq.size() > 100.0) 
+    std::cerr << "Warning: very high average entropy." << std::endl;
   
   return total_entropy / seq.size();
 }
