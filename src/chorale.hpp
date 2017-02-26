@@ -497,6 +497,11 @@ public:
   double entropy_bias;
   const std::string name;
 
+  void set_intra_layer_bias(double value) {
+    short_term_layer.entropy_bias = value;
+    long_term_layer.entropy_bias = value;
+  }
+
   template<typename T>
     EventDistribution<T> predict(const std::vector<ChoraleEvent> &ctx) const;
 
@@ -521,11 +526,12 @@ public:
     long_term_layer.add_viewpoint(p);
   }
 
-  ChoraleMVS(double eb, const std::string &mvs_name) : 
-    short_term_layer(1.0),
-    long_term_layer(4.0),
+  ChoraleMVS(double intra_layer_bias, double inter_layer_bias, 
+      const std::string &mvs_name) : 
+    short_term_layer(intra_layer_bias),
+    long_term_layer(intra_layer_bias),
     key_distribution(1), // order-1 viewpoint
-    entropy_bias(eb), name(mvs_name) {}
+    entropy_bias(inter_layer_bias), name(mvs_name) {}
 };
 
 void

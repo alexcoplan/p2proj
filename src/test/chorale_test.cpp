@@ -86,8 +86,9 @@ TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
 
   SequenceModel<ChoralePitch> model(order);
 
-  double entropy_bias = 2.0;
-  ChoraleMVS mvs(entropy_bias, "test mvs");
+  double intra_bias = 2.0;
+  double inter_bias = 6.0;
+  ChoraleMVS mvs(intra_bias, inter_bias, "test mvs");
 
   ChoraleMVS::BasicVP<ChoralePitch> pitch_vp(order);
 

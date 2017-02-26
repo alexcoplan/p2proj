@@ -240,12 +240,19 @@ TEST_CASE("Weighted entropy combination matches numpy-generated examples",
       );
 
     GeometricEntropyCombination<DummyEvent> geom_strategy(entropy_bias);
+    LogGeoEntropyCombination<DummyEvent> log_geo_strat(entropy_bias);
     EventDistribution<DummyEvent> geom_comb(geom_strategy, source_dists);
+    EventDistribution<DummyEvent> log_geo_comb(log_geo_strat, source_dists);
     std::vector<double> expected_geom = eg["geometric_comb"];
-    for (auto e : EventEnumerator<DummyEvent>())
+    for (auto e : EventEnumerator<DummyEvent>()) {
       REQUIRE(
         geom_comb.probability_for(e) == Approx(expected_geom[e.encode()])
       );
+      REQUIRE(
+        log_geo_comb.probability_for(e) == Approx(expected_geom[e.encode()])
+      );
+    }
+        
   }
 }
 

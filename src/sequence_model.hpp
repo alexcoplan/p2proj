@@ -116,6 +116,48 @@ struct GeometricEntropyCombination : public DistCombStrategy<T> {
     re_exponent(exponent) {}
 };
 
+template<class T>
+struct LogGeoEntropyCombination : public DistCombStrategy<T> {
+  const double re_exponent;
+
+  using values_t = std::array<double, T::cardinality>;
+
+  values_t
+  combine(const std::vector<EventDistribution<T>> &dists) const override {
+    values_t result{{0.0}};
+
+    double sum_of_weights = 0.0;
+
+    for (const auto &dist : dists) {
+      double norm_entropy = dist.normalised_entropy();
+      if (norm_entropy == 0.0) {
+        std::cerr << "Exclusive distribution! Values:" << std::endl;
+        std::cerr << dist.debug_summary() << std::endl;
+        assert(! "Distribution must be non-exclusive.");
+      }
+
+      double weight = std::pow(norm_entropy, -re_exponent);
+      sum_of_weights += weight;
+      for (auto e : EventEnumerator<T>())
+        result[e.encode()] += weight * std::log2(dist.probability_for(e));
+    }
+
+    double total_probability = 0.0;
+    for (auto &v : result) {
+      v = std::pow(2.0, v / sum_of_weights);
+      total_probability += v;
+    }
+    
+    // normalise
+    for (auto &v : result)
+      v /= total_probability;
+
+    return result;
+  }
+
+  LogGeoEntropyCombination(double entropy_bias) : re_exponent(entropy_bias) {}
+};
+
 /**************************************************
  * EventDistribution: declaration
  **************************************************/

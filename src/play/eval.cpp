@@ -127,7 +127,7 @@ void evaluate(const corpus_t &corpus, double eb_min, double eb_max,
 
   for (double eb = eb_min; eb < eb_max + 1.0; eb += 1.0) {
     for (auto mvs_ptr : mvss)
-      mvs_ptr->entropy_bias = eb;
+      mvs_ptr->set_intra_layer_bias(eb);
 
     std::vector<double> pitch_entropies(mvss.size());
     for (auto &h : pitch_entropies)
@@ -224,12 +224,14 @@ int main(void) {
   IntervalViewpoint interval_vp(3);
   IntrefViewpoint intref_vp(3);
 
-  ChoraleMVS svs(2.0, "{pitch,duration,rest}");
+  double intra_l_bias = 2.0;
+  double inter_l_bias = 6.0;
+  ChoraleMVS svs(intra_l_bias, inter_l_bias, "{pitch,duration,rest}");
   svs.add_viewpoint(&pitch_vp);
   svs.add_viewpoint(&duration_vp);
   svs.add_viewpoint(&rest_vp);
 
-  ChoraleMVS mvs(6.0, "{pitch,interval,duration,rest}");
+  ChoraleMVS mvs(intra_l_bias, inter_l_bias, "{pitch,interval,duration,rest}");
   mvs.add_viewpoint(&pitch_vp);
   mvs.add_viewpoint(&interval_vp);
   mvs.add_viewpoint(&intref_vp);
@@ -244,7 +246,7 @@ int main(void) {
   train(train_corp, {&svs, &mvs});
   std::cout << "done." << std::endl;
 
-  evaluate(test_corp, 2.0, 8.0, {&svs, &mvs});
+  evaluate(test_corp, 1.0, 7.0, {&svs, &mvs});
   //generate(mvs, 42, "out/gend.json");
 }
 
