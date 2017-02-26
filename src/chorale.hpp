@@ -444,7 +444,7 @@ ChoraleVPLayer::predict(const std::vector<ChoraleEvent> &ctx) const {
   if (vps.size() == 1)
     return (*it)->predict(ctx);
 
-  ArithmeticEntropyCombination<T> comb_strategy(entropy_bias);
+  LogGeoEntropyCombination<T> comb_strategy(entropy_bias);
   std::vector<EventDistribution<T>> predictions;
 
   for (; it != vps.end(); ++it) {

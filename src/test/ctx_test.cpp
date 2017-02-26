@@ -216,7 +216,7 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
 
 TEST_CASE("Context model correctly calculates average entropy of sequence", 
     "[ctxmodel][ppm-a]") {
-  ContextModel<4> model(3);
+  ContextModel<NUM_NOTES> model(HISTORY);
   model.learn_sequence(encode_string("GGDBAGGABA"));
 
   SECTION("Calculate average entropy of single symbol") {
@@ -253,4 +253,42 @@ TEST_CASE("Context model correctly calculates average entropy of sequence",
   }
 }
 
+TEST_CASE("Test resetting/clearing of context model") {
+  ContextModel<NUM_NOTES> control(HISTORY);
+  ContextModel<NUM_NOTES> test(HISTORY);
+  std::string eg("GAGBGDDBDADG");
+  control.learn_sequence(encode_string(eg));
+  test.learn_sequence(encode_string(eg));
+  test.clear_model();
+
+  const std::vector<std::string> alphabet = { "G", "A", "B", "D" };
+  
+  // check that test now has zero counts (only bother with null+unigrams)
+  REQUIRE(test.count_of({}) == 0);
+  for (const auto &a : alphabet)
+    REQUIRE(test.count_of(encode_string(a)) == 0);
+
+  // now get test to re-learn the original sequence, and check the counts match
+  // up with those in control (i.e. re-learning is equivalent to learning from
+  // scratch) => reset works correctly
+  test.learn_sequence(encode_string(eg));
+  for (const auto &a : alphabet) {
+    auto seq = encode_string(a);
+    REQUIRE( test.count_of(seq) == control.count_of(seq) );
+  }
+  for (const auto &x : alphabet) {
+    for (const auto &y : alphabet) {
+      auto seq = encode_string(x+y);
+      REQUIRE( test.count_of(seq) == control.count_of(seq) );
+    }
+  }
+  for (const auto &x : alphabet) {
+    for (const auto &y : alphabet) {
+      for (const auto &z : alphabet) {
+        auto seq = encode_string(x+y+z);
+        REQUIRE( test.count_of(seq) == control.count_of(seq) );
+      }
+    }
+  }
+}
 

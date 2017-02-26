@@ -70,6 +70,7 @@ public:
   void write_latex(const std::string &fname, 
       std::string (*decoder)(unsigned int)) const;
   void debug_summary();
+  void clear_model(); // unlearn everything so far
 
   ContextModel(unsigned int history);
 };
@@ -90,6 +91,18 @@ template<int b>
 void ContextModel<b>::write_latex(const std::string &fname,
     std::string (*decoder)(unsigned int)) const {
   trie_root.write_latex(fname, decoder);
+}
+
+template<int b>
+void ContextModel<b>::clear_model() {
+  for (unsigned int i = 0; i < b; i++) {
+    if (trie_root.children[i] != NULL) {
+      delete trie_root.children[i];
+      trie_root.children[i] = NULL;
+    }
+  }
+
+  trie_root.count = 0;
 }
 
 template<int b>

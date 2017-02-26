@@ -80,7 +80,7 @@ if args.gen_tests:
     outfile.write(json.dumps(root_obj, indent=2))
 else: 
   # if we're not generating tests, then we'll just generate an example plot
-  dist_x, dist_y = peak_dist, skew_dist
+  dist_x, dist_y = peak_dist, list(reversed(peak_dist))
   dist_size = len(dist_x)
   assert dist_size == len(dist_y)
   arith, geom = combine_dists([dist_x, dist_y], 6.0)
