@@ -185,7 +185,7 @@ void evaluate(const corpus_t &corpus, double eb_min, double eb_max,
   }
 }
 
-void generate(const ChoraleMVS &mvs, 
+void generate(ChoraleMVS &mvs, 
               const unsigned int len, 
               const std::string &json_fname) {
   std::cout << "Generating piece of length " << len << "... " << std::flush;

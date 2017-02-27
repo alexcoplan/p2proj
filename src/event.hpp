@@ -2,6 +2,7 @@
 #define AJC_HGUARD_EVENT
 
 #include <vector>
+#include <array>
 #include <string>
 #include <cassert>
 

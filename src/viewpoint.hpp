@@ -12,6 +12,12 @@ public:
   virtual void
     learn(const std::vector<EventStructure> &es) = 0;
 
+  virtual void
+    learn_from_tail(const std::vector<EventStructure> &es) = 0;
+
+  virtual void
+    reset() = 0; // undoes any training (useful for short-term models)
+
   virtual bool 
     can_predict(const std::vector<EventStructure> &es) const = 0;
 
@@ -32,6 +38,16 @@ protected:
 public:
   void learn(const std::vector<EventStructure> &events) override {
     model.learn_sequence(lift(events));
+  }
+
+  void learn_from_tail(const std::vector<EventStructure> &events) override {
+    auto lifted = lift(events);
+    if (lifted.size() > 0)
+      model.update_from_tail(lift(events));
+  }
+
+  void reset() override {
+    model.clear_model();
   }
 
   Viewpoint(int history) : model(history) {}

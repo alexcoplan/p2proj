@@ -9,6 +9,7 @@
 #include <array>
 #include <map>
 #include <cmath>
+#include <memory>
 
 /* N.B. we define these little wrapper types such as KeySig and MidiPitch to
  * overload the constructors of the Chorale event types */
@@ -422,7 +423,9 @@ public:
   template<class T>
   EventDistribution<T> predict(const std::vector<ChoraleEvent> &ctx) const;
 
+  void reset_viewpoints();
   void learn(const std::vector<ChoraleEvent> &seq);
+  void learn_from_tail(const std::vector<ChoraleEvent> &seq);
 
   ChoraleVPLayer(double eb) : entropy_bias(eb) {}
 };
@@ -506,7 +509,7 @@ public:
     EventDistribution<T> predict(const std::vector<ChoraleEvent> &ctx) const;
 
   template<typename T>
-    double avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) const;
+    double avg_sequence_entropy(const std::vector<ChoraleEvent> &seq);
 
   template<typename T>
     std::vector<double>
@@ -543,22 +546,31 @@ inline ChoraleMVS::learn(const std::vector<ChoraleEvent> &seq) {
 template<typename T>
 EventDistribution<T>
 ChoraleMVS::predict(const std::vector<ChoraleEvent> &ctx) const {
-  // just use the long-term model for now
-  return long_term_layer.predict<T>(ctx); 
+  LogGeoEntropyCombination<T> comb_strategy(entropy_bias);
+  std::cerr << "making short-term prediction" << std::endl;
+  //auto st_prediction = short_term_layer.predict<T>(ctx);
+  std::cerr << "making long-term prediction" << std::endl;
+  auto lt_prediction = long_term_layer.predict<T>(ctx);
+  //return EventDistribution<T>(comb_strategy, {st_prediction, lt_prediction});
+  return lt_prediction;
 }
 
 template<typename T>
 double 
-ChoraleMVS::avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) const {
+ChoraleMVS::avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) {
+  //short_term_layer.reset_viewpoints();
   std::vector<ChoraleEvent> ngram_buf;
 
   double total_entropy = 0.0;
   auto dist = predict<T>({});
 
   for (const auto &e : seq) {
+    std::cerr << "Making MVS prediction (buffer size: " 
+      << ngram_buf.size() << ")" << std::endl;
     const auto v = e.project<T>();
     total_entropy -= std::log2(dist.probability_for(v));
     ngram_buf.push_back(e);
+    //short_term_layer.learn_from_tail(ngram_buf);
     dist = predict<T>(ngram_buf);
   }
 

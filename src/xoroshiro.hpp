@@ -3,6 +3,7 @@
 
 #include <random>
 #include <array>
+#include <functional>
 
 /* C++11 UniformRandomBitGenerator wrapper around xoroshiro128+.
  * Original C code from: http://xoroshiro.di.unimi.it/xoroshiro128plus.c */

@@ -9,6 +9,7 @@
 #include <fstream>
 #include <cmath>
 #include <algorithm>
+#include <bitset>
 
 typedef std::pair<unsigned, std::list<unsigned int>> Ngram;
 
@@ -31,6 +32,7 @@ struct TrieNode {
 
   TrieNode();
   ~TrieNode();
+  TrieNode(const TrieNode &other);
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   void write_latex(const std::string &fname, 
       std::string (*decoder)(unsigned int)) const;
@@ -103,6 +105,7 @@ void ContextModel<b>::clear_model() {
   }
 
   trie_root.count = 0;
+  trie_root.child_mask.reset();
 }
 
 template<int b>
@@ -329,6 +332,21 @@ TrieNode<b>::~TrieNode() {
   for (unsigned int i = 0; i < b; i++) 
     if (children[i] != nullptr)
       delete children[i];
+}
+
+template<int b>
+TrieNode<b>::TrieNode(const TrieNode &other) {
+  parent = nullptr;
+  count = other.count;
+  child_mask = other.child_mask;
+  for (unsigned int i = 0; i < b; i++)  {
+    if (other.children[i] != nullptr) {
+      children[i] = new TrieNode<b>(*other.children[i]);
+      children[i]->parent = this;
+    }
+    else
+      children[i] = nullptr;
+  }
 }
 
 template<int b>

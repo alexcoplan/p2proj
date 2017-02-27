@@ -1,5 +1,15 @@
-flags = '-std=c++11 -Wall -pedantic -g -fcolor-diagnostics -DDEBUG'
-env = Environment(CXX='clang++', CXXFLAGS=flags, CPPPATH = ['.','include'])
+import sys
+
+# platform-dependent stuff
+on_linux = sys.platform.startswith("linux")
+compiler = 'g++' if on_linux else 'clang++'
+flags = '-std=c++11 -Wall -pedantic -g -DDEBUG'
+if on_linux:
+  flags += ' -fdiagnostics-color'
+else:
+  flags += ' -fcolor-diagnostics'
+
+env = Environment(CXX=compiler, CXXFLAGS=flags, CPPPATH = ['.','include'])
 
 # separately-compiled files
 base_files = ["event.cpp", "chorale.cpp", "xoroshiro.cpp", "random_source.cpp"]

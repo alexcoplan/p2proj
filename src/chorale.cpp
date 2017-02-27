@@ -338,6 +338,11 @@ IntrefViewpoint::predict(const std::vector<ChoraleEvent> &ctx) const {
  * ChoraleMVS implementation
  ***************************************************/
 
+// note: the repeated for loops are a bit yucky here.
+// we could probably do something with variadic templates to sort this out
+// (and further generalise multiple viewpoint systems in C++ rather than the
+// specific chorale case) but this is not a priority
+
 void ChoraleVPLayer::learn(const std::vector<ChoraleEvent> &seq) {
   for (auto &vp_ptr : predictors<ChoralePitch>())
     vp_ptr->learn(seq);
@@ -345,6 +350,24 @@ void ChoraleVPLayer::learn(const std::vector<ChoraleEvent> &seq) {
     vp_ptr->learn(seq);
   for (auto &vp_ptr : predictors<ChoraleRest>())
     vp_ptr->learn(seq);
+}
+
+void ChoraleVPLayer::learn_from_tail(const std::vector<ChoraleEvent> &seq) {
+  for (auto &vp_ptr : predictors<ChoralePitch>())
+    vp_ptr->learn_from_tail(seq);
+  for (auto &vp_ptr : predictors<ChoraleDuration>())
+    vp_ptr->learn_from_tail(seq);
+  for (auto &vp_ptr : predictors<ChoraleRest>())
+    vp_ptr->learn_from_tail(seq);
+}
+
+void ChoraleVPLayer::reset_viewpoints() {
+  for (auto &vp_ptr : predictors<ChoralePitch>())
+    vp_ptr->reset();
+  for (auto &vp_ptr : predictors<ChoraleDuration>())
+    vp_ptr->reset();
+  for (auto &vp_ptr : predictors<ChoraleRest>())
+    vp_ptr->reset();
 }
 
 std::vector<ChoraleEvent> ChoraleMVS::generate(unsigned int len) const {

@@ -81,6 +81,7 @@ TEST_CASE("Check Chorale event operaitons", "[chorale][events]") {
   }
 }
 
+/* TODO: add me back 
 TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
   const unsigned int order = 3;
 
@@ -118,6 +119,7 @@ TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
     REQUIRE( mvs_entropy == model_entropy );
   }
 }
+*/
 
 TEST_CASE("Check ChoraleEvent template magic") {
   std::vector<ChoraleEvent> test_events {
