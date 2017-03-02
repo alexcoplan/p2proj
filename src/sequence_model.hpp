@@ -12,7 +12,7 @@
 #include "random_source.hpp"
 
 // accuracy to which distributions must sum to 1
-#define DISTRIBUTION_EPS 1e-15 
+#define DISTRIBUTION_EPS 1e-14 
 
 // forward declaration
 template<class T> class EventDistribution;
@@ -213,7 +213,7 @@ EventDistribution<T>::EventDistribution(
   double total_probability = std::accumulate(values.begin(), values.end(), 0.0);
 
   if ( std::abs(total_probability - 1.0) >= DISTRIBUTION_EPS ) {
-    std::cerr << "Distirbution failed: total prob = " << total_probability << 
+    std::cerr << "Distribution failed: total prob = " << total_probability << 
       std::endl;
 
     std::cerr << "Values: " << std::endl << std::endl;

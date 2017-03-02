@@ -481,6 +481,32 @@ ChoraleVPLayer::predictors<ChoraleRest>() {
   return rest_predictors;
 }
 
+struct MVSConfig {
+  static MVSConfig long_term_only(double entropy_bias) {
+    MVSConfig config(false, entropy_bias, 1.0);
+    config.mvs_name = "long-term only MVS";
+    return config;
+  }
+
+  bool enable_short_term;
+  double intra_layer_bias;
+  double inter_layer_bias;
+  std::string mvs_name;
+
+  // default constructor so properties can be sent manually for clarity
+  MVSConfig() :
+    enable_short_term(true),
+    intra_layer_bias(1.0),
+    inter_layer_bias(1.0),
+    mvs_name("default MVS") {}
+
+  MVSConfig(bool st, double intra_bias, double inter_bias) :
+    enable_short_term(st), 
+    intra_layer_bias(intra_bias), 
+    inter_layer_bias(inter_bias),
+    mvs_name("custom MVS") {}
+};
+
 class ChoraleMVS {
 public:
   template<class T>
@@ -495,10 +521,11 @@ private:
   ChoraleVPLayer short_term_layer;
   ChoraleVPLayer long_term_layer;
   BasicVP<ChoraleKeySig> key_distribution;
+  bool enable_short_term;
 
 public:
   double entropy_bias;
-  const std::string name;
+  const std::string mvs_name;
 
   void set_intra_layer_bias(double value) {
     short_term_layer.entropy_bias = value;
@@ -529,12 +556,13 @@ public:
     long_term_layer.add_viewpoint(p);
   }
 
-  ChoraleMVS(double intra_layer_bias, double inter_layer_bias, 
-      const std::string &mvs_name) : 
-    short_term_layer(intra_layer_bias),
-    long_term_layer(intra_layer_bias),
+  ChoraleMVS(const MVSConfig &config) : 
+    short_term_layer(config.intra_layer_bias),
+    long_term_layer(config.intra_layer_bias),
     key_distribution(1), // order-1 viewpoint
-    entropy_bias(inter_layer_bias), name(mvs_name) {}
+    enable_short_term(config.enable_short_term),
+    entropy_bias(config.inter_layer_bias), 
+    mvs_name(config.mvs_name) {}
 };
 
 void
@@ -546,31 +574,31 @@ inline ChoraleMVS::learn(const std::vector<ChoraleEvent> &seq) {
 template<typename T>
 EventDistribution<T>
 ChoraleMVS::predict(const std::vector<ChoraleEvent> &ctx) const {
-  LogGeoEntropyCombination<T> comb_strategy(entropy_bias);
-  std::cerr << "making short-term prediction" << std::endl;
-  //auto st_prediction = short_term_layer.predict<T>(ctx);
-  std::cerr << "making long-term prediction" << std::endl;
   auto lt_prediction = long_term_layer.predict<T>(ctx);
-  //return EventDistribution<T>(comb_strategy, {st_prediction, lt_prediction});
+  if (enable_short_term) {
+    LogGeoEntropyCombination<T> comb_strategy(entropy_bias);
+    auto st_prediction = short_term_layer.predict<T>(ctx);
+    return EventDistribution<T>(comb_strategy, {st_prediction, lt_prediction});
+  }
   return lt_prediction;
 }
 
 template<typename T>
 double 
 ChoraleMVS::avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) {
-  //short_term_layer.reset_viewpoints();
+  if (enable_short_term)
+    short_term_layer.reset_viewpoints();
   std::vector<ChoraleEvent> ngram_buf;
 
   double total_entropy = 0.0;
   auto dist = predict<T>({});
 
   for (const auto &e : seq) {
-    std::cerr << "Making MVS prediction (buffer size: " 
-      << ngram_buf.size() << ")" << std::endl;
     const auto v = e.project<T>();
     total_entropy -= std::log2(dist.probability_for(v));
     ngram_buf.push_back(e);
-    //short_term_layer.learn_from_tail(ngram_buf);
+    if (enable_short_term)
+      short_term_layer.learn_from_tail(ngram_buf);
     dist = predict<T>(ngram_buf);
   }
 
