@@ -12,7 +12,7 @@
 #include "random_source.hpp"
 
 // accuracy to which distributions must sum to 1
-#define DISTRIBUTION_EPS 1e-14 
+#define DISTRIBUTION_EPS 1e-13
 
 // forward declaration
 template<class T> class EventDistribution;

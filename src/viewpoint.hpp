@@ -42,13 +42,10 @@ protected:
     lift(const std::vector<EventStructure> &events) const = 0; 
 
 public:
-  void set_history(unsigned int h) override {
-    model.set_history(h);
-  }
-
-  unsigned int get_history() const override {
-    return model.get_history();
-  }
+  void reset() override { model.clear_model(); }
+  void set_history(unsigned int h) override { model.set_history(h); }
+  unsigned int get_history() const override { return model.get_history(); }
+  void write_latex(std::string filename) const { model.write_latex(filename); }
 
   void learn(const std::vector<EventStructure> &events) override {
     model.learn_sequence(lift(events));
@@ -57,18 +54,65 @@ public:
   void learn_from_tail(const std::vector<EventStructure> &events) override {
     auto lifted = lift(events);
     if (lifted.size() > 0)
-      model.update_from_tail(lift(events));
+      model.update_from_tail(lifted);
   }
 
-  void reset() override {
-    model.clear_model();
+  Viewpoint(unsigned int history) : model(history) {}
+};
+
+template<class EventStructure, class T_hidden, class T_predict>
+class BasicLinkedViewpoint : 
+  public Predictor<EventStructure, T_predict> 
+  {
+private:
+  SequenceModel<EventPair<T_hidden, T_predict>> model;
+
+  std::vector<EventPair<T_hidden, T_predict>> 
+    lift(const std::vector<EventStructure> &events) const {
+    return EventStructure::template lift<T_hidden, T_predict>(events);
   }
 
-  Viewpoint(int history) : model(history) {}
+public:
+  void reset() override { model.clear_model(); }
+  void set_history(unsigned int h) override { model.set_history(h); }
+  unsigned int get_history() const override { return model.get_history(); }
+  void write_latex(std::string filename) const { model.write_latex(filename); }
 
-  void write_latex(std::string filename) const {
-    model.write_latex(filename);
+  void learn(const std::vector<EventStructure> &events) override {
+    model.learn_sequence(lift(events));
   }
+
+  void learn_from_tail(const std::vector<EventStructure> &events) override {
+    auto lifted = lift(events);
+    if (lifted.size() > 0)
+      model.update_from_tail(lifted);
+  }
+
+  EventDistribution<T_predict> 
+  predict(const std::vector<EventStructure> &ctx) const override {
+    // generate the joint distribution
+    auto dist = model.gen_successor_dist(lift(ctx));
+    
+    // then marginalise (sum over the hidden type)
+    std::array<double, T_predict::cardinality> values{{0.0}};
+    for (auto e_predict : EventEnumerator<T_predict>())
+      for (auto e_hidden : EventEnumerator<T_hidden>()) {
+        EventPair<T_hidden, T_predict> pair(e_hidden, e_predict);
+        values[e_predict.encode()] += dist.probability_for(pair);
+      }
+
+    return EventDistribution<T_predict>(values);
+  }
+
+  bool can_predict(const std::vector<EventStructure> &) const override {
+    return true; // basic VPs can always predict
+  }
+
+  BasicLinkedViewpoint *clone() const override {
+    return new BasicLinkedViewpoint(*this);
+  }
+
+  BasicLinkedViewpoint(unsigned int history) : model(history) {}
 };
 
 template<class EventStructure, class T_basic>

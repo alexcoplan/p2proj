@@ -191,10 +191,10 @@ TEST_CASE("Check ChoraleEvent template magic") {
   REQUIRE( durations == expected_durs );
   REQUIRE( rests == expected_rests );
 
-  std::vector<std::pair<ChoralePitch, ChoraleDuration>> expected_pairs {
-    std::make_pair(expected_pitches[0], expected_durs[0]),
-    std::make_pair(expected_pitches[1], expected_durs[1]),
-    std::make_pair(expected_pitches[2], expected_durs[2])
+  std::vector<EventPair<ChoralePitch, ChoraleDuration>> expected_pairs {
+    {expected_pitches[0], expected_durs[0]},
+    {expected_pitches[1], expected_durs[1]},
+    {expected_pitches[2], expected_durs[2]}
   };
 
   auto pairs = ChoraleEvent::lift<ChoralePitch, ChoraleDuration>(test_events);

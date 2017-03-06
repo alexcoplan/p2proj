@@ -54,8 +54,14 @@ public:
     return "(" + left().string_render() + "," + right().string_render() + ")";
   }
 
+  EventPair(unsigned int c) : coded(c) { assert(c < cardinality); }
+
   EventPair(const T1 &x, const T2 &y) :
     coded(x.encode() + T1::cardinality * y.encode()) {}
 };
+
+template<class P, class Q>
+bool operator==(const EventPair<P,Q> &l, const EventPair<P,Q> &r)
+{ return l.encode() == r.encode(); }
 
 #endif // header guard

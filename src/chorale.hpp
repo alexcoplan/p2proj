@@ -211,7 +211,7 @@ struct ChoraleEvent {
   lift(const std::vector<ChoraleEvent> &es);
 
   template<typename P, typename Q>
-  static std::vector<std::pair<P,Q>>
+  static std::vector<EventPair<P,Q>>
   lift(const std::vector<ChoraleEvent> &es);
 
   ChoraleEvent(const KeySig &ks,
@@ -253,12 +253,12 @@ ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
 }
 
 template<typename P, typename Q>
-std::vector<std::pair<P,Q>>
+std::vector<EventPair<P,Q>>
 ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
-  std::vector<std::pair<P,Q>> result;
+  std::vector<EventPair<P,Q>> result;
   std::transform(es.begin(), es.end(), std::back_inserter(result),
       [](const ChoraleEvent &e) {
-        return std::make_pair<P,Q>(e.project<P>(), e.project<Q>());
+        return EventPair<P,Q>(e.project<P>(), e.project<Q>());
       });
   return result;
 }
@@ -534,6 +534,10 @@ public:
   template<class T>
   using BasicVP =
     BasicViewpoint<ChoraleEvent, T>;
+
+  template<class T1, class T2>
+  using BasicLinkedVP =
+    BasicLinkedViewpoint<ChoraleEvent, T1, T2>;
 
 private:
   template<class T>
