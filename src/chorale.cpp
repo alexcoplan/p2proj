@@ -370,7 +370,7 @@ void ChoraleVPLayer::reset_viewpoints() {
     vp_ptr->reset();
 }
 
-std::vector<ChoraleEvent> ChoraleMVS::generate(unsigned int len) const {
+std::vector<ChoraleEvent> ChoraleMVS::random_walk(unsigned int len) {
   assert(len > 1);
 
   std::vector<ChoraleEvent> buffer;
@@ -381,6 +381,7 @@ std::vector<ChoraleEvent> ChoraleMVS::generate(unsigned int len) const {
 
   ChoraleEvent first_event(keysig, first_pitch, first_dur, nullptr);
   buffer.push_back(first_event);
+  short_term_layer.learn_from_tail(buffer);
 
   for (unsigned int i = 0; i < len - 1; i++) {
     auto pitch = predict<ChoralePitch>(buffer).sample();
@@ -388,6 +389,7 @@ std::vector<ChoraleEvent> ChoraleMVS::generate(unsigned int len) const {
     auto rest_ptr = predict<ChoraleRest>(buffer).sample().shared_instance();
     ChoraleEvent event(keysig, pitch, dur, rest_ptr);
     buffer.push_back(event);
+    short_term_layer.learn_from_tail(buffer);
   }
 
   return buffer;

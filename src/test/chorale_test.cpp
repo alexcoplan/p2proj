@@ -82,24 +82,27 @@ TEST_CASE("Check Chorale event operaitons", "[chorale][events]") {
 }
 
 TEST_CASE("Check predictions/entropy calculations in MVS") {
-  const unsigned int order = 3;
+  const unsigned int lt_hist = 3;
+  const unsigned int st_hist = 2;
 
-  SequenceModel<ChoralePitch> model(order);
+  SequenceModel<ChoralePitch> model(lt_hist);
 
-  double intra_bias = 2.0;
-  double inter_bias = 3.0;
+  double intra_bias = 1.0;
+  double inter_bias = 2.0;
   auto lt_config = MVSConfig::long_term_only(intra_bias);
   MVSConfig full_config;
   full_config.enable_short_term = true;
   full_config.intra_layer_bias = intra_bias;
   full_config.inter_layer_bias = inter_bias;
+  full_config.lt_history = lt_hist;
+  full_config.st_history = st_hist;
   full_config.mvs_name = "test MVS (full)";
 
   ChoraleMVS lt_mvs(lt_config);
   ChoraleMVS full_mvs(full_config);
 
-  ChoraleMVS::BasicVP<ChoralePitch> long_term_vp(order);
-  ChoraleMVS::BasicVP<ChoralePitch> short_term_vp(order);
+  ChoraleMVS::BasicVP<ChoralePitch> long_term_vp(lt_hist);
+  ChoraleMVS::BasicVP<ChoralePitch> short_term_vp(st_hist);
 
   // C D C E C F C G C A C B C C^
   auto eg = {60,62,60,64,60,65,60,67,60,69,60,71,60,72};

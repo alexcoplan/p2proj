@@ -16,6 +16,12 @@ public:
     learn_from_tail(const std::vector<EventStructure> &es) = 0;
 
   virtual void
+    set_history(unsigned int h) = 0;
+
+  virtual unsigned int
+    get_history() const = 0;
+
+  virtual void
     reset() = 0; // undoes any training (useful for short-term models)
 
   virtual bool 
@@ -36,6 +42,14 @@ protected:
     lift(const std::vector<EventStructure> &events) const = 0; 
 
 public:
+  void set_history(unsigned int h) override {
+    model.set_history(h);
+  }
+
+  unsigned int get_history() const override {
+    return model.get_history();
+  }
+
   void learn(const std::vector<EventStructure> &events) override {
     model.learn_sequence(lift(events));
   }

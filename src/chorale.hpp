@@ -407,10 +407,15 @@ private:
 
 public:
   double entropy_bias; // used for intra-layer combination of VPs
+  unsigned int vp_history;
+
+  std::string debug_summary() const;
 
   template<class T>
   void add_viewpoint(Pred<T> *p) {
-    predictors<T>().push_back(std::unique_ptr<Pred<T>>(p->clone()));
+    Pred<T> *cloned_vp = p->clone();
+    cloned_vp->set_history(vp_history);
+    predictors<T>().push_back(std::unique_ptr<Pred<T>>(cloned_vp));
   }
 
   template<class P, class Q>
@@ -427,8 +432,25 @@ public:
   void learn(const std::vector<ChoraleEvent> &seq);
   void learn_from_tail(const std::vector<ChoraleEvent> &seq);
 
-  ChoraleVPLayer(double eb) : entropy_bias(eb) {}
+  ChoraleVPLayer(double eb, unsigned int vp_hist) : 
+    entropy_bias(eb), vp_history(vp_hist) {}
 };
+
+inline std::string ChoraleVPLayer::debug_summary() const {
+  auto total_vps = pitch_predictors.size() 
+    + duration_predictors.size() + rest_predictors.size();
+  
+  std::string histories;
+  for (const auto &vp_ptr : pitch_predictors)
+    histories += std::to_string(vp_ptr->get_history()) + " ";
+  for (const auto &vp_ptr : duration_predictors)
+    histories += std::to_string(vp_ptr->get_history()) + " ";
+  for (const auto &vp_ptr : rest_predictors)
+    histories += std::to_string(vp_ptr->get_history()) + " ";
+
+  return "ChoraleVPLayer: " + std::to_string(total_vps) 
+    + " viewpoint(s)" + " with histories " + histories;
+}
 
 template<class T>
 EventDistribution<T>
@@ -483,7 +505,9 @@ ChoraleVPLayer::predictors<ChoraleRest>() {
 
 struct MVSConfig {
   static MVSConfig long_term_only(double entropy_bias) {
-    MVSConfig config(false, entropy_bias, 1.0);
+    MVSConfig config;
+    config.enable_short_term = false;
+    config.intra_layer_bias = entropy_bias;
     config.mvs_name = "long-term only MVS";
     return config;
   }
@@ -491,6 +515,8 @@ struct MVSConfig {
   bool enable_short_term;
   double intra_layer_bias;
   double inter_layer_bias;
+  unsigned int st_history;
+  unsigned int lt_history;
   std::string mvs_name;
 
   // default constructor so properties can be sent manually for clarity
@@ -498,13 +524,9 @@ struct MVSConfig {
     enable_short_term(true),
     intra_layer_bias(1.0),
     inter_layer_bias(1.0),
+    st_history(2),
+    lt_history(3),
     mvs_name("default MVS") {}
-
-  MVSConfig(bool st, double intra_bias, double inter_bias) :
-    enable_short_term(st), 
-    intra_layer_bias(intra_bias), 
-    inter_layer_bias(inter_bias),
-    mvs_name("custom MVS") {}
 };
 
 class ChoraleMVS {
@@ -527,6 +549,14 @@ public:
   double entropy_bias;
   const std::string mvs_name;
 
+  void debug_print() const {
+    std::cerr << "MVS debug: " << mvs_name << std::endl
+      << "--> Short-term layer: " 
+      << short_term_layer.debug_summary() << std::endl
+      << "--> Long-term layer: "
+      << long_term_layer.debug_summary() << std::endl;
+  }
+
   void set_intra_layer_bias(double value) {
     short_term_layer.entropy_bias = value;
     long_term_layer.entropy_bias = value;
@@ -546,19 +576,19 @@ public:
     std::vector<double>
     dist_entropies(const std::vector<ChoraleEvent> &seq) const;
 
-  std::vector<ChoraleEvent> generate(unsigned int len) const;
+  std::vector<ChoraleEvent> random_walk(unsigned int len);
 
   void learn(const std::vector<ChoraleEvent> &seq);
 
   template<class T>
   void add_viewpoint(Pred<T> *p) {
-    short_term_layer.add_viewpoint(p);
     long_term_layer.add_viewpoint(p);
+    short_term_layer.add_viewpoint(p);
   }
 
   ChoraleMVS(const MVSConfig &config) : 
-    short_term_layer(config.intra_layer_bias),
-    long_term_layer(config.intra_layer_bias),
+    short_term_layer(config.intra_layer_bias, config.st_history),
+    long_term_layer(config.intra_layer_bias, config.lt_history),
     key_distribution(1), // order-1 viewpoint
     enable_short_term(config.enable_short_term),
     entropy_bias(config.inter_layer_bias), 

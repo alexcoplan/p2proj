@@ -309,6 +309,8 @@ public:
   SequenceModel(unsigned int history);
   void learn_sequence(const std::vector<T> &seq);
   void clear_model();
+  void set_history(unsigned int h);
+  unsigned int get_history() const;
   void update_from_tail(const std::vector<T> &seq);
   double probability_of(const std::vector<T> &seq) const;
   double avg_sequence_entropy(const std::vector<T> &seq) const;
@@ -335,6 +337,16 @@ SequenceModel<T>::SequenceModel(unsigned int h) : model(h) {
 }
 
 // simple wrappers around the context model
+template<class T>
+void SequenceModel<T>::set_history(unsigned int h) {
+  model.set_history(h);
+}
+
+template<class T>
+unsigned int SequenceModel<T>::get_history() const {
+  return model.get_history();
+}
+
 template<class T> 
 void SequenceModel<T>::learn_sequence(const std::vector<T> &seq) {
   model.learn_sequence(encode_sequence(seq));

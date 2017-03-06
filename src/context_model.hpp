@@ -62,6 +62,8 @@ class ContextModel {
                const std::bitset<b> &dead) const;
 
 public:
+  void set_history(unsigned int h);
+  unsigned int get_history() const { return history; }
   void learn_sequence(const std::vector<unsigned int> &seq);
   void update_from_tail(const std::vector<unsigned int> &seq);
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
@@ -93,6 +95,11 @@ template<int b>
 void ContextModel<b>::write_latex(const std::string &fname,
     std::string (*decoder)(unsigned int)) const {
   trie_root.write_latex(fname, decoder);
+}
+
+template<int b>
+void ContextModel<b>::set_history(unsigned int h) {
+  history = h;
 }
 
 template<int b>
