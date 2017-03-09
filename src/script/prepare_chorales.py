@@ -70,15 +70,15 @@ for t in types:
 
 # this maps number of sharps in key -> pitch of referent
 ref_map = {
-  -4 : 68,
-  -3 : 75,
-  -2 : 70,
-  -1 : 77,
-   0 : 72,
-   1 : 67,
-   2 : 74,
-   3 : 69,
-   4 : 76
+  -4 : 8,
+  -3 : 3,
+  -2 : 10,
+  -1 : 5,
+   0 : 0,
+   1 : 7,
+   2 : 2,
+   3 : 9,
+   4 : 4
 }
 
 # quantize to semiquavers
@@ -92,7 +92,7 @@ def m21_to_internal(m21_notes, referent):
   prev_end_q = None # end = offset + duration
   
   for n in m21_notes:
-    counters["intref"].update([n.pitch.midi - referent])
+    counters["intref"].update([(n.pitch.midi - referent) % 12])
 
     if prev_pitch is not None:
       counters["seqint"].update([n.pitch.midi - prev_pitch])

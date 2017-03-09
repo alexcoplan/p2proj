@@ -104,7 +104,7 @@ ChoraleKeySig::ChoraleKeySig(const KeySig &ks) :
 
 const std::array<unsigned int, ChoraleKeySig::cardinality> 
 ChoraleKeySig::referent_map = {{
-  68,75,70,77,72,67,74,69,76
+  8,3,10,5,0,7,2,9,4
 }};
 
 /***************************************************
@@ -198,21 +198,11 @@ std::string ChoraleInterval::string_render() const {
     ((ival > 0) ? "$\\uparrow$" : (ival < 0) ? "$\\downarrow$" : "");
 }
 
+// intref implementation
+
 ChoraleIntref::ChoraleIntref(unsigned int c) :
   CodedEvent(c) {
   assert(c < cardinality);
-}
-
-ChoraleIntref::ChoraleIntref(const MidiInterval &ival) :
-  CodedEvent(map_in(ival.delta_pitch)) {
-  auto dp = ival.delta_pitch;
-  assert(dp >= min_intref && dp <= max_intref);
-}
-
-std::string ChoraleIntref::string_render() const {
-  auto delta_p = raw_value();
-  auto num_str = std::to_string(delta_p);
-  return (delta_p < 0) ? num_str : ("+" + num_str);
 }
 
 /********************************************************************
@@ -282,7 +272,7 @@ IntrefViewpoint::lift(const std::vector<ChoraleEvent> &events) const {
   
   std::vector<ChoraleIntref> result;
   for (const auto &p : pitches)
-    result.push_back(p - referent);
+    result.push_back((p.raw_value() - referent.pitch) % 12);
 
   return result;
 }
@@ -299,27 +289,31 @@ IntrefViewpoint::predict_given_key(
   std::array<double, ChoralePitch::cardinality> new_values{{0.0}};
 
   double total_probability = 0.0;
-  unsigned int valid_predictions = 0;
+
+  std::array<MidiPitch, 3> base_pitches{{ 48,60,72 }};
 
   for (auto intref : EventEnumerator<ChoraleIntref>()) {
-    auto midi_interval = intref.midi_interval();
-    if (!referent.is_valid_transposition(midi_interval))
-      continue;
+    for (auto base : base_pitches) {
+      MidiPitch transposed(base.pitch + referent.pitch + intref.encode());
 
-    auto candidate_pitch = referent + midi_interval;
-    auto prob = intref_dist.probability_for(intref);
-    new_values[candidate_pitch.encode()] = prob;
-    total_probability += prob;
-    valid_predictions++;
+      if (!ChoralePitch::is_valid_pitch(transposed))
+        continue;
+
+      ChoralePitch candidate_pitch(transposed);
+
+      auto prob = intref_dist.probability_for(intref);
+      new_values[candidate_pitch.encode()] += prob;
+      total_probability += prob;
+    }
   }
 
-  if (valid_predictions == ChoraleIntref::cardinality)
-    return EventDistribution<ChoralePitch>(new_values);
-
+  // normalise
   for (auto &v : new_values)
     v /= total_probability;
 
-  return EventDistribution<ChoralePitch>(new_values);
+  EventDistribution<ChoralePitch> dist(new_values);
+
+  return dist;
 }
 
 

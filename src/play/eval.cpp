@@ -171,8 +171,8 @@ void bias_grid_sweep(const corpus_t &corpus, ChoraleMVS &mvs, double max_intra,
   for (double b = min_intra; b <= max_intra; b += step)
     intra_biases.push_back(b);
 
-  double inter_steps = (max_inter - min_inter) / step;
-  double intra_steps = (max_intra - min_intra) / step;
+  double inter_steps = 1 + (max_inter - min_inter) / step;
+  double intra_steps = 1 + (max_intra - min_intra) / step;
   unsigned int total_steps = ceil(inter_steps * intra_steps);
   unsigned int curr_step = 1;
 
@@ -245,7 +245,7 @@ void generate(ChoraleMVS &mvs,
 }
 
 int main(void) {
-  const unsigned int hist = 4;
+  const unsigned int hist = 5;
   ChoraleMVS::BasicVP<ChoralePitch> pitch_vp(hist);
   ChoraleMVS::BasicVP<ChoraleDuration> duration_vp(hist);
 
@@ -273,7 +273,8 @@ int main(void) {
   ChoraleMVS full_mvs(full_config);
 
   for (auto mvs_ptr : {&lt_only, &full_mvs}) {
-    mvs_ptr->add_viewpoint(&pxd_predict_pitch);
+    mvs_ptr->add_viewpoint(&pitch_vp);
+    //mvs_ptr->add_viewpoint(&pxd_predict_pitch);
     //mvs_ptr->add_viewpoint(&pxd_predict_duration);
     mvs_ptr->add_viewpoint(&duration_vp);
     mvs_ptr->add_viewpoint(&interval_vp);
@@ -293,6 +294,7 @@ int main(void) {
   double max_inter = 2.0;
   double step = 0.5;
   bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
+  
 
   //generate(full_mvs, 42, "out/gend.json");
 }

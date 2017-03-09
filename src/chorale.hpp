@@ -71,6 +71,10 @@ private:
   }
 
 public:
+  constexpr static bool is_valid_pitch(const MidiPitch &mp) {
+    return mp.pitch >= lowest_midi_pitch && 
+      mp.pitch < lowest_midi_pitch + cardinality;
+  }
   unsigned int encode() const override { return code; } 
   unsigned int raw_value() const { return map_out(code); } 
   std::string string_render() const override {
@@ -127,8 +131,8 @@ public:
   unsigned int encode() const override { return code; } 
   unsigned int raw_value() const { return map_out(code); } 
   bool intref_gives_valid_pitch(const ChoraleIntref &intref) const;
-  ChoralePitch referent() const { 
-    return ChoralePitch(MidiPitch(referent_map[code]));
+  MidiPitch referent() const { 
+    return MidiPitch(referent_map[code]);
   }
 
   // need the "code" constructor for enumeration etc. to work 
@@ -299,25 +303,19 @@ public:
   ChoraleInterval(unsigned int code);
 };
 
+// the representation of this type is very simple:
+// because intervals are taken mod 12 and the domain is dense,
+// then the surface type is a compact code by default
 class ChoraleIntref : public CodedEvent {
 public:
-  constexpr static unsigned int cardinality = 32;
-private:
-  constexpr static int min_intref = -17;
-  constexpr static int max_intref = 14;
-  constexpr static unsigned int 
-    map_in(int delta_p) { return delta_p - min_intref; }
-  constexpr static int
-    map_out(unsigned int code) { return (int)code + min_intref; }
+  constexpr static unsigned int cardinality = 12;
 
-public:
   unsigned int encode() const override { return code; }
-  int raw_value() const { return map_out(code); }
-  MidiInterval midi_interval() const { return MidiInterval(raw_value()); }
-  std::string string_render() const override;
+  std::string string_render() const override {
+    return std::to_string(code);
+  }
 
   ChoraleIntref(unsigned int code);
-  ChoraleIntref(const MidiInterval &delta_pitch);
 };
 
 /**********************************************************
@@ -636,10 +634,12 @@ ChoraleMVS::avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) {
     dist = predict<T>(ngram_buf);
   }
 
-  if (total_entropy/seq.size() > 100.0) 
-    std::cerr << "Warning: very high average entropy." << std::endl;
+  double avg_entropy = total_entropy/seq.size();
+  if (avg_entropy > 100.0) 
+    std::cerr << "Warning: very high average entropy (" 
+      << avg_entropy << ")" << std::endl;
   
-  return total_entropy / seq.size();
+  return avg_entropy;
 }
 
 template<typename T>
