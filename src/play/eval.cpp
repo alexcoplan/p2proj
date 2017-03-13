@@ -273,9 +273,9 @@ int main(void) {
   ChoraleMVS full_mvs(full_config);
 
   for (auto mvs_ptr : {&lt_only, &full_mvs}) {
-    mvs_ptr->add_viewpoint(&pitch_vp);
-    //mvs_ptr->add_viewpoint(&pxd_predict_pitch);
-    //mvs_ptr->add_viewpoint(&pxd_predict_duration);
+    //mvs_ptr->add_viewpoint(&pitch_vp);
+    mvs_ptr->add_viewpoint(&pxd_predict_pitch);
+    mvs_ptr->add_viewpoint(&pxd_predict_duration);
     mvs_ptr->add_viewpoint(&duration_vp);
     mvs_ptr->add_viewpoint(&interval_vp);
     mvs_ptr->add_viewpoint(&intref_vp);
@@ -290,9 +290,9 @@ int main(void) {
   train(train_corp, {&lt_only, &full_mvs});
   std::cout << "done." << std::endl;
 
-  double max_intra = 2.0;
-  double max_inter = 2.0;
-  double step = 0.5;
+  double max_intra = 1.0;
+  double max_inter = 1.0;
+  double step = 0.25;
   bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
   
 

@@ -158,6 +158,13 @@ public:
   ChoraleTimeSig(const QuantizedDuration &qd);
 };
 
+class ChoralePosinbar : public CodedEvent {
+public:
+  constexpr static unsigned int cardinality = 4;
+  unsigned int encode() const override { return code; }
+  ChoralePosinbar(unsigned int c) : CodedEvent(c) { assert(c < cardinality); }
+};
+
 class ChoraleRest : public CodedEvent {
 public:
   using singleton_ptr_t = const ChoraleRest * const;
@@ -239,10 +246,9 @@ template<>
 std::vector<ChoraleRest>
 inline ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
   std::vector<ChoraleRest> result;
-  for (const auto &e : es) {
+  for (const auto &e : es)
     if (e.rest)
       result.push_back(*e.rest);
-  }
 
   return result;
 }

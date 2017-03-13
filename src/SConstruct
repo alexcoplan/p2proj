@@ -22,7 +22,7 @@ if env['BUILD_TYPE'] == 'debug':
   flags = base_flags + ' -g -DDEBUG'
 else:
   print('*** release build')
-  flags = base_flags + ' -O2'
+  flags = base_flags + ' -Ofast'
 
 env["CXXFLAGS"] = flags
 
