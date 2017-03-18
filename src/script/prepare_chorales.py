@@ -85,12 +85,14 @@ ref_map = {
 def ql_quantize(ql):
   return round(ql/0.25)
 
-def m21_to_internal(m21_notes, referent):
+def m21_to_internal(m21_notes, referent, anac_ql):
   c_notes = []
 
   prev_pitch = None
   prev_end_q = None # end = offset + duration
-  
+
+  counters["rest"].update([ql_quantize(anac_ql)])
+
   for n in m21_notes:
     counters["intref"].update([(n.pitch.midi - referent) % 12])
 
@@ -111,7 +113,7 @@ def m21_to_internal(m21_notes, referent):
     counters["duration"].update([duration_q])
     c_notes.append([
       n.pitch.midi, 
-      ql_quantize(n.offset + anacrusis_ql), 
+      ql_quantize(n.offset + anac_ql), 
       duration_q
     ])
 
@@ -161,7 +163,7 @@ for i in bcl.byRiemenschneider:
   anac_bar_ql = c.measures(0,0).duration.quarterLength
   first_bar_ql = c.measures(1,1).duration.quarterLength
 
-  anacrusis_ql = first_bar_ql - anac_bar_ql # size of anacrusis
+  anac_ql = first_bar_ql - anac_bar_ql # size of anacrusis
   time_sig_q = ql_quantize(first_bar_ql) # use first bar to determine time signature
   counters["timesig"].update([time_sig_q])
 
@@ -196,7 +198,7 @@ for i in bcl.byRiemenschneider:
     else:
       title_ext = " ({} {})".format(direction, amt) 
 
-    internal_fmt = m21_to_internal(transd.notes, referent)
+    internal_fmt = m21_to_internal(transd.notes, referent, anac_ql)
 
     obj = {
       "title" : title + title_ext,
