@@ -9,6 +9,7 @@
 #include <fstream>
 #include <cmath>
 #include <algorithm>
+#include <bitset>
 
 typedef std::pair<unsigned, std::list<unsigned int>> Ngram;
 
@@ -31,6 +32,7 @@ struct TrieNode {
 
   TrieNode();
   ~TrieNode();
+  TrieNode(const TrieNode &other);
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   void write_latex(const std::string &fname, 
       std::string (*decoder)(unsigned int)) const;
@@ -60,7 +62,10 @@ class ContextModel {
                const std::bitset<b> &dead) const;
 
 public:
+  void set_history(unsigned int h);
+  unsigned int get_history() const { return history; }
   void learn_sequence(const std::vector<unsigned int> &seq);
+  void update_from_tail(const std::vector<unsigned int> &seq);
   void get_ngrams(const unsigned int n, std::list<Ngram> &result);
   unsigned int count_of(const std::vector<unsigned int> &seq) const;
   unsigned int count_of(const std::vector<unsigned int> &seq);
@@ -69,6 +74,7 @@ public:
   void write_latex(const std::string &fname, 
       std::string (*decoder)(unsigned int)) const;
   void debug_summary();
+  void clear_model(); // unlearn everything so far
 
   ContextModel(unsigned int history);
 };
@@ -89,6 +95,24 @@ template<int b>
 void ContextModel<b>::write_latex(const std::string &fname,
     std::string (*decoder)(unsigned int)) const {
   trie_root.write_latex(fname, decoder);
+}
+
+template<int b>
+void ContextModel<b>::set_history(unsigned int h) {
+  history = h;
+}
+
+template<int b>
+void ContextModel<b>::clear_model() {
+  for (unsigned int i = 0; i < b; i++) {
+    if (trie_root.children[i] != NULL) {
+      delete trie_root.children[i];
+      trie_root.children[i] = NULL;
+    }
+  }
+
+  trie_root.count = 0;
+  trie_root.child_mask.reset();
 }
 
 template<int b>
@@ -273,6 +297,18 @@ void ContextModel<b>::learn_sequence(const std::vector<unsigned int> &seq) {
       addOrIncrement(seq, beg, end);
 }
 
+// takes h-, (h-1)-, ..., 1-grams from the end of a sequence
+// and updates the context model with them.
+//
+// this is used for models which are dynamically trained on a sequence which is
+// continually growing (such as the short-term model in a MVS)
+template<int b> 
+void ContextModel<b>::update_from_tail(const std::vector<unsigned int> &seq) {
+  size_t pos = seq.size() >= history ? (seq.size() - history) : 0;
+  for (; pos <= seq.size(); pos++) 
+    addOrIncrement(seq, pos, seq.size());
+}
+
 template<int b> void
 ContextModel<b>::get_ngrams(const unsigned int n, std::list<Ngram> &result) {
   trie_root.get_ngrams(n, result);
@@ -303,6 +339,21 @@ TrieNode<b>::~TrieNode() {
   for (unsigned int i = 0; i < b; i++) 
     if (children[i] != nullptr)
       delete children[i];
+}
+
+template<int b>
+TrieNode<b>::TrieNode(const TrieNode &other) {
+  parent = nullptr;
+  count = other.count;
+  child_mask = other.child_mask;
+  for (unsigned int i = 0; i < b; i++)  {
+    if (other.children[i] != nullptr) {
+      children[i] = new TrieNode<b>(*other.children[i]);
+      children[i]->parent = this;
+    }
+    else
+      children[i] = nullptr;
+  }
 }
 
 template<int b>

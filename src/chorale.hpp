@@ -9,6 +9,14 @@
 #include <array>
 #include <map>
 #include <cmath>
+#include <memory>
+
+// generally thrown if you try to construct an invalid instance of some chorale
+// event type
+struct ChoraleTypeError : public std::runtime_error {
+  ChoraleTypeError(std::string msg) : 
+    std::runtime_error(msg) {}
+};
 
 /* N.B. we define these little wrapper types such as KeySig and MidiPitch to
  * overload the constructors of the Chorale event types */
@@ -49,8 +57,9 @@ public:
   CodedEvent(unsigned int c) : code(c) {}
 };
 
-// forward declare to use in ChoralePitch
+// some forward declarations of types used in other types
 class ChoraleInterval;
+class ChoraleIntref;
 
 /** Empirically (c.f. script/prepare_chorales.py) the domain for the pitch of
  * chorales in MIDI notation is the integers in [60,81]. */
@@ -69,6 +78,10 @@ private:
   }
 
 public:
+  constexpr static bool is_valid_pitch(const MidiPitch &mp) {
+    return mp.pitch >= lowest_midi_pitch && 
+      mp.pitch < lowest_midi_pitch + cardinality;
+  }
   unsigned int encode() const override { return code; } 
   unsigned int raw_value() const { return map_out(code); } 
   std::string string_render() const override {
@@ -76,9 +89,9 @@ public:
   }
 
   // check if transposition by the interval delta gives a valid chorale pitch
-  bool is_valid_transposition(const ChoraleInterval &delta) const;
+  bool is_valid_transposition(const MidiInterval &delta) const;
   MidiInterval operator-(const ChoralePitch &rh_pitch) const;
-  ChoralePitch operator+(const ChoraleInterval &delta) const;
+  ChoralePitch operator+(const MidiInterval &delta) const;
 
   // need the "code" constructor for enumeration etc. to work 
   ChoralePitch(unsigned int code);
@@ -107,6 +120,9 @@ public:
 };
 
 class ChoraleKeySig : public CodedEvent {
+public:
+  constexpr static int cardinality = 9;
+
 private:
   constexpr static int min_sharps = -4;
   constexpr static unsigned int map_in(int num_sharps) {
@@ -116,11 +132,15 @@ private:
     return some_code + min_sharps;
   }
 
-public:
-  constexpr static int cardinality = 9;
+  const static std::array<unsigned int, cardinality> referent_map;
 
+public:
   unsigned int encode() const override { return code; } 
   unsigned int raw_value() const { return map_out(code); } 
+  bool intref_gives_valid_pitch(const ChoraleIntref &intref) const;
+  MidiPitch referent() const { 
+    return MidiPitch(referent_map[code]);
+  }
 
   // need the "code" constructor for enumeration etc. to work 
   ChoraleKeySig(unsigned int code);
@@ -145,19 +165,22 @@ public:
   ChoraleTimeSig(const QuantizedDuration &qd);
 };
 
+class ChoralePosinbar : public CodedEvent {
+public:
+  constexpr static unsigned int cardinality = 4;
+  unsigned int encode() const override { return code; }
+  ChoralePosinbar(unsigned int c) : CodedEvent(c) { assert(c < cardinality); }
+};
+
 class ChoraleRest : public CodedEvent {
 public:
-  using singleton_ptr_t = const ChoraleRest * const;
-  constexpr static unsigned int cardinality = 3;
-  const static std::array<const ChoraleRest, cardinality> shared_instances;
+  constexpr static unsigned int cardinality = 6;
 
 private:
   constexpr static unsigned int map_in(unsigned int rest_len) {
     return rest_len / 4;
   }
-  constexpr static unsigned int map_out(unsigned int code) {
-    return code * 4;
-  }
+  constexpr static unsigned int map_out(unsigned int code) { return code * 4; }
   const static std::array<std::string, cardinality> pretty_strs;
 
 
@@ -165,19 +188,8 @@ public:
   unsigned int encode() const override { return code; }
   unsigned int raw_value() const { return map_out(code); }
 
-  singleton_ptr_t shared_instance() {
-    return &shared_instances[code];
-  }
-
   std::string string_render() const override {
    return pretty_strs[code];
-  }
-
-  constexpr static bool valid_singleton_ptr(singleton_ptr_t ptr) {
-    return (ptr == nullptr
-         || ptr == &shared_instances[0]
-         || ptr == &shared_instances[1]
-         || ptr == &shared_instances[2]);
   }
 
   ChoraleRest(unsigned int c);
@@ -189,9 +201,10 @@ public:
  * have as members all the different types that make up a chorale event (pitch,
  * duration, offset, etc.) */
 struct ChoraleEvent {
+  ChoraleKeySig keysig;
   ChoralePitch pitch;
   ChoraleDuration duration;
-  ChoraleRest::singleton_ptr_t rest;
+  ChoraleRest rest;
 
   template<typename T>
   T project() const;
@@ -201,35 +214,21 @@ struct ChoraleEvent {
   lift(const std::vector<ChoraleEvent> &es);
 
   template<typename P, typename Q>
-  static std::vector<std::pair<P,Q>>
+  static std::vector<EventPair<P,Q>>
   lift(const std::vector<ChoraleEvent> &es);
 
-  ChoraleEvent(const MidiPitch &mp, 
+  ChoraleEvent(const KeySig &ks,
+               const MidiPitch &mp, 
                const QuantizedDuration &dur, 
-               ChoraleRest::singleton_ptr_t rest_ptr) :
-    pitch(mp), duration(dur), rest(rest_ptr) {
-    assert(ChoraleRest::valid_singleton_ptr(rest_ptr));
-  }
+               const QuantizedDuration &rest_dur) :
+    keysig(ks), pitch(mp), duration(dur), rest(rest_dur) {} 
 
-  ChoraleEvent(const ChoralePitch &cp,
+  ChoraleEvent(const ChoraleKeySig &ks,
+               const ChoralePitch &cp,
                const ChoraleDuration &cd,
-               ChoraleRest::singleton_ptr_t rest_ptr) :
-    pitch(cp), duration(cd), rest(rest_ptr) {
-    assert(ChoraleRest::valid_singleton_ptr(rest_ptr));
-  }
+               const ChoraleRest &r) :
+    keysig(ks), pitch(cp), duration(cd), rest(r) {}
 };
-
-template<>
-std::vector<ChoraleRest>
-inline ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
-  std::vector<ChoraleRest> result;
-  for (const auto &e : es) {
-    if (e.rest)
-      result.push_back(*e.rest);
-  }
-
-  return result;
-}
 
 template<typename T>
 std::vector<T>
@@ -241,12 +240,12 @@ ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
 }
 
 template<typename P, typename Q>
-std::vector<std::pair<P,Q>>
+std::vector<EventPair<P,Q>>
 ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
-  std::vector<std::pair<P,Q>> result;
+  std::vector<EventPair<P,Q>> result;
   std::transform(es.begin(), es.end(), std::back_inserter(result),
       [](const ChoraleEvent &e) {
-        return std::make_pair<P,Q>(e.project<P>(), e.project<Q>());
+        return EventPair<P,Q>(e.project<P>(), e.project<Q>());
       });
   return result;
 }
@@ -279,7 +278,7 @@ private:
 public:
   unsigned int encode() const override { return code; }
   int raw_value() const { return map_out(code); }
-
+  MidiInterval midi_interval() const { return MidiInterval(raw_value()); }
   std::string string_render() const override;
 
   ChoraleInterval(const MidiInterval &delta_pitch);
@@ -287,6 +286,20 @@ public:
   ChoraleInterval(unsigned int code);
 };
 
+// the representation of this type is very simple:
+// because intervals are taken mod 12 and the domain is dense,
+// then the surface type is a compact code by default
+class ChoraleIntref : public CodedEvent {
+public:
+  constexpr static unsigned int cardinality = 12;
+
+  unsigned int encode() const override { return code; }
+  std::string string_render() const override {
+    return std::to_string(code);
+  }
+
+  ChoraleIntref(unsigned int code);
+};
 
 /**********************************************************
  * Chorale Viewpoints
@@ -297,36 +310,63 @@ class IntervalViewpoint :
 private:
   using ParentVP = Viewpoint<ChoraleEvent, ChoraleInterval, ChoralePitch>;
 
-  std::unique_ptr<ChoraleInterval>
-    project(const std::vector<ChoralePitch> &pitches, unsigned int upto) 
-    const override;
-
   std::vector<ChoraleInterval>
-    lift(const std::vector<ChoralePitch> &pitches) const override;
+    lift(const std::vector<ChoraleEvent> &events) const override;
 
 public:
   IntervalViewpoint(unsigned int h) : ParentVP(h) {}
 
-  bool can_predict(const std::vector<ChoraleEvent> &pitches) const override {
-    return pitches.size() > 1;
+  bool can_predict(const std::vector<ChoraleEvent> &ctx) const override {
+    return ctx.size() > 1;
   }
-
-  EventDistribution<ChoralePitch>
-    predict(const std::vector<ChoraleEvent> &pitches) const override;
 
   IntervalViewpoint *clone() const override { 
     return new IntervalViewpoint(*this);
   }
 
-  void debug();
+  EventDistribution<ChoralePitch>
+    predict(const std::vector<ChoraleEvent> &pitches) const override;
+
 };
 
+class IntrefViewpoint :
+  public Viewpoint<ChoraleEvent, ChoraleIntref, ChoralePitch> {
+private:
+  using ParentVP = Viewpoint<ChoraleEvent, ChoraleIntref, ChoralePitch>;
+
+  std::vector<ChoraleIntref>
+    lift(const std::vector<ChoraleEvent> &events) const override;
+
+public:
+  IntrefViewpoint(unsigned int h) : ParentVP(h) {}
+
+  bool can_predict(const std::vector<ChoraleEvent> &ctx) const override {
+    return !ctx.empty(); // don't need any context to predict
+  }
+
+  IntrefViewpoint *clone() const override {
+    return new IntrefViewpoint(*this);
+  }
+
+  EventDistribution<ChoralePitch>
+   predict(const std::vector<ChoraleEvent> &ctx) const override;
+
+  EventDistribution<ChoralePitch> predict_given_key(
+    const std::vector<ChoraleEvent> &ctx, 
+    const ChoraleKeySig &ks
+  ) const;
+};
 
 /**********************************************************
  * Chorale Multiple Viewpoint System
  **********************************************************/
 
-class ChoraleMVS {
+class ChoraleVPLayer {
+private:
+  template<class T>
+  using BasicVP =
+    BasicViewpoint<ChoraleEvent, T>;
+
   template<class T>
   using Pred =
     Predictor<ChoraleEvent, T>;
@@ -335,7 +375,6 @@ class ChoraleMVS {
   using PredictorList = 
     std::vector<std::unique_ptr<Pred<T>>>;
 
-private:
   PredictorList<ChoralePitch> pitch_predictors;
   PredictorList<ChoraleDuration> duration_predictors;
   PredictorList<ChoraleRest> rest_predictors;
@@ -343,41 +382,21 @@ private:
   template<typename T>
     PredictorList<T> &predictors();
 
-  template<typename T>
-    const PredictorList<T> &predictors() const {
-      return const_cast<ChoraleMVS *>(this)->predictors<T>();
+  template<typename T> const PredictorList<T> &predictors() const {
+      return const_cast<ChoraleVPLayer *>(this)->predictors<T>();
   }
 
 public:
-  // for convenience when creating viewpoints on chorale types 
-  // outside of this class
-  template<class T>
-  using BasicVP = BasicViewpoint<ChoraleEvent, T>;
+  double entropy_bias; // used for intra-layer combination of VPs
+  unsigned int vp_history;
 
-  double entropy_bias;
-  const std::string name;
-
-  template<typename T>
-    EventDistribution<T> predict(const std::vector<ChoraleEvent> &ctx) const;
-
-  template<typename T>
-    double avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) const;
-
-  template<typename T>
-    std::vector<double>
-    cross_entropies(const std::vector<ChoraleEvent> &seq) const;
-
-  template<typename T>
-    std::vector<double>
-    dist_entropies(const std::vector<ChoraleEvent> &seq) const;
-
-  std::vector<ChoraleEvent> generate(unsigned int len) const;
-
-  void learn(const std::vector<ChoraleEvent> &seq);
+  std::string debug_summary() const;
 
   template<class T>
   void add_viewpoint(Pred<T> *p) {
-    predictors<T>().push_back(std::unique_ptr<Pred<T>>(p->clone()));
+    Pred<T> *cloned_vp = p->clone();
+    cloned_vp->set_history(vp_history);
+    predictors<T>().push_back(std::unique_ptr<Pred<T>>(cloned_vp));
   }
 
   template<class P, class Q>
@@ -387,43 +406,36 @@ public:
     predictors<Q>().psuh_back(std::unique_ptr<Pred<Q>>(q->clone()));
   }
 
-  ChoraleMVS(double eb, const std::string &mvs_name) : 
-    entropy_bias(eb), name(mvs_name) {}
+  template<class T>
+  EventDistribution<T> predict(const std::vector<ChoraleEvent> &ctx) const;
+
+  void reset_viewpoints();
+  void learn(const std::vector<ChoraleEvent> &seq);
+  void learn_from_tail(const std::vector<ChoraleEvent> &seq);
+
+  ChoraleVPLayer(double eb, unsigned int vp_hist) : 
+    entropy_bias(eb), vp_history(vp_hist) {}
 };
 
-// templated method implementations for ChoraleMVS
+inline std::string ChoraleVPLayer::debug_summary() const {
+  auto total_vps = pitch_predictors.size() 
+    + duration_predictors.size() + rest_predictors.size();
+  
+  std::string histories;
+  for (const auto &vp_ptr : pitch_predictors)
+    histories += std::to_string(vp_ptr->get_history()) + " ";
+  for (const auto &vp_ptr : duration_predictors)
+    histories += std::to_string(vp_ptr->get_history()) + " ";
+  for (const auto &vp_ptr : rest_predictors)
+    histories += std::to_string(vp_ptr->get_history()) + " ";
 
-template<>
-inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoralePitch>>> &
-ChoraleMVS::predictors<ChoralePitch>() {
-  return pitch_predictors;
+  return "ChoraleVPLayer: " + std::to_string(total_vps) 
+    + " viewpoint(s)" + " with histories " + histories;
 }
 
-template<>
-inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoraleDuration>>> &
-ChoraleMVS::predictors<ChoraleDuration>() {
-  return duration_predictors;
-}
-
-template<>
-inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoraleRest>>> &
-ChoraleMVS::predictors<ChoraleRest>() {
-  return rest_predictors;
-}
-
-void
-inline ChoraleMVS::learn(const std::vector<ChoraleEvent> &seq) {
-  for (auto &vp_ptr : predictors<ChoralePitch>())
-    vp_ptr->learn(seq);
-  for (auto &vp_ptr : predictors<ChoraleDuration>())
-    vp_ptr->learn(seq);
-  for (auto &vp_ptr : predictors<ChoraleRest>())
-    vp_ptr->learn(seq);
-}
-
-template<typename T>
+template<class T>
 EventDistribution<T>
-ChoraleMVS::predict(const std::vector<ChoraleEvent> &ctx) const {
+ChoraleVPLayer::predict(const std::vector<ChoraleEvent> &ctx) const {
   const auto &vps = predictors<T>();
 
   auto it = vps.begin();
@@ -435,26 +447,162 @@ ChoraleMVS::predict(const std::vector<ChoraleEvent> &ctx) const {
   if (it == vps.end())
     throw ViewpointPredictionException("No viewpoints can predict context");
 
-  auto prediction = (*it)->predict(ctx);
-  
   if (vps.size() == 1)
-    return prediction;
+    return (*it)->predict(ctx);
 
-  WeightedEntropyCombination<T> comb_strategy(entropy_bias);
+  LogGeoEntropyCombination<T> comb_strategy(entropy_bias);
+  std::vector<EventDistribution<T>> predictions;
 
   for (; it != vps.end(); ++it) {
     if ((*it)->can_predict(ctx)) {
       auto new_prediction = (*it)->predict(ctx);
-      prediction.combine_in_place(comb_strategy, new_prediction);
+      predictions.push_back(new_prediction);
     }
   }
 
-  return prediction;
+  EventDistribution<T> combined(comb_strategy, predictions);
+  return combined;
+}
+
+
+// ChoraleVPLayer template implementations 
+template<>
+inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoralePitch>>> &
+ChoraleVPLayer::predictors() {
+  return pitch_predictors;
+}
+
+template<>
+inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoraleDuration>>> &
+ChoraleVPLayer::predictors<ChoraleDuration>() {
+  return duration_predictors;
+}
+
+template<>
+inline std::vector<std::unique_ptr<Predictor<ChoraleEvent,ChoraleRest>>> &
+ChoraleVPLayer::predictors<ChoraleRest>() {
+  return rest_predictors;
+}
+
+struct MVSConfig {
+  static MVSConfig long_term_only(double entropy_bias) {
+    MVSConfig config;
+    config.enable_short_term = false;
+    config.intra_layer_bias = entropy_bias;
+    config.mvs_name = "long-term only MVS";
+    return config;
+  }
+
+  bool enable_short_term;
+  double intra_layer_bias;
+  double inter_layer_bias;
+  unsigned int st_history;
+  unsigned int lt_history;
+  std::string mvs_name;
+
+  // default constructor so properties can be sent manually for clarity
+  MVSConfig() :
+    enable_short_term(true),
+    intra_layer_bias(1.0),
+    inter_layer_bias(1.0),
+    st_history(2),
+    lt_history(3),
+    mvs_name("default MVS") {}
+};
+
+class ChoraleMVS {
+public:
+  template<class T>
+  using BasicVP =
+    BasicViewpoint<ChoraleEvent, T>;
+
+  template<class T1, class T2>
+  using BasicLinkedVP =
+    BasicLinkedViewpoint<ChoraleEvent, T1, T2>;
+
+private:
+  template<class T>
+  using Pred =
+    Predictor<ChoraleEvent, T>;
+
+  ChoraleVPLayer short_term_layer;
+  ChoraleVPLayer long_term_layer;
+  BasicVP<ChoraleKeySig> key_distribution;
+  bool enable_short_term;
+
+public:
+  double entropy_bias;
+  const std::string mvs_name;
+
+  void debug_print() const {
+    std::cerr << "MVS debug: " << mvs_name << std::endl
+      << "--> Short-term layer: " 
+      << short_term_layer.debug_summary() << std::endl
+      << "--> Long-term layer: "
+      << long_term_layer.debug_summary() << std::endl;
+  }
+
+  void set_intra_layer_bias(double value) {
+    short_term_layer.entropy_bias = value;
+    long_term_layer.entropy_bias = value;
+  }
+
+  template<typename T>
+    EventDistribution<T> predict(const std::vector<ChoraleEvent> &ctx) const;
+
+  template<typename T>
+    double avg_sequence_entropy(const std::vector<ChoraleEvent> &seq);
+
+  template<typename T>
+    std::vector<double>
+    cross_entropies(const std::vector<ChoraleEvent> &seq) const;
+
+  template<typename T>
+    std::vector<double>
+    dist_entropies(const std::vector<ChoraleEvent> &seq) const;
+
+  std::vector<ChoraleEvent> random_walk(unsigned int len);
+
+  void learn(const std::vector<ChoraleEvent> &seq);
+
+  template<class T>
+  void add_viewpoint(Pred<T> *p) {
+    long_term_layer.add_viewpoint(p);
+    short_term_layer.add_viewpoint(p);
+  }
+
+  ChoraleMVS(const MVSConfig &config) : 
+    short_term_layer(config.intra_layer_bias, config.st_history),
+    long_term_layer(config.intra_layer_bias, config.lt_history),
+    key_distribution(1), // order-1 viewpoint
+    enable_short_term(config.enable_short_term),
+    entropy_bias(config.inter_layer_bias), 
+    mvs_name(config.mvs_name) {}
+};
+
+void
+inline ChoraleMVS::learn(const std::vector<ChoraleEvent> &seq) {
+  key_distribution.learn({seq[0]});
+  long_term_layer.learn(seq);
+}
+
+template<typename T>
+EventDistribution<T>
+ChoraleMVS::predict(const std::vector<ChoraleEvent> &ctx) const {
+  auto lt_prediction = long_term_layer.predict<T>(ctx);
+  if (enable_short_term) {
+    LogGeoEntropyCombination<T> comb_strategy(entropy_bias);
+    auto st_prediction = short_term_layer.predict<T>(ctx);
+    return EventDistribution<T>(comb_strategy, {st_prediction, lt_prediction});
+  }
+  return lt_prediction;
 }
 
 template<typename T>
 double 
-ChoraleMVS::avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) const {
+ChoraleMVS::avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) {
+  if (enable_short_term)
+    short_term_layer.reset_viewpoints();
   std::vector<ChoraleEvent> ngram_buf;
 
   double total_entropy = 0.0;
@@ -464,10 +612,17 @@ ChoraleMVS::avg_sequence_entropy(const std::vector<ChoraleEvent> &seq) const {
     const auto v = e.project<T>();
     total_entropy -= std::log2(dist.probability_for(v));
     ngram_buf.push_back(e);
+    if (enable_short_term)
+      short_term_layer.learn_from_tail(ngram_buf);
     dist = predict<T>(ngram_buf);
   }
+
+  double avg_entropy = total_entropy/seq.size();
+  if (avg_entropy > 100.0) 
+    std::cerr << "Warning: very high average entropy (" 
+      << avg_entropy << ")" << std::endl;
   
-  return total_entropy / seq.size();
+  return avg_entropy;
 }
 
 template<typename T>

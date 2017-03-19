@@ -12,7 +12,7 @@
 #include "random_source.hpp"
 
 // accuracy to which distributions must sum to 1
-#define DISTRIBUTION_EPS 1e-15 
+#define DISTRIBUTION_EPS 1e-13
 
 // forward declaration
 template<class T> class EventDistribution;
@@ -27,17 +27,17 @@ template<class T> class EventDistribution;
 template<class T>
 struct DistCombStrategy {
   virtual std::array<double, T::cardinality>
-    combine(std::initializer_list<EventDistribution<T>> list) const = 0;
+    combine(const std::vector<EventDistribution<T>> &list) const = 0;
 };
 
 template<class T>
-struct WeightedEntropyCombination : public DistCombStrategy<T> {
+struct ArithmeticEntropyCombination : public DistCombStrategy<T> {
   const double re_exponent;
 
   using values_t = std::array<double, T::cardinality>;
 
   values_t 
-  combine(std::initializer_list<EventDistribution<T>> list) const override {
+  combine(const std::vector<EventDistribution<T>> &list) const override {
     values_t result = {{0.0}};
 
     double sum_of_weights = 0.0;
@@ -61,7 +61,101 @@ struct WeightedEntropyCombination : public DistCombStrategy<T> {
     return result;
   }
 
-  WeightedEntropyCombination(double exponent) : re_exponent(exponent) {}
+  ArithmeticEntropyCombination(double exponent) : re_exponent(exponent) {}
+};
+
+template<class T>
+struct GeometricEntropyCombination : public DistCombStrategy<T> {
+  const double re_exponent;
+
+  using values_t = std::array<double, T::cardinality>;
+
+  values_t
+  combine(const std::vector<EventDistribution<T>> &list) const override {
+    values_t result;
+    for (auto &v : result)
+      v = 1.0;
+
+    double sum_of_weights = 0.0;
+    std::vector<double> dist_weights;
+
+    for (auto dist : list) {
+      double norm_entropy = dist.normalised_entropy();
+      if (norm_entropy == 0.0) {
+        std::cerr << "Exclusive distribution! Values:" << std::endl;
+        std::cerr << dist.debug_summary() << std::endl;
+        assert(! "Distribution must be non-exclusive.");
+      }
+
+      double weight = std::pow(norm_entropy, -re_exponent);
+      sum_of_weights += weight;
+      dist_weights.push_back(weight);
+    }
+
+    assert(dist_weights.size() == list.size());
+
+    double total_probability = 0.0;
+    for (const auto &e : EventEnumerator<T>()) {
+      unsigned int j = e.encode();
+      unsigned int i = 0;
+      for (const auto &dist : list)
+        result[j] *= std::pow(dist.probability_for(e), dist_weights[i++]);
+      result[j] = std::pow(result[j], 1.0 / sum_of_weights);
+      total_probability += result[j];
+    }
+
+    // normalise (n.b. normalisation constant cannot be computed in advance for
+    // geometric combination)
+    for (auto &v : result)
+      v /= total_probability;
+
+    return result;
+  }
+
+  GeometricEntropyCombination(double exponent) :
+    re_exponent(exponent) {}
+};
+
+template<class T>
+struct LogGeoEntropyCombination : public DistCombStrategy<T> {
+  const double re_exponent;
+
+  using values_t = std::array<double, T::cardinality>;
+
+  values_t
+  combine(const std::vector<EventDistribution<T>> &dists) const override {
+    values_t result{{0.0}};
+
+    double sum_of_weights = 0.0;
+
+    for (const auto &dist : dists) {
+      double norm_entropy = dist.normalised_entropy();
+      if (norm_entropy == 0.0) {
+        std::cerr << "Exclusive distribution! Values:" << std::endl;
+        std::cerr << dist.debug_summary() << std::endl;
+        assert(! "Distribution must be non-exclusive.");
+      }
+
+      double weight = std::pow(norm_entropy, -re_exponent);
+      sum_of_weights += weight;
+      for (auto e : EventEnumerator<T>())
+        result[e.encode()] += weight * std::log2(dist.probability_for(e));
+    }
+
+    double total_probability = 0.0;
+    for (auto &v : result) {
+      v = std::pow(2.0, v / sum_of_weights);
+      total_probability += v;
+    }
+    
+    // normalise
+    for (auto &v : result)
+      v /= total_probability;
+
+    return result;
+  }
+
+  LogGeoEntropyCombination(double entropy_bias) : re_exponent(entropy_bias) {}
 };
 
 /**************************************************
@@ -75,7 +169,7 @@ private:
 public:
   EventDistribution(const std::array<double, T::cardinality> &vs);
   EventDistribution(const DistCombStrategy<T> &strategy, 
-      std::initializer_list<EventDistribution>);
+      const std::vector<EventDistribution> &dist);
   constexpr static double max_entropy() { return std::log2(T::cardinality); }
   EventDistribution<T> weighted_combination (
       const std::vector<EventDistribution<T> &> &vector);
@@ -89,11 +183,23 @@ public:
     EventDistribution combined(strategy, {dist,*this});
     values = combined.values;
   }
+  std::string debug_summary() const;
 };
 
 /**************************************************
  * EventDistribution: public methods
  **************************************************/
+
+template<class T>
+std::string
+EventDistribution<T>::debug_summary() const {
+  std::string result = "";
+  for (unsigned int i = 0; i < T::cardinality; i++) {
+    result += "P(" + std::to_string(i) + ") = " + 
+      std::to_string(values[i]) + "\n";
+  }
+  return result;
+}
 
 template<class T> 
 EventDistribution<T>::EventDistribution(
@@ -107,7 +213,7 @@ EventDistribution<T>::EventDistribution(
   double total_probability = std::accumulate(values.begin(), values.end(), 0.0);
 
   if ( std::abs(total_probability - 1.0) >= DISTRIBUTION_EPS ) {
-    std::cerr << "Distirbution failed: total prob = " << total_probability << 
+    std::cerr << "Distribution failed: total prob = " << total_probability << 
       std::endl;
 
     std::cerr << "Values: " << std::endl << std::endl;
@@ -124,7 +230,7 @@ EventDistribution<T>::EventDistribution(
  * combine the distributions */
 template<class T>
 EventDistribution<T>::EventDistribution(const DistCombStrategy<T> &strategy,
-    std::initializer_list<EventDistribution<T>> distributions) :
+    const std::vector<EventDistribution<T>> &distributions) :
   EventDistribution(strategy.combine(distributions)) {}
 
 template<class T>
@@ -202,6 +308,10 @@ private:
 public:
   SequenceModel(unsigned int history);
   void learn_sequence(const std::vector<T> &seq);
+  void clear_model();
+  void set_history(unsigned int h);
+  unsigned int get_history() const;
+  void update_from_tail(const std::vector<T> &seq);
   double probability_of(const std::vector<T> &seq) const;
   double avg_sequence_entropy(const std::vector<T> &seq) const;
   unsigned int count_of(const std::vector<T> &seq) const;
@@ -224,12 +334,32 @@ SequenceModel<T>::SequenceModel(unsigned int h) : model(h) {
  only be specialized on SequenceEvents");
   static_assert(T::cardinality > 0, "Event type must have strictly positive\
  cardinality!");
-};
+}
 
 // simple wrappers around the context model
+template<class T>
+void SequenceModel<T>::set_history(unsigned int h) {
+  model.set_history(h);
+}
+
+template<class T>
+unsigned int SequenceModel<T>::get_history() const {
+  return model.get_history();
+}
+
 template<class T> 
 void SequenceModel<T>::learn_sequence(const std::vector<T> &seq) {
   model.learn_sequence(encode_sequence(seq));
+}
+
+template<class T>
+void SequenceModel<T>::clear_model() {
+  model.clear_model();
+}
+
+template<class T>
+void SequenceModel<T>::update_from_tail(const std::vector<T> &seq) {
+  model.update_from_tail(encode_sequence(seq));
 }
 
 template<class T>

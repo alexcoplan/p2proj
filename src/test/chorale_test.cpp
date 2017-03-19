@@ -6,18 +6,34 @@
 struct ChoraleMocker {
   static const MidiPitch default_pitch;
   static const QuantizedDuration default_dur; 
+  static const QuantizedDuration default_rest_dur;
+  static const KeySig default_key;
 
   static ChoraleEvent mock(const ChoralePitch &p) {
-    return ChoraleEvent(MidiPitch(p.raw_value()), default_dur, nullptr);
+    return ChoraleEvent(
+      default_key, 
+      MidiPitch(p.raw_value()), 
+      default_dur, 
+      default_rest_dur
+    );
   }
 
   static ChoraleEvent mock(const ChoraleDuration &d) {
-    return 
-      ChoraleEvent(default_pitch, QuantizedDuration(d.raw_value()), nullptr);
+    return ChoraleEvent(
+      default_key, 
+      default_pitch, 
+      d,
+      default_rest_dur
+    );
   }
 
-  static ChoraleEvent mock(ChoraleRest::singleton_ptr_t ptr) {
-    return ChoraleEvent(default_pitch, default_dur, ptr);
+  static ChoraleEvent mock(const ChoraleRest &r) {
+    return ChoraleEvent(
+      default_key,
+      default_pitch, 
+      default_dur, 
+      r
+    );
   }
   
   template<typename T>
@@ -36,6 +52,11 @@ ChoraleMocker::default_pitch = MidiPitch(60);
 const QuantizedDuration 
 ChoraleMocker::default_dur = QuantizedDuration(4);
 
+const KeySig
+ChoraleMocker::default_key = KeySig(0);
+
+const QuantizedDuration
+ChoraleMocker::default_rest_dur = QuantizedDuration(0);
 
 
 TEST_CASE("Check Chorale event encodings", "[chorale][events]") {
@@ -59,20 +80,33 @@ TEST_CASE("Check Chorale event operaitons", "[chorale][events]") {
     REQUIRE((p2 - p1).delta_pitch == 2);
     REQUIRE((p1 - p2).delta_pitch == -2);
 
-    ChoraleInterval ival(p2 - p1);
+    MidiInterval ival(p2 - p1);
     REQUIRE((p1 + ival) == p2);
   }
 }
 
-TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
-  const unsigned int order = 3;
+TEST_CASE("Check predictions/entropy calculations in MVS") {
+  const unsigned int lt_hist = 3;
+  const unsigned int st_hist = 2;
 
-  SequenceModel<ChoralePitch> model(order);
+  SequenceModel<ChoralePitch> model(lt_hist);
 
-  double entropy_bias = 2.0;
-  ChoraleMVS mvs(entropy_bias, "test mvs");
+  double intra_bias = 1.0;
+  double inter_bias = 2.0;
+  auto lt_config = MVSConfig::long_term_only(intra_bias);
+  MVSConfig full_config;
+  full_config.enable_short_term = true;
+  full_config.intra_layer_bias = intra_bias;
+  full_config.inter_layer_bias = inter_bias;
+  full_config.lt_history = lt_hist;
+  full_config.st_history = st_hist;
+  full_config.mvs_name = "test MVS (full)";
 
-  ChoraleMVS::BasicVP<ChoralePitch> pitch_vp(order);
+  ChoraleMVS lt_mvs(lt_config);
+  ChoraleMVS full_mvs(full_config);
+
+  ChoraleMVS::BasicVP<ChoralePitch> long_term_vp(lt_hist);
+  ChoraleMVS::BasicVP<ChoralePitch> short_term_vp(st_hist);
 
   // C D C E C F C G C A C B C C^
   auto eg = {60,62,60,64,60,65,60,67,60,69,60,71,60,72};
@@ -82,19 +116,42 @@ TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
 
   // train both model and trivial viewpoint on same data
   model.learn_sequence(pitches);
-  pitch_vp.learn(ChoraleMocker::mock_sequence(pitches));
+  long_term_vp.learn(ChoraleMocker::mock_sequence(pitches));
 
-  mvs.add_viewpoint(&pitch_vp);
+  lt_mvs.add_viewpoint(&long_term_vp);
+  full_mvs.add_viewpoint(&long_term_vp);
 
   auto test_1 = {60,61,62,63,64,65,66,67,68,69,70};
   auto test_2 = {60};
   auto test_3 = {62,81,62,60};
 
   for (const auto &vs : {eg, test_1, test_2, test_3}) {
+    // pitch_vp + short-term calculations
+    short_term_vp.reset();
     std::vector<ChoralePitch> test_pitches;
     std::transform(vs.begin(), vs.end(), std::back_inserter(test_pitches),
         [](unsigned int p) { return ChoralePitch(MidiPitch(p)); });
-    auto mvs_entropy = mvs.avg_sequence_entropy<ChoralePitch>(
+
+    std::vector<ChoraleEvent> st_buff;
+    double total_entropy = 0.0;
+    auto comb_strategy = LogGeoEntropyCombination<ChoralePitch>(inter_bias);
+    auto prediction = EventDistribution<ChoralePitch>(comb_strategy, 
+        {short_term_vp.predict({}), long_term_vp.predict({})});
+    for (const auto &pitch : test_pitches) {
+      total_entropy -= std::log2(prediction.probability_for(pitch));
+      st_buff.push_back(ChoraleMocker::mock(pitch));
+      short_term_vp.learn_from_tail(st_buff);
+      prediction = EventDistribution<ChoralePitch>(comb_strategy,
+        {short_term_vp.predict(st_buff), long_term_vp.predict(st_buff)});
+    }
+
+    auto expected_full_entropy = total_entropy / test_pitches.size();
+    auto actual_full_entropy = full_mvs.avg_sequence_entropy<ChoralePitch>(
+        ChoraleMocker::mock_sequence(test_pitches));
+    
+    REQUIRE( expected_full_entropy == actual_full_entropy );
+
+    auto mvs_entropy = lt_mvs.avg_sequence_entropy<ChoralePitch>(
         ChoraleMocker::mock_sequence(test_pitches));
     auto model_entropy = model.avg_sequence_entropy(test_pitches);
     REQUIRE( mvs_entropy == model_entropy );
@@ -104,13 +161,16 @@ TEST_CASE("Check predictions/entropy calculations in ChoraleMVS") {
 TEST_CASE("Check ChoraleEvent template magic") {
   std::vector<ChoraleEvent> test_events {
     ChoraleEvent(
-        MidiPitch(60), QuantizedDuration(4), nullptr
+      ChoraleMocker::default_key, MidiPitch(60), 
+      QuantizedDuration(4), QuantizedDuration(0)
     ),
     ChoraleEvent(
-      MidiPitch(62), QuantizedDuration(6), ChoraleRest(2).shared_instance()
+      ChoraleMocker::default_key,
+      MidiPitch(62), QuantizedDuration(6), ChoraleRest(2)
     ),
     ChoraleEvent(
-      MidiPitch(64), QuantizedDuration(4), ChoraleRest(0).shared_instance()
+      ChoraleMocker::default_key,
+      MidiPitch(64), QuantizedDuration(4), ChoraleRest(0)
     )
   };
 
@@ -130,16 +190,20 @@ TEST_CASE("Check ChoraleEvent template magic") {
     std::back_inserter(expected_durs),
     [](unsigned int x) { return ChoraleDuration(QuantizedDuration(x)); });
 
-  std::vector<ChoraleRest> expected_rests{ ChoraleRest(2), ChoraleRest(0) };
+  std::vector<ChoraleRest> expected_rests{ 
+    ChoraleRest(0),
+    ChoraleRest(2), 
+    ChoraleRest(0) 
+  };
   
   REQUIRE( pitches == expected_pitches );
   REQUIRE( durations == expected_durs );
   REQUIRE( rests == expected_rests );
 
-  std::vector<std::pair<ChoralePitch, ChoraleDuration>> expected_pairs {
-    std::make_pair(expected_pitches[0], expected_durs[0]),
-    std::make_pair(expected_pitches[1], expected_durs[1]),
-    std::make_pair(expected_pitches[2], expected_durs[2])
+  std::vector<EventPair<ChoralePitch, ChoraleDuration>> expected_pairs {
+    {expected_pitches[0], expected_durs[0]},
+    {expected_pitches[1], expected_durs[1]},
+    {expected_pitches[2], expected_durs[2]}
   };
 
   auto pairs = ChoraleEvent::lift<ChoralePitch, ChoraleDuration>(test_events);

@@ -1,11 +1,15 @@
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <array>
 
 #include "catch.hpp"
 #include "event.hpp"
 #include "sequence_model.hpp"
+#include "json.hpp"
+
+using json = nlohmann::json; // to load pre-gen'd test cases
 
 /******************************************************************************
  * Distributions and events
@@ -176,11 +180,11 @@ TEST_CASE("Weighted entropy combination works as expected", "[seqmodel]") {
   EventDistribution<DummyEvent> flat(flat_vs);
 
   // b = 1
-  WeightedEntropyCombination<DummyEvent> strategy_1(1.0);
+  ArithmeticEntropyCombination<DummyEvent> strategy_1(1.0);
   array_t expected_1{{23.0/60.0, 15.0/60.0, 11.0/60.0, 11.0/60.0}};
 
   // b = 2 (squared bias to entropy weights)
-  WeightedEntropyCombination<DummyEvent> strategy_2(2.0);
+  ArithmeticEntropyCombination<DummyEvent> strategy_2(2.0);
   array_t expected_2{
     {177.0/452.0, 113.0/452.0, 81.0/452.0, 81.0/452.0}
   };
@@ -207,4 +211,50 @@ TEST_CASE("Weighted entropy combination works as expected", "[seqmodel]") {
       REQUIRE(dist_copy2.probability_for(e) == Approx(expected_2[e.encode()]));
   }
 }
+
+TEST_CASE("Weighted entropy combination matches numpy-generated examples", 
+    "[seqmodel]") {
+  json j;
+  std::ifstream examples_file("test/combination_examples.json");
+  examples_file >> j;
+
+  const auto &examples = j["dist_comb_examples"];
+  for (const auto &eg : examples) {
+    double entropy_bias = eg["entropy_bias"];
+    std::vector<EventDistribution<DummyEvent>> source_dists;
+    for (const auto &values : eg["dists"]) {
+      assert(values.size() == DummyEvent::cardinality);
+      std::array<double, DummyEvent::cardinality> vals;
+      unsigned int i = 0;
+      for (auto &v : values)
+        vals[i++] = v;
+      source_dists.push_back(vals);
+    }
+
+    ArithmeticEntropyCombination<DummyEvent> arith_strategy(entropy_bias);
+    EventDistribution<DummyEvent> arith_comb(arith_strategy, source_dists);
+    std::vector<double> expected_arith = eg["arithmetic_comb"];
+    for (auto e : EventEnumerator<DummyEvent>())
+      REQUIRE( 
+        arith_comb.probability_for(e) == Approx(expected_arith[e.encode()])
+      );
+
+    GeometricEntropyCombination<DummyEvent> geom_strategy(entropy_bias);
+    LogGeoEntropyCombination<DummyEvent> log_geo_strat(entropy_bias);
+    EventDistribution<DummyEvent> geom_comb(geom_strategy, source_dists);
+    EventDistribution<DummyEvent> log_geo_comb(log_geo_strat, source_dists);
+    std::vector<double> expected_geom = eg["geometric_comb"];
+    for (auto e : EventEnumerator<DummyEvent>()) {
+      REQUIRE(
+        geom_comb.probability_for(e) == Approx(expected_geom[e.encode()])
+      );
+      REQUIRE(
+        log_geo_comb.probability_for(e) == Approx(expected_geom[e.encode()])
+      );
+    }
+        
+  }
+}
+
+
 

@@ -1,5 +1,30 @@
-flags = '-std=c++11 -Wall -pedantic -g -fcolor-diagnostics -DDEBUG'
-env = Environment(CXX='clang++', CXXFLAGS=flags, CPPPATH = ['.','include'])
+import sys
+
+# platform-dependent stuff
+on_linux = sys.platform.startswith("linux")
+compiler = 'g++' if on_linux else 'clang++'
+base_flags = '-std=c++11 -Wall -pedantic'
+if on_linux:
+  base_flags += ' -fdiagnostics-color'
+else:
+  base_flags += ' -fcolor-diagnostics'
+
+# set up command line argument to switch between debug/release builds
+vars = Variables(None, ARGUMENTS)
+vars.Add(EnumVariable('BUILD_TYPE', 'type of build to use', 'debug',
+  allowed_values=('debug', 'release')))
+
+env = Environment(variables = vars, CXX=compiler, CPPPATH = ['.','include'])
+
+# configure flags based on debug or release
+if env['BUILD_TYPE'] == 'debug':
+  print('*** debug build')
+  flags = base_flags + ' -g -DDEBUG'
+else:
+  print('*** release build')
+  flags = base_flags + ' -Ofast'
+
+env["CXXFLAGS"] = flags
 
 # separately-compiled files
 base_files = ["event.cpp", "chorale.cpp", "xoroshiro.cpp", "random_source.cpp"]

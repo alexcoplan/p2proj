@@ -9,6 +9,8 @@
 
 #include "context_model.hpp"
 
+// don't change these, they are just for clarity in the code
+// (avoiding magic numbers)
 #define HISTORY 3
 #define NUM_NOTES 4
 
@@ -69,7 +71,7 @@ TEST_CASE("Context model training works correctly", "[ctxmodel]") {
     model.learn_sequence(encode_string("GGDBAGGABA"));
 
     // total count (zero-grams)
-    REQUIRE( model.count_of(std::vector<unsigned int>()) == 10 );
+    REQUIRE( model.count_of({}) == 10 );
 
     // unigrams
     REQUIRE( model.count_of(encode_string("A")) == 3 );
@@ -97,6 +99,47 @@ TEST_CASE("Context model training works correctly", "[ctxmodel]") {
     REQUIRE( model.count_of(encode_string("GGD")) == 1 );
   }
 }
+
+TEST_CASE("Repeated online training (using update_from_tail) equivalent to\
+    offline training", "[ctxmodel]") { 
+  ContextModel<NUM_NOTES> long_term(HISTORY); 
+  ContextModel<NUM_NOTES> short_term(HISTORY);
+  std::string eg("GGDBAGGABA");
+  std::string buff;
+  long_term.learn_sequence(encode_string(eg));
+  for (const auto &c : eg) {
+    buff += c;
+    short_term.update_from_tail(encode_string(buff));
+  }
+
+  REQUIRE( long_term.count_of({}) == short_term.count_of({}) );
+  const std::vector<std::string> alphabet { "A","B","D","G" };
+
+  // check unigram counts match
+  for (auto s : alphabet) {
+    auto seq = encode_string(s);
+    REQUIRE( short_term.count_of(seq) == long_term.count_of(seq));
+  }
+
+  // check bigram counts match
+  for (auto a : alphabet) {
+    for (auto b : alphabet) {
+      auto seq = encode_string(a+b);
+      REQUIRE( short_term.count_of(seq) == long_term.count_of(seq) );
+    }
+  }
+
+  // check trigram counts match
+  for (auto a : alphabet) {
+    for (auto b : alphabet) {
+      for (auto c : alphabet) {
+        auto seq = encode_string(a+b+c);
+        REQUIRE( short_term.count_of(seq) == long_term.count_of (seq) );
+      }
+    }
+  }
+}
+ 
 
 TEST_CASE("Context model calculates correct probabilities using PPM A", 
     "[ctxmodel][ppm-a]") {
@@ -173,7 +216,7 @@ TEST_CASE("Context model calculates correct probabilities using PPM A",
 
 TEST_CASE("Context model correctly calculates average entropy of sequence", 
     "[ctxmodel][ppm-a]") {
-  ContextModel<4> model(3);
+  ContextModel<NUM_NOTES> model(HISTORY);
   model.learn_sequence(encode_string("GGDBAGGABA"));
 
   SECTION("Calculate average entropy of single symbol") {
@@ -210,4 +253,42 @@ TEST_CASE("Context model correctly calculates average entropy of sequence",
   }
 }
 
+TEST_CASE("Test resetting/clearing of context model") {
+  ContextModel<NUM_NOTES> control(HISTORY);
+  ContextModel<NUM_NOTES> test(HISTORY);
+  std::string eg("GAGBGDDBDADG");
+  control.learn_sequence(encode_string(eg));
+  test.learn_sequence(encode_string(eg));
+  test.clear_model();
+
+  const std::vector<std::string> alphabet = { "G", "A", "B", "D" };
+  
+  // check that test now has zero counts (only bother with null+unigrams)
+  REQUIRE(test.count_of({}) == 0);
+  for (const auto &a : alphabet)
+    REQUIRE(test.count_of(encode_string(a)) == 0);
+
+  // now get test to re-learn the original sequence, and check the counts match
+  // up with those in control (i.e. re-learning is equivalent to learning from
+  // scratch) => reset works correctly
+  test.learn_sequence(encode_string(eg));
+  for (const auto &a : alphabet) {
+    auto seq = encode_string(a);
+    REQUIRE( test.count_of(seq) == control.count_of(seq) );
+  }
+  for (const auto &x : alphabet) {
+    for (const auto &y : alphabet) {
+      auto seq = encode_string(x+y);
+      REQUIRE( test.count_of(seq) == control.count_of(seq) );
+    }
+  }
+  for (const auto &x : alphabet) {
+    for (const auto &y : alphabet) {
+      for (const auto &z : alphabet) {
+        auto seq = encode_string(x+y+z);
+        REQUIRE( test.count_of(seq) == control.count_of(seq) );
+      }
+    }
+  }
+}
 

@@ -12,6 +12,18 @@ public:
   virtual void
     learn(const std::vector<EventStructure> &es) = 0;
 
+  virtual void
+    learn_from_tail(const std::vector<EventStructure> &es) = 0;
+
+  virtual void
+    set_history(unsigned int h) = 0;
+
+  virtual unsigned int
+    get_history() const = 0;
+
+  virtual void
+    reset() = 0; // undoes any training (useful for short-term models)
+
   virtual bool 
     can_predict(const std::vector<EventStructure> &es) const = 0;
 
@@ -26,47 +38,76 @@ class Viewpoint : public Predictor<EventStructure, T_surface> {
 protected:
   SequenceModel<T_viewpoint> model;
 
-  virtual std::unique_ptr<T_viewpoint> 
-    project(const std::vector<T_surface> &events, unsigned int up_to) const = 0;
-
   virtual std::vector<T_viewpoint> 
-    lift(const std::vector<T_surface> &events) const; 
+    lift(const std::vector<EventStructure> &events) const = 0; 
 
 public:
+  void reset() override { model.clear_model(); }
+  void set_history(unsigned int h) override { model.set_history(h); }
+  unsigned int get_history() const override { return model.get_history(); }
+  void write_latex(std::string filename) const { model.write_latex(filename); }
+
   void learn(const std::vector<EventStructure> &events) override {
-    auto surface_seq = EventStructure::template lift<T_surface>(events);
-    model.learn_sequence(lift(surface_seq));
+    model.learn_sequence(lift(events));
   }
 
-  Viewpoint(int history) : model(history) {}
-
-  void write_latex(std::string filename) const {
-    model.write_latex(filename);
+  void learn_from_tail(const std::vector<EventStructure> &events) override {
+    auto lifted = lift(events);
+    if (lifted.size() > 0)
+      model.update_from_tail(lifted);
   }
+
+  Viewpoint(unsigned int history) : model(history) {}
 };
 
-template<class EventStructure, class T_viewpoint, class T_surface> 
-std::vector<T_viewpoint>
-Viewpoint<EventStructure, T_viewpoint, T_surface>
-::lift(const std::vector<T_surface> &events) const {
-  std::vector<T_viewpoint> result;
-  for (unsigned int i = 1; i <= events.size(); i++) {
-    auto projection = project(events, i);
-    if (projection)
-      result.push_back(T_viewpoint(*projection));
+
+template<class EventStructure, class T_hidden, class T_predict>
+class BasicLinkedViewpoint : 
+  public Viewpoint<EventStructure, EventPair<T_hidden, T_predict>, T_predict> 
+{
+  using BaseVP = 
+    Viewpoint<EventStructure, EventPair<T_hidden, T_predict>, T_predict>;
+
+  std::vector<EventPair<T_hidden, T_predict>> 
+    lift(const std::vector<EventStructure> &events) const override {
+    return EventStructure::template lift<T_hidden, T_predict>(events);
   }
 
-  return result;
-}
+public:
+
+  EventDistribution<T_predict> 
+  predict(const std::vector<EventStructure> &ctx) const override {
+    // generate the joint distribution
+    auto dist = this->model.gen_successor_dist(lift(ctx));
+    
+    // then marginalise (sum over the hidden type)
+    std::array<double, T_predict::cardinality> values{{0.0}};
+    for (auto e_predict : EventEnumerator<T_predict>())
+      for (auto e_hidden : EventEnumerator<T_hidden>()) {
+        EventPair<T_hidden, T_predict> pair(e_hidden, e_predict);
+        values[e_predict.encode()] += dist.probability_for(pair);
+      }
+
+    return EventDistribution<T_predict>(values);
+  }
+
+  bool can_predict(const std::vector<EventStructure> &) const override {
+    return true; // basic VPs can always predict
+  }
+
+  BasicLinkedViewpoint *clone() const override {
+    return new BasicLinkedViewpoint(*this);
+  }
+
+  BasicLinkedViewpoint(unsigned int history) : BaseVP(history) {}
+};
 
 template<class EventStructure, class T_basic>
 class BasicViewpoint : public Viewpoint<EventStructure, T_basic, T_basic> {
   using VPBase = Viewpoint<EventStructure, T_basic, T_basic>;
 
-  std::vector<T_basic> lift(const std::vector<T_basic> &events) const override;
-
-  std::unique_ptr<T_basic> 
-    project(const std::vector<T_basic> &es, unsigned int up_to) const override;
+  std::vector<T_basic> 
+    lift(const std::vector<EventStructure> &events) const override;
 
 public:
   EventDistribution<T_basic> 
@@ -83,21 +124,13 @@ public:
   BasicViewpoint(int history) : VPBase(history) {}
 };
 
-template<class EventStructure, class T> std::unique_ptr<T>
-BasicViewpoint<EventStructure,T>
-::project(const std::vector<T> &events, unsigned int up_to) const {
-  if (up_to == 0)
-    return std::unique_ptr<T>();
-  return std::unique_ptr<T>(new T(events[up_to - 1]));
-}
-
 /* In basic viewpoints, we override `lift` for efficiency, since there is no
  * need to use the projection function and allocate a load of events on the
  * heap, we can just return the original sequence! */
 template<class ES, class T> 
 std::vector<T> 
-BasicViewpoint<ES,T>::lift(const std::vector<T> &events) const {
-  return events;
+BasicViewpoint<ES,T>::lift(const std::vector<ES> &events) const {
+  return ES::template lift<T>(events);
 }
 
 template<class EventStructure, class T>

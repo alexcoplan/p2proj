@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include <fstream>
 #include "json.hpp"
 #include "event.hpp"
@@ -8,16 +9,13 @@
 using json = nlohmann::json;
 using corpus_t = std::vector<std::vector<ChoraleEvent>>;
 
-void parse(const std::string corpus_path, corpus_t &corpus) {
-  std::ifstream corpus_file(corpus_path);
-  json j;
-  corpus_file >> j;
-
-  std::cout << "Parsing corpus... " << std::flush;
-
-  const auto num_chorales = j["corpus"].size();
+void parse_subcorpus(
+  const json &subcorp_j,
+  corpus_t &subcorp
+) {
+  const auto num_chorales = subcorp_j.size();
   for (unsigned int i = 0; i < num_chorales; i++) {
-    const auto &chorale_j = j["corpus"][i];
+    const auto &chorale_j = subcorp_j[i];
     
     std::vector<ChoraleEvent> chorale_events;
 
@@ -29,8 +27,12 @@ void parse(const std::string corpus_path, corpus_t &corpus) {
     unsigned int prev_offset   = first_note_j[1];
     unsigned int prev_duration = first_note_j[2];
 
+    unsigned int num_sharps = chorale_j["key_sig_sharps"];
+    KeySig ks(num_sharps);
+
     chorale_events.push_back(ChoraleEvent(
-      MidiPitch(first_pitch), QuantizedDuration(prev_duration), nullptr
+      ks, MidiPitch(first_pitch), 
+      QuantizedDuration(prev_duration), QuantizedDuration(prev_offset)
     ));
 
     for (unsigned int j = 1; j < notes_j.size(); j++) {
@@ -42,18 +44,37 @@ void parse(const std::string corpus_path, corpus_t &corpus) {
 
       assert(offset >= prev_offset + prev_duration);
       auto rest_amt = offset - prev_offset - prev_duration;
-      ChoraleRest rest{QuantizedDuration(rest_amt)};
+      QuantizedDuration rest_dur{rest_amt};
 
       chorale_events.push_back(ChoraleEvent(
-        MidiPitch(pitch), QuantizedDuration(duration), rest.shared_instance()
+        ks,
+        MidiPitch(pitch), QuantizedDuration(duration), rest_amt
       ));
 
       prev_offset = offset;
       prev_duration = duration;
     }
 
-    corpus.push_back(chorale_events);
+    subcorp.push_back(chorale_events);
   }
+}
+
+void parse(
+  const std::string corpus_path, 
+  corpus_t &train_corpus, 
+  corpus_t &test_corpus
+) {
+  std::ifstream corpus_file(corpus_path);
+  json j;
+  corpus_file >> j;
+
+  std::cout << "Parsing corpus... " << std::endl << std::flush;
+
+  const auto &corpus_j = j["corpus"];
+  std::cerr << "loading train corpus" << std::endl;
+  parse_subcorpus(corpus_j["train"], train_corpus);
+  std::cerr << "loading test corpus" << std::endl;
+  parse_subcorpus(corpus_j["validate"], test_corpus);
 
   std::cout << "done." << std::endl;
 }
@@ -74,11 +95,9 @@ void render(const std::vector<ChoraleEvent> &piece,
   for (const auto &event : piece) {
     unsigned int pitch = event.pitch.raw_value();
     unsigned int duration = event.duration.raw_value();
+    unsigned int rest_amt = event.rest.raw_value();
 
-    if (event.rest)
-      offset += event.rest->raw_value();
-
-    notes_j.push_back({ pitch, offset, duration });
+    notes_j.push_back({ pitch, offset + rest_amt, duration });
     offset += duration;
   }
 
@@ -98,97 +117,137 @@ void render(const std::vector<ChoraleEvent> &piece,
   o << std::setw(2) << result_j << std::endl;
 }
 
-void evaluate(const corpus_t &corpus, double eb_min, double eb_max,
+struct EntropyMeasurement {
+  double h_pitch;
+  double h_duration;
+  double h_rest;
+
+  EntropyMeasurement() :
+    h_pitch(0.0), h_duration(0.0), h_rest(0.0) {}
+};
+
+// returns < pitch_entropies, duration_entropies >
+std::vector<EntropyMeasurement>
+evaluate(const corpus_t &corpus, double intra_bias, double inter_bias,
     std::initializer_list<ChoraleMVS *> mvss) {
 
-  std::cout 
-    << std::endl
-    << "Evaluating models..." 
-    << std::endl << std::endl;
+  for (auto mvs_ptr : mvss) {
+    mvs_ptr->set_intra_layer_bias(intra_bias);
+    mvs_ptr->entropy_bias = inter_bias;
+  }
 
-  for (double eb = eb_min; eb < eb_max + 1.0; eb += 1.0) {
-    for (auto mvs_ptr : mvss)
-      mvs_ptr->entropy_bias = eb;
+  std::vector<EntropyMeasurement> result(mvss.size());
 
-    std::vector<double> pitch_entropies(mvss.size());
-    for (auto &h : pitch_entropies)
-      h = 0.0;
+  unsigned int i = 1;
 
-    std::vector<double> dur_entropies(mvss.size());
-    for (auto &h : dur_entropies)
-      h = 0.0;
-
-    unsigned int i = 1;
-
-    std::cout << "entropy_bias = " << eb << std::endl;
-
-    for (const auto &c : corpus) {
-      if (++i % 10 == 0)
-        std::cout << "=" << std::flush;
-
-      unsigned int j = 0;
-      for (auto mvs_ptr : mvss) {
-        double h_pitch = mvs_ptr->avg_sequence_entropy<ChoralePitch>(c);
-        double h_dur   = mvs_ptr->avg_sequence_entropy<ChoraleDuration>(c);
-        pitch_entropies[j] += h_pitch;
-        dur_entropies[j] += h_dur;
-        j++;
-      }
-    }
-
-    for (auto &h : pitch_entropies)
-      h /= corpus.size(); 
-    for (auto &h : dur_entropies)
-      h /= corpus.size();
-
-    std::cout 
-      << std::endl
-      << "Average entropies using long-term model:" 
-      << std::endl;
+  for (const auto &c : corpus) {
+    if (++i % 4 == 0)
+      std::cout << "=" << std::flush;
 
     unsigned int j = 0;
     for (auto mvs_ptr : mvss) {
-      std::cout << "    MVS " << mvs_ptr->name << ":" << std::endl;
-
-      std::cout
-        << "--> pitch entropy: "
-        << pitch_entropies[j]
-        << std::endl;
-
-      std::cout
-        << "--> duration entropy: "
-        << dur_entropies[j]
-        << std::endl;
-
+      result[j].h_pitch    += mvs_ptr->avg_sequence_entropy<ChoralePitch>(c);
+      result[j].h_duration += mvs_ptr->avg_sequence_entropy<ChoraleDuration>(c);
+      result[j].h_rest     += mvs_ptr->avg_sequence_entropy<ChoraleRest>(c);
       j++;
     }
-    std::cout << std::endl;
   }
+
+  std::cout << std::endl;
+
+  for (auto &point : result) {
+    point.h_pitch /= corpus.size();
+    point.h_duration /= corpus.size();
+    point.h_rest /= corpus.size();
+  }
+
+  return result;
 }
 
-void generate(const ChoraleMVS &mvs, 
+void bias_grid_sweep(const corpus_t &corpus, ChoraleMVS &mvs, double max_intra,
+    double max_inter, double step) {
+  double min_inter, min_intra;
+  min_inter = min_intra = 0.0;
+
+  json inter_biases = json::array();
+  json intra_biases = json::array();
+  for (double b = min_inter; b <= max_inter; b += step)
+    inter_biases.push_back(b);
+  for (double b = min_intra; b <= max_intra; b += step)
+    intra_biases.push_back(b);
+
+  double inter_steps = 1 + (max_inter - min_inter) / step;
+  double intra_steps = 1 + (max_intra - min_intra) / step;
+  unsigned int total_steps = ceil(inter_steps * intra_steps);
+  unsigned int curr_step = 1;
+
+  json entropy_values = json::array();
+
+  for (double inter = min_inter; inter <= max_inter; inter += step) {
+    json inner_values = json::array();
+    for (double intra = min_intra; intra <= max_intra; intra += step) {
+      std::cout 
+        << std::endl
+        << "Evaluating MVSs at (inter: " << inter << ", " 
+        << "intra: " << intra << ")"
+        << " - step " << (curr_step++) << "/" << total_steps
+        << std::endl;
+
+      auto all_measurements = evaluate(corpus, intra, inter, {&mvs});
+      auto h_this_mvs = all_measurements.at(0);
+      auto h_pitch = h_this_mvs.h_pitch;
+      auto h_dur   = h_this_mvs.h_duration;
+      auto h_rest  = h_this_mvs.h_rest;
+      auto total = h_pitch + h_dur + h_rest;
+
+      std::cout << "-->    Pitch entropy: " << h_pitch << std::endl;
+      std::cout << "--> Duration entropy: " << h_dur << std::endl;
+      std::cout << "-->     Rest entropy: " << h_rest << std::endl;
+      std::cout << "-->    Total entropy: " << total << std::endl;
+
+      inner_values.push_back(total);
+    }
+    entropy_values.push_back(inner_values);
+  }
+
+  json data_j({
+    {"inter_biases", inter_biases},
+    {"intra_biases", intra_biases},
+    {"entropy_values", entropy_values}
+  });
+
+  std::ofstream o("out/bias_sweep.json");
+  o << data_j;
+}
+
+void generate(ChoraleMVS &mvs, 
               const unsigned int len, 
               const std::string &json_fname) {
   std::cout << "Generating piece of length " << len << "... " << std::flush;
-  auto piece = mvs.generate(len);
+  auto piece = mvs.random_walk(len);
   std::cout << "done." << std::endl;
 
   std::cout << "Entropy of generated piece: " << std::endl << std::flush;
   auto pitch_entropy = mvs.avg_sequence_entropy<ChoralePitch>(piece);
   auto dur_entropy = mvs.avg_sequence_entropy<ChoraleDuration>(piece);
-  std::cout << "--> Pitch: " << pitch_entropy << std::endl;
+  auto rest_entropy = mvs.avg_sequence_entropy<ChoraleRest>(piece);
+  std::cout << "-->    Pitch: " << pitch_entropy << std::endl;
   std::cout << "--> Duration: " << dur_entropy << std::endl;
+  std::cout << "-->     Rest: " << rest_entropy << std::endl;
 
-  // TODO: include rest entropy calculations
   auto pitch_xents = mvs.cross_entropies<ChoralePitch>(piece);
-  auto dur_xents = mvs.cross_entropies<ChoraleDuration>(piece);
+  auto dur_xents   = mvs.cross_entropies<ChoraleDuration>(piece);
+  auto rest_xents  = mvs.cross_entropies<ChoraleRest>(piece);
+
   auto pitch_dents = mvs.dist_entropies<ChoralePitch>(piece);
-  auto dur_dents = mvs.dist_entropies<ChoraleDuration>(piece);
+  auto dur_dents   = mvs.dist_entropies<ChoraleDuration>(piece);
+  auto rest_dents  = mvs.dist_entropies<ChoraleRest>(piece);
+
   std::vector<double> total_xents(piece.size());
   std::vector<double> total_dents(piece.size());
   for (unsigned int i = 0; i < piece.size(); i++) {
-    total_xents[i] = pitch_xents.at(i) + dur_xents.at(i);
-    total_dents[i] = pitch_dents.at(i) + dur_dents.at(i);
+    total_xents[i] = pitch_xents.at(i) + dur_xents.at(i) + rest_xents.at(i);
+    total_dents[i] = pitch_dents.at(i) + dur_dents.at(i) + rest_dents.at(i);
   }
 
   std::map<std::string, std::vector<double>> entropy_map;
@@ -199,31 +258,58 @@ void generate(const ChoraleMVS &mvs,
 }
 
 int main(void) {
-  ChoraleMVS::BasicVP<ChoralePitch> pitch_vp(3);
-  ChoraleMVS::BasicVP<ChoraleDuration> duration_vp(3);
-  ChoraleMVS::BasicVP<ChoraleRest> rest_vp(3);
-  IntervalViewpoint interval_vp(3);
+  const unsigned int hist = 5;
+  ChoraleMVS::BasicVP<ChoralePitch> pitch_vp(hist);
+  ChoraleMVS::BasicVP<ChoraleDuration> duration_vp(hist);
 
-  ChoraleMVS svs(2.0, "{pitch,duration,rest}");
-  svs.add_viewpoint(&pitch_vp);
-  svs.add_viewpoint(&duration_vp);
-  svs.add_viewpoint(&rest_vp);
+  // pxd <==> pitch cross duration
+  ChoraleMVS::BasicLinkedVP<ChoralePitch, ChoraleDuration> 
+    pxd_predict_duration(hist);
+  ChoraleMVS::BasicLinkedVP<ChoraleDuration, ChoralePitch>
+    pxd_predict_pitch(hist);
 
-  ChoraleMVS mvs(6.0, "{pitch,interval,duration,rest}");
-  mvs.add_viewpoint(&pitch_vp);
-  mvs.add_viewpoint(&interval_vp);
-  mvs.add_viewpoint(&duration_vp);
-  mvs.add_viewpoint(&rest_vp);
+  ChoraleMVS::BasicVP<ChoraleRest> rest_vp(hist);
+  IntervalViewpoint interval_vp(hist);
+  IntrefViewpoint intref_vp(hist);
 
-  corpus_t corpus;
-  parse("corpus/chorale_dataset.json", corpus);
+  auto lt_config = MVSConfig::long_term_only(1.0);
+  ChoraleMVS lt_only(lt_config);
+
+  MVSConfig full_config;
+  full_config.lt_history = hist;
+  full_config.st_history = 3;
+  full_config.enable_short_term = true;
+  full_config.mvs_name = "full mvs for evaluation";
+  full_config.intra_layer_bias = 1.3;
+  full_config.inter_layer_bias = 1.0;
+
+  ChoraleMVS full_mvs(full_config);
+
+  for (auto mvs_ptr : {&lt_only, &full_mvs}) {
+    //mvs_ptr->add_viewpoint(&pitch_vp);
+    mvs_ptr->add_viewpoint(&pxd_predict_pitch);
+    mvs_ptr->add_viewpoint(&pxd_predict_duration);
+    mvs_ptr->add_viewpoint(&duration_vp);
+    mvs_ptr->add_viewpoint(&interval_vp);
+    mvs_ptr->add_viewpoint(&intref_vp);
+    mvs_ptr->add_viewpoint(&rest_vp);
+  }
+
+  corpus_t train_corp;
+  corpus_t test_corp;
+  parse("corpus/fixed_rests_t5.json", train_corp, test_corp);
 
   std::cout << "Training... " << std::flush;
-  train(corpus, {&svs, &mvs});
+  train(train_corp, {&lt_only, &full_mvs});
   std::cout << "done." << std::endl;
 
-  //evaluate(corpus, 2.0, 8.0, {&svs, &mvs});
-  generate(mvs, 42, "out/gend.json");
+  double max_intra = 1.0;
+  double max_inter = 1.0;
+  double step = 0.25;
+  //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
+  
+
+  generate(full_mvs, 42, "out/gend.json");
 }
 
 
