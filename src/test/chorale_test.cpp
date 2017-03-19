@@ -6,6 +6,7 @@
 struct ChoraleMocker {
   static const MidiPitch default_pitch;
   static const QuantizedDuration default_dur; 
+  static const QuantizedDuration default_rest_dur;
   static const KeySig default_key;
 
   static ChoraleEvent mock(const ChoralePitch &p) {
@@ -13,7 +14,7 @@ struct ChoraleMocker {
       default_key, 
       MidiPitch(p.raw_value()), 
       default_dur, 
-      nullptr
+      default_rest_dur
     );
   }
 
@@ -21,17 +22,17 @@ struct ChoraleMocker {
     return ChoraleEvent(
       default_key, 
       default_pitch, 
-      QuantizedDuration(d.raw_value()),
-      nullptr
+      d,
+      default_rest_dur
     );
   }
 
-  static ChoraleEvent mock(ChoraleRest::singleton_ptr_t ptr) {
+  static ChoraleEvent mock(const ChoraleRest &r) {
     return ChoraleEvent(
       default_key,
       default_pitch, 
       default_dur, 
-      ptr
+      r
     );
   }
   
@@ -53,6 +54,9 @@ ChoraleMocker::default_dur = QuantizedDuration(4);
 
 const KeySig
 ChoraleMocker::default_key = KeySig(0);
+
+const QuantizedDuration
+ChoraleMocker::default_rest_dur = QuantizedDuration(0);
 
 
 TEST_CASE("Check Chorale event encodings", "[chorale][events]") {
@@ -157,15 +161,16 @@ TEST_CASE("Check predictions/entropy calculations in MVS") {
 TEST_CASE("Check ChoraleEvent template magic") {
   std::vector<ChoraleEvent> test_events {
     ChoraleEvent(
-      ChoraleMocker::default_key, MidiPitch(60), QuantizedDuration(4), nullptr
+      ChoraleMocker::default_key, MidiPitch(60), 
+      QuantizedDuration(4), QuantizedDuration(0)
     ),
     ChoraleEvent(
       ChoraleMocker::default_key,
-      MidiPitch(62), QuantizedDuration(6), ChoraleRest(2).shared_instance()
+      MidiPitch(62), QuantizedDuration(6), ChoraleRest(2)
     ),
     ChoraleEvent(
       ChoraleMocker::default_key,
-      MidiPitch(64), QuantizedDuration(4), ChoraleRest(0).shared_instance()
+      MidiPitch(64), QuantizedDuration(4), ChoraleRest(0)
     )
   };
 
@@ -185,7 +190,11 @@ TEST_CASE("Check ChoraleEvent template magic") {
     std::back_inserter(expected_durs),
     [](unsigned int x) { return ChoraleDuration(QuantizedDuration(x)); });
 
-  std::vector<ChoraleRest> expected_rests{ ChoraleRest(2), ChoraleRest(0) };
+  std::vector<ChoraleRest> expected_rests{ 
+    ChoraleRest(0),
+    ChoraleRest(2), 
+    ChoraleRest(0) 
+  };
   
   REQUIRE( pitches == expected_pitches );
   REQUIRE( durations == expected_durs );

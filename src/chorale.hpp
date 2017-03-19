@@ -11,6 +11,13 @@
 #include <cmath>
 #include <memory>
 
+// generally thrown if you try to construct an invalid instance of some chorale
+// event type
+struct ChoraleTypeError : public std::runtime_error {
+  ChoraleTypeError(std::string msg) : 
+    std::runtime_error(msg) {}
+};
+
 /* N.B. we define these little wrapper types such as KeySig and MidiPitch to
  * overload the constructors of the Chorale event types */
 struct KeySig {
@@ -167,17 +174,13 @@ public:
 
 class ChoraleRest : public CodedEvent {
 public:
-  using singleton_ptr_t = const ChoraleRest * const;
-  constexpr static unsigned int cardinality = 3;
-  const static std::array<const ChoraleRest, cardinality> shared_instances;
+  constexpr static unsigned int cardinality = 6;
 
 private:
   constexpr static unsigned int map_in(unsigned int rest_len) {
     return rest_len / 4;
   }
-  constexpr static unsigned int map_out(unsigned int code) {
-    return code * 4;
-  }
+  constexpr static unsigned int map_out(unsigned int code) { return code * 4; }
   const static std::array<std::string, cardinality> pretty_strs;
 
 
@@ -185,19 +188,8 @@ public:
   unsigned int encode() const override { return code; }
   unsigned int raw_value() const { return map_out(code); }
 
-  singleton_ptr_t shared_instance() {
-    return &shared_instances[code];
-  }
-
   std::string string_render() const override {
    return pretty_strs[code];
-  }
-
-  constexpr static bool valid_singleton_ptr(singleton_ptr_t ptr) {
-    return (ptr == nullptr
-         || ptr == &shared_instances[0]
-         || ptr == &shared_instances[1]
-         || ptr == &shared_instances[2]);
   }
 
   ChoraleRest(unsigned int c);
@@ -212,7 +204,7 @@ struct ChoraleEvent {
   ChoraleKeySig keysig;
   ChoralePitch pitch;
   ChoraleDuration duration;
-  ChoraleRest::singleton_ptr_t rest;
+  ChoraleRest rest;
 
   template<typename T>
   T project() const;
@@ -228,30 +220,15 @@ struct ChoraleEvent {
   ChoraleEvent(const KeySig &ks,
                const MidiPitch &mp, 
                const QuantizedDuration &dur, 
-               ChoraleRest::singleton_ptr_t rest_ptr) :
-    keysig(ks), pitch(mp), duration(dur), rest(rest_ptr) {
-    assert(ChoraleRest::valid_singleton_ptr(rest_ptr));
-  }
+               const QuantizedDuration &rest_dur) :
+    keysig(ks), pitch(mp), duration(dur), rest(rest_dur) {} 
 
   ChoraleEvent(const ChoraleKeySig &ks,
                const ChoralePitch &cp,
                const ChoraleDuration &cd,
-               ChoraleRest::singleton_ptr_t rest_ptr) :
-    keysig(ks), pitch(cp), duration(cd), rest(rest_ptr) {
-    assert(ChoraleRest::valid_singleton_ptr(rest_ptr));
-  }
+               const ChoraleRest &r) :
+    keysig(ks), pitch(cp), duration(cd), rest(r) {}
 };
-
-template<>
-std::vector<ChoraleRest>
-inline ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
-  std::vector<ChoraleRest> result;
-  for (const auto &e : es)
-    if (e.rest)
-      result.push_back(*e.rest);
-
-  return result;
-}
 
 template<typename T>
 std::vector<T>

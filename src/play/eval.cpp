@@ -31,7 +31,8 @@ void parse_subcorpus(
     KeySig ks(num_sharps);
 
     chorale_events.push_back(ChoraleEvent(
-      ks, MidiPitch(first_pitch), QuantizedDuration(prev_duration), nullptr
+      ks, MidiPitch(first_pitch), 
+      QuantizedDuration(prev_duration), QuantizedDuration(prev_offset)
     ));
 
     for (unsigned int j = 1; j < notes_j.size(); j++) {
@@ -43,11 +44,11 @@ void parse_subcorpus(
 
       assert(offset >= prev_offset + prev_duration);
       auto rest_amt = offset - prev_offset - prev_duration;
-      ChoraleRest rest{QuantizedDuration(rest_amt)};
+      QuantizedDuration rest_dur{rest_amt};
 
       chorale_events.push_back(ChoraleEvent(
         ks,
-        MidiPitch(pitch), QuantizedDuration(duration), rest.shared_instance()
+        MidiPitch(pitch), QuantizedDuration(duration), rest_amt
       ));
 
       prev_offset = offset;
@@ -94,11 +95,9 @@ void render(const std::vector<ChoraleEvent> &piece,
   for (const auto &event : piece) {
     unsigned int pitch = event.pitch.raw_value();
     unsigned int duration = event.duration.raw_value();
+    unsigned int rest_amt = event.rest.raw_value();
 
-    if (event.rest)
-      offset += event.rest->raw_value();
-
-    notes_j.push_back({ pitch, offset, duration });
+    notes_j.push_back({ pitch, offset + rest_amt, duration });
     offset += duration;
   }
 
@@ -118,8 +117,17 @@ void render(const std::vector<ChoraleEvent> &piece,
   o << std::setw(2) << result_j << std::endl;
 }
 
+struct EntropyMeasurement {
+  double h_pitch;
+  double h_duration;
+  double h_rest;
+
+  EntropyMeasurement() :
+    h_pitch(0.0), h_duration(0.0), h_rest(0.0) {}
+};
+
 // returns < pitch_entropies, duration_entropies >
-std::pair<std::vector<double>, std::vector<double>>
+std::vector<EntropyMeasurement>
 evaluate(const corpus_t &corpus, double intra_bias, double inter_bias,
     std::initializer_list<ChoraleMVS *> mvss) {
 
@@ -128,12 +136,7 @@ evaluate(const corpus_t &corpus, double intra_bias, double inter_bias,
     mvs_ptr->entropy_bias = inter_bias;
   }
 
-  std::vector<double> pitch_entropies(mvss.size());
-  std::vector<double> dur_entropies(mvss.size());
-  for (auto &h : pitch_entropies)
-    h = 0.0;
-  for (auto &h : dur_entropies)
-    h = 0.0;
+  std::vector<EntropyMeasurement> result(mvss.size());
 
   unsigned int i = 1;
 
@@ -143,20 +146,22 @@ evaluate(const corpus_t &corpus, double intra_bias, double inter_bias,
 
     unsigned int j = 0;
     for (auto mvs_ptr : mvss) {
-      pitch_entropies[j] += mvs_ptr->avg_sequence_entropy<ChoralePitch>(c);
-      dur_entropies[j]   += mvs_ptr->avg_sequence_entropy<ChoraleDuration>(c);
+      result[j].h_pitch    += mvs_ptr->avg_sequence_entropy<ChoralePitch>(c);
+      result[j].h_duration += mvs_ptr->avg_sequence_entropy<ChoraleDuration>(c);
+      result[j].h_rest     += mvs_ptr->avg_sequence_entropy<ChoraleRest>(c);
+      j++;
     }
   }
 
   std::cout << std::endl;
 
-  for (auto &h : pitch_entropies)
-    h /= corpus.size();
-  for (auto &h : dur_entropies)
-    h /= corpus.size();
+  for (auto &point : result) {
+    point.h_pitch /= corpus.size();
+    point.h_duration /= corpus.size();
+    point.h_rest /= corpus.size();
+  }
 
-  return std::pair<std::vector<double>, std::vector<double>>(
-      pitch_entropies, dur_entropies);
+  return result;
 }
 
 void bias_grid_sweep(const corpus_t &corpus, ChoraleMVS &mvs, double max_intra,
@@ -188,13 +193,16 @@ void bias_grid_sweep(const corpus_t &corpus, ChoraleMVS &mvs, double max_intra,
         << " - step " << (curr_step++) << "/" << total_steps
         << std::endl;
 
-      auto measurements = evaluate(corpus, intra, inter, {&mvs});
-      auto pitch_ents = measurements.first; // vector for each mvs
-      auto dur_ents = measurements.second;
-      auto total = pitch_ents[0] + dur_ents[0];
+      auto all_measurements = evaluate(corpus, intra, inter, {&mvs});
+      auto h_this_mvs = all_measurements.at(0);
+      auto h_pitch = h_this_mvs.h_pitch;
+      auto h_dur   = h_this_mvs.h_duration;
+      auto h_rest  = h_this_mvs.h_rest;
+      auto total = h_pitch + h_dur + h_rest;
 
-      std::cout << "-->    Pitch entropy: " << pitch_ents[0] << std::endl;
-      std::cout << "--> Duration entropy: " << dur_ents[0] << std::endl;
+      std::cout << "-->    Pitch entropy: " << h_pitch << std::endl;
+      std::cout << "--> Duration entropy: " << h_dur << std::endl;
+      std::cout << "-->     Rest entropy: " << h_rest << std::endl;
       std::cout << "-->    Total entropy: " << total << std::endl;
 
       inner_values.push_back(total);
@@ -222,19 +230,24 @@ void generate(ChoraleMVS &mvs,
   std::cout << "Entropy of generated piece: " << std::endl << std::flush;
   auto pitch_entropy = mvs.avg_sequence_entropy<ChoralePitch>(piece);
   auto dur_entropy = mvs.avg_sequence_entropy<ChoraleDuration>(piece);
-  std::cout << "--> Pitch: " << pitch_entropy << std::endl;
+  auto rest_entropy = mvs.avg_sequence_entropy<ChoraleRest>(piece);
+  std::cout << "-->    Pitch: " << pitch_entropy << std::endl;
   std::cout << "--> Duration: " << dur_entropy << std::endl;
+  std::cout << "-->     Rest: " << rest_entropy << std::endl;
 
-  // TODO: include rest entropy calculations
   auto pitch_xents = mvs.cross_entropies<ChoralePitch>(piece);
-  auto dur_xents = mvs.cross_entropies<ChoraleDuration>(piece);
+  auto dur_xents   = mvs.cross_entropies<ChoraleDuration>(piece);
+  auto rest_xents  = mvs.cross_entropies<ChoraleRest>(piece);
+
   auto pitch_dents = mvs.dist_entropies<ChoralePitch>(piece);
-  auto dur_dents = mvs.dist_entropies<ChoraleDuration>(piece);
+  auto dur_dents   = mvs.dist_entropies<ChoraleDuration>(piece);
+  auto rest_dents  = mvs.dist_entropies<ChoraleRest>(piece);
+
   std::vector<double> total_xents(piece.size());
   std::vector<double> total_dents(piece.size());
   for (unsigned int i = 0; i < piece.size(); i++) {
-    total_xents[i] = pitch_xents.at(i) + dur_xents.at(i);
-    total_dents[i] = pitch_dents.at(i) + dur_dents.at(i);
+    total_xents[i] = pitch_xents.at(i) + dur_xents.at(i) + rest_xents.at(i);
+    total_dents[i] = pitch_dents.at(i) + dur_dents.at(i) + rest_dents.at(i);
   }
 
   std::map<std::string, std::vector<double>> entropy_map;
@@ -284,7 +297,7 @@ int main(void) {
 
   corpus_t train_corp;
   corpus_t test_corp;
-  parse("corpus/chorales_t3.json", train_corp, test_corp);
+  parse("corpus/fixed_rests_t5.json", train_corp, test_corp);
 
   std::cout << "Training... " << std::flush;
   train(train_corp, {&lt_only, &full_mvs});
@@ -293,10 +306,10 @@ int main(void) {
   double max_intra = 1.0;
   double max_inter = 1.0;
   double step = 0.25;
-  bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
+  //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
   
 
-  //generate(full_mvs, 42, "out/gend.json");
+  generate(full_mvs, 42, "out/gend.json");
 }
 
 

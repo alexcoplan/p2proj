@@ -140,22 +140,27 @@ ChoraleTimeSig::ChoraleTimeSig(const QuantizedDuration &qd) :
  * ChoraleRest implementation
  ***************************************************/
 
-const std::array<const ChoraleRest, ChoraleRest::cardinality> 
-ChoraleRest::shared_instances = 
-  {{ ChoraleRest(0), ChoraleRest(1), ChoraleRest(2) }};
-
 const std::array<std::string, ChoraleRest::cardinality>
 ChoraleRest::pretty_strs = {
-  {"$\\rightarrow$ ", "\\crotchetRest{} ", "\\halfNoteRest{} "}
+  {"$\\rightarrow$ ", "\\crotchetRest{} ", "\\halfNoteRest{} ", 
+    "\\halfNoteRest{}.", "\\wholeNoteRest{}" }
 };
 
 ChoraleRest::ChoraleRest(unsigned int c) : CodedEvent(c) {
-  assert(c < cardinality);
+  if (c >= cardinality) {
+    std::string msg = "Bad direct initialisation of ChoraleRest (code = ";
+    msg += std::to_string(c) + ")";
+    throw ChoraleTypeError(msg);
+  }
 }
 
 ChoraleRest::ChoraleRest(const QuantizedDuration &qd) :
   CodedEvent(map_in(qd.duration)) {
-  assert(code < cardinality);
+  if (code >= cardinality) {
+    std::string msg = "Bad initialisation of ChoraleRest (duration = ";
+    msg += std::to_string(qd.duration) + ")";
+    throw ChoraleTypeError(msg);
+  }
 }
 
 /***************************************************
@@ -170,6 +175,9 @@ ChoralePitch ChoraleEvent::project() const { return pitch; }
 
 template<>
 ChoraleDuration ChoraleEvent::project() const { return duration; }
+
+template<>
+ChoraleRest ChoraleEvent::project() const { return rest; }
 
 /********************************************************************
  * Derived types below, starting with ChoraleInterval implementation
@@ -370,18 +378,19 @@ std::vector<ChoraleEvent> ChoraleMVS::random_walk(unsigned int len) {
   std::vector<ChoraleEvent> buffer;
 
   auto keysig = key_distribution.predict({}).sample();
-  auto first_pitch = predict<ChoralePitch>(buffer).sample();
-  auto first_dur   = predict<ChoraleDuration>(buffer).sample();
+  auto first_pitch = predict<ChoralePitch>({}).sample();
+  auto first_dur   = predict<ChoraleDuration>({}).sample();
+  auto first_rest  = predict<ChoraleRest>({}).sample();
 
-  ChoraleEvent first_event(keysig, first_pitch, first_dur, nullptr);
+  ChoraleEvent first_event(keysig, first_pitch, first_dur, first_rest);
   buffer.push_back(first_event);
   short_term_layer.learn_from_tail(buffer);
 
   for (unsigned int i = 0; i < len - 1; i++) {
     auto pitch = predict<ChoralePitch>(buffer).sample();
     auto dur   = predict<ChoraleDuration>(buffer).sample();
-    auto rest_ptr = predict<ChoraleRest>(buffer).sample().shared_instance();
-    ChoraleEvent event(keysig, pitch, dur, rest_ptr);
+    auto rest  = predict<ChoraleRest>(buffer).sample();
+    ChoraleEvent event(keysig, pitch, dur, rest);
     buffer.push_back(event);
     short_term_layer.learn_from_tail(buffer);
   }

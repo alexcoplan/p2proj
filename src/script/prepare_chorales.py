@@ -56,7 +56,7 @@ if args.rnn:
 individual_chorale_rs_nums = [
   177,186,39,48,153,128,159,180,208,5,124,304,1,10,230,245,210,197,56,200,196,
   228,311, 224,75,239,154,353,158,207,231,232,127,209,42,167,361,309,280,34,72,
-  17,176,
+  17,176
 ]
 
 validation_nums = individual_chorale_rs_nums[0:args.validation_chorales]
@@ -91,7 +91,7 @@ def m21_to_internal(m21_notes, referent, anac_ql):
   prev_pitch = None
   prev_end_q = None # end = offset + duration
 
-  counters["rest"].update([ql_quantize(anac_ql)])
+  counters["rest"].update([ql_quantize(anac_ql + m21_notes[0].offset)])
 
   for n in m21_notes:
     counters["intref"].update([(n.pitch.midi - referent) % 12])
@@ -145,7 +145,7 @@ for i in bcl.byRiemenschneider:
   title = info["title"]
 
   print("Processing %d of %d (BWV %s)" % (i, num_chorales, info["bwv"]))
-  c = music21.corpus.parse('bach/bwv' + str(info["bwv"]))
+  c = music21.corpus.parse('bach/bwv' + str(info["bwv"]), fileExtensions='xml')
   cStrip = c.stripTies(retainContainers=True)
 
   if len(c.parts) != 4:
@@ -164,6 +164,10 @@ for i in bcl.byRiemenschneider:
   first_bar_ql = c.measures(1,1).duration.quarterLength
 
   anac_ql = first_bar_ql - anac_bar_ql # size of anacrusis
+  if anac_ql < 0:
+    print("Anacrusis must be +ve (BWV {})".format(info["bwv"]))
+    assert False, "quitting."
+
   time_sig_q = ql_quantize(first_bar_ql) # use first bar to determine time signature
   counters["timesig"].update([time_sig_q])
 
