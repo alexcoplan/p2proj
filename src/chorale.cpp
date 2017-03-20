@@ -163,21 +163,87 @@ ChoraleRest::ChoraleRest(const QuantizedDuration &qd) :
   }
 }
 
-/***************************************************
- * ChoraleEvent implementation
- ***************************************************/
+/*************************************************************
+ * ChoraleEvent implementation: reification for derived types
+ *************************************************************/
 
-template<>
-ChoraleKeySig ChoraleEvent::project() const { return keysig; }
+EventDistribution<ChoralePitch>
+ChoraleEvent::reify(
+  const std::vector<ChoraleEvent> &ctx,
+  const EventDistribution<ChoraleIntref> &intref_dist
+) {
+  if (ctx.empty()) {
+    const std::string msg = "Need context to predict with intref viewpoint";
+    throw ViewpointPredictionException(msg);
+  }
 
-template<>
-ChoralePitch ChoraleEvent::project() const { return pitch; }
+  auto ks = ctx.front().project<ChoraleKeySig>();
+  auto referent = ks.referent();
 
-template<>
-ChoraleDuration ChoraleEvent::project() const { return duration; }
+  std::array<double, ChoralePitch::cardinality> new_values{{0.0}};
+  double total_probability = 0.0;
 
-template<>
-ChoraleRest ChoraleEvent::project() const { return rest; }
+  std::array<MidiPitch, 3> base_pitches{{ 48,60,72 }};
+
+  for (auto intref : EventEnumerator<ChoraleIntref>()) {
+    for (auto base : base_pitches) {
+      MidiPitch transposed(base.pitch + referent.pitch + intref.encode());
+
+      if (!ChoralePitch::is_valid_pitch(transposed))
+        continue;
+
+      ChoralePitch candidate_pitch(transposed);
+
+      auto prob = intref_dist.probability_for(intref);
+      new_values[candidate_pitch.encode()] += prob;
+      total_probability += prob;
+    }
+  }
+
+  // normalise
+  for (auto &v : new_values)
+    v /= total_probability;
+
+  return new_values;
+}
+
+EventDistribution<ChoralePitch>
+ChoraleEvent::reify(
+  const std::vector<ChoraleEvent> &ctx, 
+  const EventDistribution<ChoraleInterval> &seqint_dist
+) {
+  if (ctx.empty()) {
+    const std::string msg = 
+      "Seqint needs at least one pitch to predict further pitches";
+    throw ViewpointPredictionException(msg);
+  }
+
+  auto last_pitch = ctx.back().project<ChoralePitch>();
+  std::array<double, ChoralePitch::cardinality> new_values{{0.0}};
+
+  double total_probability = 0.0;
+  unsigned int valid_predictions = 0;
+
+  for (auto interval : EventEnumerator<ChoraleInterval>()) { 
+    auto midi_interval = interval.midi_interval();
+    if (!last_pitch.is_valid_transposition(midi_interval))
+      continue;
+
+    auto candidate_pitch = last_pitch + midi_interval;
+    auto prob = seqint_dist.probability_for(interval);
+    new_values[candidate_pitch.encode()] = prob;
+    total_probability += prob;
+    valid_predictions++;
+  }
+
+  if (valid_predictions == ChoraleInterval::cardinality)
+    return new_values;
+
+  for (auto &v : new_values)
+    v /= total_probability;
+
+  return new_values;
+}
 
 /********************************************************************
  * Derived types below, starting with ChoraleInterval implementation
@@ -262,12 +328,12 @@ IntervalViewpoint::predict(const std::vector<ChoraleEvent> &ctx) const {
   }
 
   if (valid_predictions == ChoraleInterval::cardinality)
-    return EventDistribution<ChoralePitch>(new_values);
+    return new_values;
 
   for (auto &v : new_values)
     v /= total_probability;
 
-  return EventDistribution<ChoralePitch>(new_values);
+  return new_values;
 }
 
 std::vector<ChoraleIntref>

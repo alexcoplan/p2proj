@@ -30,6 +30,70 @@ public:
   virtual Predictor *clone() const = 0;
 };
 
+/* GeneralViewpoint
+ *
+ * This class should subsume all other viewpoint-related classes. It should work
+ * for both derived and basic types. The idea is as follows:
+ * 
+ * In order to implement a viewpoint, there are two main bits of functionality
+ * needed. We need to know how to *lift* a sequence of events of type
+ * T_viewpoint form a stream of events of type EventStructure, i.e.
+ *  - lift : vec<EventStrcutrue> --> vec<T_viewpoint>
+ *
+ * We can then model sequences of type vec<T_viewpoint> using a sequence model.
+ * Also, we need to be able to predict a distribution over T_surface given a
+ * context (a sequence of EventStructure events) and a distribution over
+ * T_viewpoint. We call this process "reifying" a distribution over the hidden
+ * (viewpoint type). In the MVS formalism this is (roughly) the inverse of the
+ * phi function. In other words:
+ *  - reify : vec<EventStructure> x dist<T_viewpoint> --> dist<T_surface>
+ *
+ * With GeneralViewpoints, both `lift` and `reify` are implemented as part of
+ * the EventStructure itself, allowing us to create viewpoints on arbitrary
+ * combinations of basic or derived types.
+ */
+template<class EventStructure, class T_viewpoint, class T_surface>
+class GeneralViewpoint : public Predictor<EventStructure, T_surface> {
+protected:
+  using PredBase = Predictor<EventStructure, T_surface>;
+  SequenceModel<T_viewpoint> model;
+
+public:
+  void reset() override { model.clear_model(); }
+  void set_history(unsigned int h) override { model.set_history(h); }
+  unsigned int get_history() const override { return model.get_history(); }
+  void write_latex(std::string filename) const { model.write_latex(filename); }
+
+  void learn(const std::vector<EventStructure> &events) override {
+    model.learn_sequence(EventStructure::template lift<T_viewpoint>(events));
+  }
+
+  void learn_from_tail(const std::vector<EventStructure> &events) override {
+    auto lifted = EventStructure::template lift<T_viewpoint>(events);
+    if (lifted.size() > 0)
+      model.update_from_tail(lifted);
+  }
+
+  EventDistribution<T_surface> 
+  predict(const std::vector<EventStructure> &ctx) const override {
+    auto lifted = EventStructure::template lift<T_viewpoint>(ctx);
+    auto hidden_dist = model.gen_successor_dist(lifted);
+    return EventStructure::reify(ctx, hidden_dist);
+  }
+
+  bool can_predict(const std::vector<EventStructure> &) const override {
+    // TODO: once all VPs have been replaced with GeneralViewpoints, this method
+    // can go and we will switch to an exception-based approach to this
+    // 
+    // this is just so that we are compatible with the existing Predictor<>
+    // interface for now
+    return true; 
+  }
+
+  PredBase *clone() const override { return new GeneralViewpoint(*this); }
+  GeneralViewpoint(unsigned int hist) : model(hist) {}
+};
+
 /* T_viewpoint is the type internal to the viewpoint (such as interval).
  * T_surface is the basic musical type that T_viewpoint is derived from and thus
  * that this viewpoint is capable of predicting. */

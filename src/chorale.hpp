@@ -196,60 +196,6 @@ public:
   ChoraleRest(const QuantizedDuration &qd);
 };
 
-
-/* This type defines the event space we use to model chorales. ChoraleEvents
- * have as members all the different types that make up a chorale event (pitch,
- * duration, offset, etc.) */
-struct ChoraleEvent {
-  ChoraleKeySig keysig;
-  ChoralePitch pitch;
-  ChoraleDuration duration;
-  ChoraleRest rest;
-
-  template<typename T>
-  T project() const;
-
-  template<typename T>
-  static std::vector<T>
-  lift(const std::vector<ChoraleEvent> &es);
-
-  template<typename P, typename Q>
-  static std::vector<EventPair<P,Q>>
-  lift(const std::vector<ChoraleEvent> &es);
-
-  ChoraleEvent(const KeySig &ks,
-               const MidiPitch &mp, 
-               const QuantizedDuration &dur, 
-               const QuantizedDuration &rest_dur) :
-    keysig(ks), pitch(mp), duration(dur), rest(rest_dur) {} 
-
-  ChoraleEvent(const ChoraleKeySig &ks,
-               const ChoralePitch &cp,
-               const ChoraleDuration &cd,
-               const ChoraleRest &r) :
-    keysig(ks), pitch(cp), duration(cd), rest(r) {}
-};
-
-template<typename T>
-std::vector<T>
-ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
-  std::vector<T> result;
-  std::transform(es.begin(), es.end(), std::back_inserter(result),
-      [](const ChoraleEvent &e) { return e.project<T>(); });
-  return result;
-}
-
-template<typename P, typename Q>
-std::vector<EventPair<P,Q>>
-ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
-  std::vector<EventPair<P,Q>> result;
-  std::transform(es.begin(), es.end(), std::back_inserter(result),
-      [](const ChoraleEvent &e) {
-        return EventPair<P,Q>(e.project<P>(), e.project<Q>());
-      });
-  return result;
-}
-
 /**********************************************************
  * Derived types for the chorales
  **********************************************************/
@@ -300,6 +246,127 @@ public:
 
   ChoraleIntref(unsigned int code);
 };
+
+/* This type defines the event space we use to model chorales. ChoraleEvents
+ * have as members all the different types that make up a chorale event (pitch,
+ * duration, offset, etc.) */
+struct ChoraleEvent {
+  ChoraleKeySig keysig;
+  ChoralePitch pitch;
+  ChoraleDuration duration;
+  ChoraleRest rest;
+
+  template<typename T>
+  T project() const;
+
+  template<typename T>
+  static std::vector<T>
+  lift(const std::vector<ChoraleEvent> &es);
+
+  template<typename P, typename Q>
+  static std::vector<EventPair<P,Q>>
+  lift(const std::vector<ChoraleEvent> &es);
+
+  // distribution reification for basic types is the identity with an extra arg
+  template<typename T>
+  static EventDistribution<T>
+  reify(const std::vector<ChoraleEvent> &, const EventDistribution<T> &dist) {
+    return dist;
+  }
+
+  static EventDistribution<ChoralePitch>
+  reify(const std::vector<ChoraleEvent> &ctx, 
+        const EventDistribution<ChoraleIntref> &intref_dist);
+
+  static EventDistribution<ChoralePitch>
+  reify(const std::vector<ChoraleEvent> &ctx,
+        const EventDistribution<ChoraleInterval> &seqint_dist);
+
+  ChoraleEvent(const KeySig &ks,
+               const MidiPitch &mp, 
+               const QuantizedDuration &dur, 
+               const QuantizedDuration &rest_dur) :
+    keysig(ks), pitch(mp), duration(dur), rest(rest_dur) {} 
+
+  ChoraleEvent(const ChoraleKeySig &ks,
+               const ChoralePitch &cp,
+               const ChoraleDuration &cd,
+               const ChoraleRest &r) :
+    keysig(ks), pitch(cp), duration(cd), rest(r) {}
+};
+
+template<>
+inline
+ChoraleKeySig ChoraleEvent::project() const { return keysig; }
+
+template<>
+inline
+ChoralePitch ChoraleEvent::project() const { return pitch; }
+
+template<>
+inline
+ChoraleDuration ChoraleEvent::project() const { return duration; }
+
+template<>
+inline
+ChoraleRest ChoraleEvent::project() const { return rest; }
+
+template<>
+inline
+std::vector<ChoraleIntref>
+ChoraleEvent::lift(const std::vector<ChoraleEvent> &events) {
+  if (events.empty())
+    return {};
+
+  auto referent = events.front().project<ChoraleKeySig>().referent();
+  std::vector<ChoraleIntref> result;
+  for (const auto &e : events) {
+    auto pitch = e.project<ChoralePitch>();
+    unsigned int intref = (pitch.raw_value() - referent.pitch) % 12;
+    result.push_back(intref);
+  }
+
+  return result;
+}
+
+template<>
+inline
+std::vector<ChoraleInterval>
+ChoraleEvent::lift(const std::vector<ChoraleEvent> &events) {
+  auto pitches = ChoraleEvent::template lift<ChoralePitch>(events);
+
+  if (pitches.size() <= 1)
+    return {};
+
+  std::vector<ChoraleInterval> result;
+  for (unsigned int i = 1; i < pitches.size(); i++) {
+    auto from = pitches[i-1];
+    auto to = pitches[i];
+    result.push_back(to - from);
+  }
+
+  return result;
+}
+
+template<typename T>
+std::vector<T>
+ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
+  std::vector<T> result;
+  std::transform(es.begin(), es.end(), std::back_inserter(result),
+      [](const ChoraleEvent &e) { return e.project<T>(); });
+  return result;
+}
+
+template<typename P, typename Q>
+std::vector<EventPair<P,Q>>
+ChoraleEvent::lift(const std::vector<ChoraleEvent> &es) {
+  std::vector<EventPair<P,Q>> result;
+  std::transform(es.begin(), es.end(), std::back_inserter(result),
+      [](const ChoraleEvent &e) {
+        return EventPair<P,Q>(e.project<P>(), e.project<Q>());
+      });
+  return result;
+}
 
 /**********************************************************
  * Chorale Viewpoints

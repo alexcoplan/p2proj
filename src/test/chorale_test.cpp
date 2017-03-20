@@ -210,4 +210,86 @@ TEST_CASE("Check ChoraleEvent template magic") {
   REQUIRE( pairs == expected_pairs );
 }
 
+TEST_CASE("Check GeneralViewpoint works in place of BasicViewpoint") {
+  const unsigned int hist = 3;
+
+  BasicViewpoint<ChoraleEvent, ChoralePitch> basic_vp(hist);
+  GeneralViewpoint<ChoraleEvent, ChoralePitch, ChoralePitch> gen_vp(hist);
+
+  std::vector<MidiPitch> pitch_values {
+    60, 61, 60, 62, 63, 62, 61, 60, 70, 65, 67, 69, 60
+  };
+
+  std::vector<ChoralePitch> pitches;
+  std::transform(pitch_values.begin(), pitch_values.end(), 
+      std::back_inserter(pitches),
+      [](const MidiPitch &mp) { return mp; });
+
+  auto mocked = ChoraleMocker::mock_sequence(pitches);
+
+  basic_vp.learn(mocked);
+  gen_vp.learn(mocked);
+
+  std::vector<ChoralePitch> eg_1{ MidiPitch(60), MidiPitch(61), MidiPitch(62) };
+  std::vector<ChoralePitch> eg_2{ MidiPitch(70), MidiPitch(69), MidiPitch(68) };
+  std::vector<ChoralePitch> eg_3{ MidiPitch(65), MidiPitch(67), MidiPitch(62) };
+
+  for (auto eg : {eg_1, eg_2, eg_3}) { 
+    auto eg_mocked = ChoraleMocker::mock_sequence(pitches);
+    auto basic_dist = basic_vp.predict(eg_mocked);
+    auto gen_dist = gen_vp.predict(eg_mocked);
+    for (auto e : EventEnumerator<ChoralePitch>()) 
+      REQUIRE( basic_dist.probability_for(e) == gen_dist.probability_for(e) );
+  }
+}
+
+TEST_CASE("Check GeneralViewpoint works in place of seqint & intref VPs") {
+  const unsigned int hist = 3;
+
+  GeneralViewpoint<ChoraleEvent, ChoraleInterval, ChoralePitch> gen_ival(hist);
+  IntervalViewpoint old_ival(hist);
+  
+  GeneralViewpoint<ChoraleEvent, ChoraleIntref, ChoralePitch> gen_intref(hist);
+  IntrefViewpoint old_intref(hist);
+
+  std::vector<MidiPitch> pitch_values {
+    60, 61, 60, 62, 63, 62, 61, 60, 70, 65, 67, 69, 60
+  };
+
+  std::vector<ChoralePitch> pitches;
+  std::transform(pitch_values.begin(), pitch_values.end(), 
+      std::back_inserter(pitches),
+      [](const MidiPitch &mp) { return mp; });
+
+  auto mocked = ChoraleMocker::mock_sequence(pitches);
+
+  gen_ival.learn(mocked);
+  old_ival.learn(mocked);
+  gen_intref.learn(mocked);
+  old_intref.learn(mocked);
+
+  std::vector<ChoralePitch> eg_1{ MidiPitch(60), MidiPitch(61), MidiPitch(62) };
+  std::vector<ChoralePitch> eg_2{ MidiPitch(70), MidiPitch(69), MidiPitch(68) };
+  std::vector<ChoralePitch> eg_3{ MidiPitch(65), MidiPitch(67), MidiPitch(62) };
+
+  for (auto eg : {eg_1, eg_2, eg_3}) { 
+    auto eg_mocked = ChoraleMocker::mock_sequence(pitches);
+    auto gen_ival_dist = gen_ival.predict(eg_mocked);
+    auto old_ival_dist = old_ival.predict(eg_mocked);
+    auto gen_intref_dist = gen_intref.predict(eg_mocked);
+    auto old_intref_dist = old_intref.predict(eg_mocked);
+
+    for (auto e : EventEnumerator<ChoralePitch>()) {
+      REQUIRE( 
+        gen_ival_dist.probability_for(e) == old_ival_dist.probability_for(e) 
+      );
+      REQUIRE(
+        gen_intref_dist.probability_for(e) == old_intref_dist.probability_for(e)
+      );
+    }
+  }
+}
+
+
+
 
