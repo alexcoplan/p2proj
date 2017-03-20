@@ -384,7 +384,7 @@ public:
   IntervalViewpoint(unsigned int h) : ParentVP(h) {}
 
   bool can_predict(const std::vector<ChoraleEvent> &ctx) const override {
-    return ctx.size() > 1;
+    return !ctx.empty();
   }
 
   IntervalViewpoint *clone() const override { 
@@ -522,10 +522,16 @@ ChoraleVPLayer::predict(const std::vector<ChoraleEvent> &ctx) const {
 
   for (; it != vps.end(); ++it) {
     if ((*it)->can_predict(ctx)) {
-      auto new_prediction = (*it)->predict(ctx);
-      predictions.push_back(new_prediction);
+      try {
+        auto new_prediction = (*it)->predict(ctx);
+        predictions.push_back(new_prediction);
+      }
+      catch (ViewpointPredictionException e) { }
     }
   }
+
+  if (predictions.size() == 0) 
+    throw ViewpointPredictionException("No viewpoints available");
 
   EventDistribution<T> combined(comb_strategy, predictions);
   return combined;
@@ -582,6 +588,14 @@ public:
   template<class T>
   using BasicVP =
     BasicViewpoint<ChoraleEvent, T>;
+
+  template<class T>
+  using GenBasicVP =
+    GeneralViewpoint<ChoraleEvent, T, T>;
+
+  template<class T_hidden, class T_surface>
+  using GenDerivedVP =
+    GeneralViewpoint<ChoraleEvent, T_hidden, T_surface>;
 
   template<class T1, class T2>
   using BasicLinkedVP =

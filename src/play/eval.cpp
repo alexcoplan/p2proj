@@ -259,8 +259,8 @@ void generate(ChoraleMVS &mvs,
 
 int main(void) {
   const unsigned int hist = 5;
-  ChoraleMVS::BasicVP<ChoralePitch> pitch_vp(hist);
-  ChoraleMVS::BasicVP<ChoraleDuration> duration_vp(hist);
+  ChoraleMVS::GenBasicVP<ChoralePitch> pitch_vp(hist);
+  ChoraleMVS::GenBasicVP<ChoraleDuration> duration_vp(hist);
 
   // pxd <==> pitch cross duration
   ChoraleMVS::BasicLinkedVP<ChoralePitch, ChoraleDuration> 
@@ -268,9 +268,9 @@ int main(void) {
   ChoraleMVS::BasicLinkedVP<ChoraleDuration, ChoralePitch>
     pxd_predict_pitch(hist);
 
-  ChoraleMVS::BasicVP<ChoraleRest> rest_vp(hist);
-  IntervalViewpoint interval_vp(hist);
-  IntrefViewpoint intref_vp(hist);
+  ChoraleMVS::GenBasicVP<ChoraleRest> rest_vp(hist);
+  ChoraleMVS::GenDerivedVP<ChoraleInterval, ChoralePitch> interval_vp(hist);
+  ChoraleMVS::GenDerivedVP<ChoraleIntref, ChoralePitch> intref_vp(hist);
 
   auto lt_config = MVSConfig::long_term_only(1.0);
   ChoraleMVS lt_only(lt_config);
@@ -286,7 +286,7 @@ int main(void) {
   ChoraleMVS full_mvs(full_config);
 
   for (auto mvs_ptr : {&lt_only, &full_mvs}) {
-    //mvs_ptr->add_viewpoint(&pitch_vp);
+    mvs_ptr->add_viewpoint(&pitch_vp);
     mvs_ptr->add_viewpoint(&pxd_predict_pitch);
     mvs_ptr->add_viewpoint(&pxd_predict_duration);
     mvs_ptr->add_viewpoint(&duration_vp);
@@ -303,13 +303,12 @@ int main(void) {
   train(train_corp, {&lt_only, &full_mvs});
   std::cout << "done." << std::endl;
 
-  double max_intra = 1.0;
-  double max_inter = 1.0;
+  double max_intra = 0.0;
+  double max_inter = 0.0;
   double step = 0.25;
-  //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
+  bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
   
-
-  generate(full_mvs, 42, "out/gend.json");
+  //generate(full_mvs, 42, "out/gend.json");
 }
 
 

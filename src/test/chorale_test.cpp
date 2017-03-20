@@ -271,8 +271,13 @@ TEST_CASE("Check GeneralViewpoint works in place of seqint & intref VPs") {
   std::vector<ChoralePitch> eg_1{ MidiPitch(60), MidiPitch(61), MidiPitch(62) };
   std::vector<ChoralePitch> eg_2{ MidiPitch(70), MidiPitch(69), MidiPitch(68) };
   std::vector<ChoralePitch> eg_3{ MidiPitch(65), MidiPitch(67), MidiPitch(62) };
+  std::vector<ChoralePitch> eg_4{ MidiPitch(70) };
+  std::vector<ChoralePitch> eg_5{ MidiPitch(65), MidiPitch(67) };
+  std::vector<ChoralePitch> eg_6{ 
+    MidiPitch(60), MidiPitch(62), MidiPitch(61), MidiPitch(65)
+  };
 
-  for (auto eg : {eg_1, eg_2, eg_3}) { 
+  for (auto eg : {eg_1, eg_2, eg_3, eg_4, eg_5, eg_6}) { 
     auto eg_mocked = ChoraleMocker::mock_sequence(pitches);
     auto gen_ival_dist = gen_ival.predict(eg_mocked);
     auto old_ival_dist = old_ival.predict(eg_mocked);
