@@ -32,7 +32,8 @@ void parse_subcorpus(
 
     chorale_events.push_back(ChoraleEvent(
       ks, MidiPitch(first_pitch), 
-      QuantizedDuration(prev_duration), QuantizedDuration(prev_offset)
+      QuantizedDuration(prev_duration), 
+      QuantizedDuration(prev_offset)
     ));
 
     for (unsigned int j = 1; j < notes_j.size(); j++) {
@@ -98,7 +99,7 @@ void render(const std::vector<ChoraleEvent> &piece,
     unsigned int rest_amt = event.rest.raw_value();
 
     notes_j.push_back({ pitch, offset + rest_amt, duration });
-    offset += duration;
+    offset += duration + rest_amt;
   }
 
   json result_j;
@@ -306,9 +307,9 @@ int main(void) {
   double max_intra = 0.0;
   double max_inter = 0.0;
   double step = 0.25;
-  bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
+  //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
   
-  //generate(full_mvs, 42, "out/gend.json");
+  generate(full_mvs, 42, "out/gend.json");
 }
 
 
