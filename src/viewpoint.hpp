@@ -2,7 +2,11 @@
 #define AJC_HGUARD_VIEWPOINT
 
 #include "sequence_model.hpp"
+#include <type_traits>
 
+/* Predictor
+ *
+ * The fully abstract interface implemented by all viewpoints */
 template<class EventStructure, class T_predict>
 class Predictor {
 public:
@@ -30,14 +34,69 @@ public:
   virtual Predictor *clone() const = 0;
 };
 
+namespace template_magic {
+  /* IsDerived<T>
+   *
+   * This is a bit of template metaprogramming magic to check if a type has a
+   * static member called `derived_from`.
+   *
+   * The motivation for this is that we want to handle derived types and basic
+   * types differently inside viewpoints.
+   *
+   * Based on this: 
+   * https://en.wikibooks.org/wiki/More_C++_Idioms/Member_Detector */
+  template<typename T>
+  class IsDerived
+  {
+      struct Fallback { int derived_from; }; 
+      struct Derived : T, Fallback { };
+
+      template<typename U, U> struct Check;
+
+      typedef char ArrayOfOne[1];  // typedef for an array of size one.
+      typedef char ArrayOfTwo[2];  // typedef for an array of size two.
+
+      template<typename U> 
+      static ArrayOfOne & func(Check<int Fallback::*, &U::derived_from> *);
+      
+      template<typename U> 
+      static ArrayOfTwo & func(...);
+
+    public:
+      typedef IsDerived type;
+      enum { value = sizeof(func<Derived>(0)) == 2 };
+  };
+
+  /* Beware: a bit of template wizardry to lazily-evaluate the surface type of a
+   * type (we want lazy evaluation in case it doesn't have one). */
+  template<typename T>
+  struct just_T { using type = T; };
+
+  template<typename T>
+  struct surface_of_T { using type = typename T::derived_from; };
+
+  /* SurfaceType<T>
+   *
+   * If T is a derived type (see above) then SurfaceType<T> is the type that T
+   * is derived from. Otherwise, T is its own surface type. */
+  template<typename T>
+  using SurfaceType = 
+    typename std::conditional<IsDerived<T>::value, 
+                              surface_of_T<T>, 
+                              just_T<T>>::type::type;
+}
+
+template<typename T>
+using SurfaceType = template_magic::SurfaceType<T>;
+
 /* Viewpoint
  *
  * Abstract base class for any Viewpoint that internally uses a ContextModel
  * (currently, all of them). Unlike Preditor which is fully abstract, this class
  * contains the ContextModel and implements some of the methods from Predictor.
  */
-template<class EventStructure, class T_viewpoint, class T_surface> 
-class Viewpoint : public Predictor<EventStructure, T_surface> {
+template<class EventStructure, class T_viewpoint, class T_predict> 
+class Viewpoint : public Predictor<EventStructure, T_predict> {
 protected:
   SequenceModel<T_viewpoint> model;
 
@@ -85,15 +144,20 @@ public:
  * the EventStructure itself, allowing us to create viewpoints on arbitrary
  * combinations of basic or derived types.
  */
-template<class EventStructure, class T_viewpoint, class T_surface>
-class GeneralViewpoint : public Viewpoint<EventStructure, T_viewpoint, T_surface> {
+template<class EventStructure, class T_vp>
+using GenVPBase = Viewpoint<EventStructure, T_vp, SurfaceType<T_vp>>;
+
+template<class EventStructure, class T_viewpoint>
+class GeneralViewpoint : 
+  public GenVPBase<EventStructure, T_viewpoint> {
 protected:
+  using T_surface = SurfaceType<T_viewpoint>;
+  using Base = GenVPBase<EventStructure, T_viewpoint>;
   using PredBase = Predictor<EventStructure, T_surface>;
-  using VPBase = Viewpoint<EventStructure, T_viewpoint, T_surface>;
 
 public:
-
-  std::vector<T_viewpoint> lift(const std::vector<EventStructure> &events) const override {
+  std::vector<T_viewpoint> 
+  lift(const std::vector<EventStructure> &events) const override {
     return EventStructure::template lift<T_viewpoint>(events);
   }
 
@@ -114,8 +178,14 @@ public:
   }
 
   PredBase *clone() const override { return new GeneralViewpoint(*this); }
-  GeneralViewpoint(unsigned int hist) : VPBase(hist) {}
+  GeneralViewpoint(unsigned int hist) : Base(hist) {}
 };
+
+/************************************************************
+ * Legacy code below here
+ *
+ * Use GeneralViewpoints as these are the future.
+ ************************************************************/
 
 template<class EventStructure, class T_hidden, class T_predict>
 class BasicLinkedViewpoint : 

@@ -202,6 +202,7 @@ public:
 
 class ChoraleInterval : public CodedEvent {
 public:
+  using derived_from = ChoralePitch;
   constexpr static unsigned int cardinality = 22;
 
 private:
@@ -237,6 +238,7 @@ public:
 // then the surface type is a compact code by default
 class ChoraleIntref : public CodedEvent {
 public:
+  using derived_from = ChoralePitch;
   constexpr static unsigned int cardinality = 12;
 
   unsigned int encode() const override { return code; }
@@ -590,12 +592,8 @@ public:
     BasicViewpoint<ChoraleEvent, T>;
 
   template<class T>
-  using GenBasicVP =
-    GeneralViewpoint<ChoraleEvent, T, T>;
-
-  template<class T_hidden, class T_surface>
-  using GenDerivedVP =
-    GeneralViewpoint<ChoraleEvent, T_hidden, T_surface>;
+  using GenVP =
+    GeneralViewpoint<ChoraleEvent, T>;
 
   template<class T1, class T2>
   using BasicLinkedVP =

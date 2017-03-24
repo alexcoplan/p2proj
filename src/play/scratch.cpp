@@ -8,26 +8,52 @@
 #include "sequence_model.hpp"
 #include "chorale.hpp"
 
+template<typename T>
+class DetectX
+{
+    struct Fallback { int X; }; // add member name "X"
+    struct Derived : T, Fallback { };
+
+    template<typename U, U> struct Check;
+
+    typedef char ArrayOfOne[1];  // typedef for an array of size one.
+    typedef char ArrayOfTwo[2];  // typedef for an array of size two.
+
+    template<typename U> 
+    static ArrayOfOne & func(Check<int Fallback::*, &U::X> *);
+    
+    template<typename U> 
+    static ArrayOfTwo & func(...);
+
+  public:
+    typedef DetectX type;
+    enum { value = sizeof(func<Derived>(0)) == 2 };
+};
+
+template<typename T>
+struct JustData {
+  T x;
+};
+
+struct A {
+};
+
+struct B { 
+  using X = std::string;
+};
+
 int main(void) {
-  SequenceModel<DummyEvent> seq_orig(3);
-  std::vector<DummyEvent> es;
-  for (auto e : EventEnumerator<DummyEvent>())
-    es.push_back(e);
-  
-  auto test_seq = { es[0], es[1], es[2], es[0] };
-  seq_orig.learn_sequence(test_seq);
+  std::cout 
+    << std::boolalpha 
+    << "Does B have X? " 
+    << DetectX<B>::value 
+    << std::endl;
 
-  SequenceModel<DummyEvent> cloned(seq_orig);
-  cloned.clear_model();
-
-  std::vector<DummyEvent> buff;
-  for (auto e : test_seq) {
-    buff.push_back(e);
-    cloned.update_from_tail(buff);
-  }
-
-  auto nxt = seq_orig.gen_successor_dist({es[0]});
-  std::cerr << nxt.debug_summary() << std::endl;
+  std::cout 
+    << std::boolalpha 
+    << "Does A have X? " 
+    << DetectX<A>::value 
+    << std::endl;
 
 
   return 0;

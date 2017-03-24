@@ -260,8 +260,8 @@ void generate(ChoraleMVS &mvs,
 
 int main(void) {
   const unsigned int hist = 5;
-  ChoraleMVS::GenBasicVP<ChoralePitch> pitch_vp(hist);
-  ChoraleMVS::GenBasicVP<ChoraleDuration> duration_vp(hist);
+  ChoraleMVS::GenVP<ChoralePitch> pitch_vp(hist);
+  ChoraleMVS::GenVP<ChoraleDuration> duration_vp(hist);
 
   // pxd <==> pitch cross duration
   ChoraleMVS::BasicLinkedVP<ChoralePitch, ChoraleDuration> 
@@ -269,9 +269,9 @@ int main(void) {
   ChoraleMVS::BasicLinkedVP<ChoraleDuration, ChoralePitch>
     pxd_predict_pitch(hist);
 
-  ChoraleMVS::GenBasicVP<ChoraleRest> rest_vp(hist);
-  ChoraleMVS::GenDerivedVP<ChoraleInterval, ChoralePitch> interval_vp(hist);
-  ChoraleMVS::GenDerivedVP<ChoraleIntref, ChoralePitch> intref_vp(hist);
+  ChoraleMVS::GenVP<ChoraleRest> rest_vp(hist);
+  ChoraleMVS::GenVP<ChoraleInterval> interval_vp(hist);
+  ChoraleMVS::GenVP<ChoraleIntref> intref_vp(hist);
 
   auto lt_config = MVSConfig::long_term_only(1.0);
   ChoraleMVS lt_only(lt_config);

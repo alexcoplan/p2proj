@@ -214,7 +214,7 @@ TEST_CASE("Check GeneralViewpoint works in place of BasicViewpoint") {
   const unsigned int hist = 3;
 
   BasicViewpoint<ChoraleEvent, ChoralePitch> basic_vp(hist);
-  GeneralViewpoint<ChoraleEvent, ChoralePitch, ChoralePitch> gen_vp(hist);
+  GeneralViewpoint<ChoraleEvent, ChoralePitch> gen_vp(hist);
 
   std::vector<MidiPitch> pitch_values {
     60, 61, 60, 62, 63, 62, 61, 60, 70, 65, 67, 69, 60
@@ -246,10 +246,10 @@ TEST_CASE("Check GeneralViewpoint works in place of BasicViewpoint") {
 TEST_CASE("Check GeneralViewpoint works in place of seqint & intref VPs") {
   const unsigned int hist = 3;
 
-  GeneralViewpoint<ChoraleEvent, ChoraleInterval, ChoralePitch> gen_ival(hist);
+  GeneralViewpoint<ChoraleEvent, ChoraleInterval> gen_ival(hist);
   IntervalViewpoint old_ival(hist);
   
-  GeneralViewpoint<ChoraleEvent, ChoraleIntref, ChoralePitch> gen_intref(hist);
+  GeneralViewpoint<ChoraleEvent, ChoraleIntref> gen_intref(hist);
   IntrefViewpoint old_intref(hist);
 
   std::vector<MidiPitch> pitch_values {
