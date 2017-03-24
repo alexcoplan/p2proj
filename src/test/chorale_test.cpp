@@ -9,10 +9,35 @@ struct ChoraleMocker {
   static const QuantizedDuration default_rest_dur;
   static const KeySig default_key;
 
+  static std::vector<ChoralePitch> 
+  box_pitches(const std::vector<unsigned int> &pitches) {
+    std::vector<ChoralePitch> result;
+    for (auto p : pitches)
+      result.push_back(MidiPitch {p});
+    return result;
+  }
+
+  static std::vector<ChoraleDuration>
+  box_durations(const std::vector<unsigned int> &durs) {
+    std::vector<ChoraleDuration> result;
+    for (auto d : durs)
+      result.push_back(QuantizedDuration {d});
+    return result;
+  }
+
+  static ChoraleEvent mock(const ChoralePitch &p, const ChoraleDuration &d) {
+    return ChoraleEvent(
+      default_key,
+      p,
+      d,
+      default_rest_dur
+    );
+  }
+
   static ChoraleEvent mock(const ChoralePitch &p) {
     return ChoraleEvent(
       default_key, 
-      MidiPitch(p.raw_value()), 
+      p,
       default_dur, 
       default_rest_dur
     );
@@ -42,6 +67,16 @@ struct ChoraleMocker {
     std::vector<ChoraleEvent> result;
     std::transform(vals.begin(), vals.end(), std::back_inserter(result),
       [](const T &v) { return ChoraleMocker::mock(v); } );
+    return result;
+  }
+
+  template<typename P, typename Q>
+  static std::vector<ChoraleEvent>
+  mock_sequence(std::vector<P> left, std::vector<Q> right) {
+    assert(left.size() == right.size());
+    std::vector<ChoraleEvent> result;
+    for (unsigned int i = 0; i < left.size(); i++)
+      result.push_back(ChoraleMocker::mock(left[i], right[i]));
     return result;
   }
 };
@@ -109,10 +144,10 @@ TEST_CASE("Check predictions/entropy calculations in MVS") {
   ChoraleMVS::BasicVP<ChoralePitch> short_term_vp(st_hist);
 
   // C D C E C F C G C A C B C C^
-  auto eg = {60,62,60,64,60,65,60,67,60,69,60,71,60,72};
-  std::vector<ChoralePitch> pitches;
-  std::transform(eg.begin(), eg.end(), std::back_inserter(pitches),
-      [](unsigned int p) { return ChoralePitch(MidiPitch(p)); });
+  std::vector<unsigned int> eg_pitches = 
+    {60,62,60,64,60,65,60,67,60,69,60,71,60,72};
+  
+  auto pitches = ChoraleMocker::box_pitches(eg_pitches);
 
   // train both model and trivial viewpoint on same data
   model.learn_sequence(pitches);
@@ -121,16 +156,14 @@ TEST_CASE("Check predictions/entropy calculations in MVS") {
   lt_mvs.add_viewpoint(&long_term_vp);
   full_mvs.add_viewpoint(&long_term_vp);
 
-  auto test_1 = {60,61,62,63,64,65,66,67,68,69,70};
-  auto test_2 = {60};
-  auto test_3 = {62,81,62,60};
+  std::vector<unsigned int> test_1 = {60,61,62,63,64,65,66,67,68,69,70};
+  std::vector<unsigned int> test_2 = {60};
+  std::vector<unsigned int> test_3 = {62,81,62,60};
 
-  for (const auto &vs : {eg, test_1, test_2, test_3}) {
+  for (const auto &vs : {eg_pitches, test_1, test_2, test_3}) {
     // pitch_vp + short-term calculations
     short_term_vp.reset();
-    std::vector<ChoralePitch> test_pitches;
-    std::transform(vs.begin(), vs.end(), std::back_inserter(test_pitches),
-        [](unsigned int p) { return ChoralePitch(MidiPitch(p)); });
+    auto test_pitches = ChoraleMocker::box_pitches(vs);
 
     std::vector<ChoraleEvent> st_buff;
     double total_entropy = 0.0;
@@ -178,17 +211,11 @@ TEST_CASE("Check ChoraleEvent template magic") {
   auto durations = ChoraleEvent::lift<ChoraleDuration>(test_events);
   auto rests = ChoraleEvent::lift<ChoraleRest>(test_events);
 
-  std::vector<unsigned int> raw_pitches = { 60,62,64 };
-  std::vector<ChoralePitch> expected_pitches;
-  std::transform(raw_pitches.begin(), raw_pitches.end(),
-    std::back_inserter(expected_pitches),
-    [](unsigned int x) { return ChoralePitch(MidiPitch(x)); });
+  std::vector<unsigned int> raw_pitches { 60,62,64 };
+  auto expected_pitches = ChoraleMocker::box_pitches(raw_pitches);
 
-  std::vector<unsigned int> raw_durs = { 4,6,4 };
-  std::vector<ChoraleDuration> expected_durs;
-  std::transform(raw_durs.begin(), raw_durs.end(), 
-    std::back_inserter(expected_durs),
-    [](unsigned int x) { return ChoraleDuration(QuantizedDuration(x)); });
+  std::vector<unsigned int> raw_durs { 4,6,4 };
+  auto expected_durs = ChoraleMocker::box_durations(raw_durs);
 
   std::vector<ChoraleRest> expected_rests{ 
     ChoraleRest(0),
@@ -216,15 +243,11 @@ TEST_CASE("Check GeneralViewpoint works in place of BasicViewpoint") {
   BasicViewpoint<ChoraleEvent, ChoralePitch> basic_vp(hist);
   GeneralViewpoint<ChoraleEvent, ChoralePitch> gen_vp(hist);
 
-  std::vector<MidiPitch> pitch_values {
+  std::vector<unsigned int> pitch_values = {
     60, 61, 60, 62, 63, 62, 61, 60, 70, 65, 67, 69, 60
   };
 
-  std::vector<ChoralePitch> pitches;
-  std::transform(pitch_values.begin(), pitch_values.end(), 
-      std::back_inserter(pitches),
-      [](const MidiPitch &mp) { return mp; });
-
+  auto pitches = ChoraleMocker::box_pitches(pitch_values);
   auto mocked = ChoraleMocker::mock_sequence(pitches);
 
   basic_vp.learn(mocked);
@@ -295,6 +318,51 @@ TEST_CASE("Check GeneralViewpoint works in place of seqint & intref VPs") {
   }
 }
 
+TEST_CASE("Check GeneralLinkedVP works in place of BasicLinkedVP") {
+  ChoraleMVS::BasicLinkedVP<ChoralePitch, ChoraleDuration> basic_vp(3);
+  ChoraleMVS::GenLinkedVP<ChoralePitch, ChoraleDuration> gen_vp(3);
 
+  std::vector<MidiPitch> pitches { 
+    60, 62, 64, 60, 68, 67, 66, 65, 64, 63, 62, 61, 60, 70, 78
+  };
+
+  std::vector<QuantizedDuration> durations {
+    4,  4,  8,  4,  2,  2,  4,  1,  1,  1,  1,  4,  4,  8,  16
+  };
+
+  REQUIRE( pitches.size() == durations.size() );
+
+  std::vector<ChoralePitch> c_pitches;
+  std::vector<ChoraleDuration> c_durations;
+  for (auto p : pitches)
+    c_pitches.push_back(p);
+
+  for (auto d : durations)
+    c_durations.push_back(d);
+
+  auto events = ChoraleMocker::mock_sequence(pitches, durations);
+
+  std::vector<std::pair<std::vector<unsigned int>, std::vector<unsigned int>>> 
+    egs {
+    { {}, {} }, 
+    { {60, 62}, { 4, 4 } },
+    { {62, 61}, { 1 ,4 } },
+    { {65, 64, 63}, { 4, 8, 16 } },
+    { {60, 62, 64, 60}, { 4, 4, 8, 4 } },
+    { {72, 74, 72} , { 1, 1, 1 } }
+  };
+
+  for (auto eg : egs) {
+    auto pitches = ChoraleMocker::box_pitches(eg.first);
+    auto durs    = ChoraleMocker::box_durations(eg.second);
+    auto events  = ChoraleMocker::mock_sequence(pitches, durs);
+
+    auto dist_old = basic_vp.predict(events);
+    auto dist_gen = gen_vp.predict(events);
+
+    for (auto e : EventEnumerator<ChoraleDuration>())
+      REQUIRE( dist_old.probability_for(e) == dist_gen.probability_for(e) );
+  }
+}
 
 

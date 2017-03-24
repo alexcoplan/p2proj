@@ -181,6 +181,54 @@ public:
   GeneralViewpoint(unsigned int hist) : Base(hist) {}
 };
 
+template<class EventStructure, class T_h, class T_p>
+using GenLinkedBase = 
+  Viewpoint<EventStructure, EventPair<T_h, T_p>, SurfaceType<T_p>>;
+
+template<class EventStructure, class T_hidden, class T_predict>
+class GeneralLinkedVP :
+  public GenLinkedBase<EventStructure, T_hidden, T_predict> {
+protected:
+  using T_pair = EventPair<T_hidden, T_predict>;
+  using T_surface = SurfaceType<T_predict>;
+  using Base = GenLinkedBase<EventStructure, T_hidden, T_predict>;
+  using PredBase = Predictor<EventStructure, T_surface>;
+
+public:
+  std::vector<T_pair>
+  lift(const std::vector<EventStructure> &events) const override {
+    // TODO: in the future this should be done with streams/iterators for
+    // efficiency, but vectors will do for now.
+    auto left = EventStructure::template lift<T_hidden>(events);
+    auto right = EventStructure::template lift<T_predict>(events);
+    return T_pair::zip(left, right);
+  }
+
+  EventDistribution<T_surface>
+  predict(const std::vector<EventStructure> &ctx) const override {
+    auto lifted = lift(ctx);
+    auto pair_dist = this->model.gen_successor_dist(lifted);
+    std::array<double, T_predict::cardinality> predict_values{{0.0}};
+    for (auto e_predict : EventEnumerator<T_predict>())
+      for (auto e_hidden : EventEnumerator<T_hidden>()) {
+        T_pair pair(e_hidden, e_predict);
+        predict_values[e_predict.encode()] += pair_dist.probability_for(pair);
+      }
+
+    auto derived_dist = EventDistribution<T_predict>(predict_values);
+    return EventStructure::reify(ctx, derived_dist);
+  }
+
+  bool can_predict(const std::vector<EventStructure> &) const override {
+    // TODO: eventually remove this from the Predictor<> interface once all VPs
+    // have been properly subsumed by these generalised VPs
+    return true; 
+  }
+
+  PredBase *clone() const override { return new GeneralLinkedVP(*this); }
+  GeneralLinkedVP(unsigned int hist) : Base(hist) {}
+};
+
 /************************************************************
  * Legacy code below here
  *

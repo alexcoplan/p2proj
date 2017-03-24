@@ -46,6 +46,16 @@ public:
   constexpr T1 left() const { return T1(coded % T1::cardinality); }
   constexpr T2 right() const { return T2(coded / T1::cardinality); }
 
+  static std::vector<EventPair>
+  zip(const std::vector<T1> &left, const std::vector<T2> &right) {
+    assert(left.size() == right.size());
+    std::vector<EventPair> result{};
+    for (unsigned int i = 0; i < left.size(); i++)
+      result.push_back({ left[i], right[i] });
+
+    return result;
+  }
+
   unsigned int encode() const override {
     return coded;
   }

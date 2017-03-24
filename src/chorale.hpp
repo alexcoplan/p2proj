@@ -596,6 +596,10 @@ public:
     GeneralViewpoint<ChoraleEvent, T>;
 
   template<class T1, class T2>
+  using GenLinkedVP =
+    GeneralLinkedVP<ChoraleEvent, T1, T2>;
+
+  template<class T1, class T2>
   using BasicLinkedVP =
     BasicLinkedViewpoint<ChoraleEvent, T1, T2>;
 
