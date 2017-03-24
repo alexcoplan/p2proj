@@ -263,11 +263,16 @@ int main(void) {
   ChoraleMVS::GenVP<ChoralePitch> pitch_vp(hist);
   ChoraleMVS::GenVP<ChoraleDuration> duration_vp(hist);
 
-  // pxd <==> pitch cross duration
-  ChoraleMVS::BasicLinkedVP<ChoralePitch, ChoraleDuration> 
+  // pxd ~ pitch cross duration
+  ChoraleMVS::GenLinkedVP<ChoralePitch, ChoraleDuration> 
     pxd_predict_duration(hist);
-  ChoraleMVS::BasicLinkedVP<ChoraleDuration, ChoralePitch>
+  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoralePitch>
     pxd_predict_pitch(hist);
+
+  /* TODO
+  // ir_x_d ~ intref cross duration
+  ChoraleMVS::
+  */
 
   ChoraleMVS::GenVP<ChoraleRest> rest_vp(hist);
   ChoraleMVS::GenVP<ChoraleInterval> interval_vp(hist);
@@ -307,9 +312,9 @@ int main(void) {
   double max_intra = 0.0;
   double max_inter = 0.0;
   double step = 0.25;
-  //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
+  bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
   
-  generate(full_mvs, 42, "out/gend.json");
+  //generate(full_mvs, 42, "out/gend.json");
 }
 
 
