@@ -47,6 +47,37 @@ TEST_CASE("Pair encoding works correctly", "[event]") {
   }
 }
 
+TEST_CASE("zip_tail for event pairs works correctly", "[event]") {
+  std::vector<unsigned int> left{0,1,2};
+  std::vector<unsigned int> right{3,2};
+
+  auto lambda = [](unsigned e) { return DummyEvent(e); };
+
+  std::vector<DummyEvent> left_es;
+  std::transform(left.begin(), left.end(), std::back_inserter(left_es), lambda);
+  std::vector<DummyEvent> right_es;
+  std::transform(right.begin(), 
+                 right.end(), std::back_inserter(right_es), lambda);
+
+  using T_pair = EventPair<DummyEvent, DummyEvent>;
+
+  auto zipped = T_pair::zip_tail(left_es, right_es);
+  std::vector<T_pair> expected {
+    T_pair(left[1], right[0]),
+    T_pair(left[2], right[1])
+  };
+
+  REQUIRE( expected == zipped );
+
+  auto zipped_rl = T_pair::zip_tail(right_es, left_es);
+  std::vector<T_pair> expected_rl {
+   T_pair(right[0], left[1]),
+   T_pair(right[1], left[2])
+  };
+
+  REQUIRE( expected_rl == zipped_rl );
+}
+
 TEST_CASE("SequenceModel correctly abstracts around ContextModel", 
     "[seqmodel]") { 
   SequenceModel<DummyEvent> seq_model(3);

@@ -167,7 +167,7 @@ public:
 
 class ChoralePosinbar : public CodedEvent {
 public:
-  constexpr static unsigned int cardinality = 4;
+  constexpr static unsigned int cardinality = 16;
   unsigned int encode() const override { return code; }
   ChoralePosinbar(unsigned int c) : CodedEvent(c) { assert(c < cardinality); }
 };
@@ -249,11 +249,22 @@ public:
   ChoraleIntref(unsigned int code);
 };
 
+/**********************************************************
+ * Chorale type stringification (for debugging)
+ **********************************************************/
+
+std::ostream& operator<<(std::ostream &os, const ChoralePosinbar &pos);
+
+/**********************************************************
+ * ChoraleEvent declaration
+ **********************************************************/
+
 /* This type defines the event space we use to model chorales. ChoraleEvents
  * have as members all the different types that make up a chorale event (pitch,
  * duration, offset, etc.) */
 struct ChoraleEvent {
   ChoraleKeySig keysig;
+  ChoraleTimeSig timesig;
   ChoralePitch pitch;
   ChoraleDuration duration;
   ChoraleRest rest;
@@ -285,21 +296,27 @@ struct ChoraleEvent {
         const EventDistribution<ChoraleInterval> &seqint_dist);
 
   ChoraleEvent(const KeySig &ks,
+               const QuantizedDuration &ts,
                const MidiPitch &mp, 
                const QuantizedDuration &dur, 
                const QuantizedDuration &rest_dur) :
-    keysig(ks), pitch(mp), duration(dur), rest(rest_dur) {} 
+    keysig(ks), timesig(ts), pitch(mp), duration(dur), rest(rest_dur) {} 
 
   ChoraleEvent(const ChoraleKeySig &ks,
+               const ChoraleTimeSig &ts,
                const ChoralePitch &cp,
                const ChoraleDuration &cd,
                const ChoraleRest &r) :
-    keysig(ks), pitch(cp), duration(cd), rest(r) {}
+    keysig(ks), timesig(ts), pitch(cp), duration(cd), rest(r) {}
 };
 
 template<>
 inline
 ChoraleKeySig ChoraleEvent::project() const { return keysig; }
+
+template<>
+inline
+ChoraleTimeSig ChoraleEvent::project() const { return timesig; }
 
 template<>
 inline
@@ -345,6 +362,28 @@ ChoraleEvent::lift(const std::vector<ChoraleEvent> &events) {
     auto from = pitches[i-1];
     auto to = pitches[i];
     result.push_back(to - from);
+  }
+
+  return result;
+}
+
+template<>
+inline
+std::vector<ChoralePosinbar>
+ChoraleEvent::lift(const std::vector<ChoraleEvent> &events) {
+  if (events.empty())
+    return {};
+
+  auto timesig = events.front().timesig;
+  unsigned int beats_in_bar = timesig.raw_value();
+
+  std::vector<ChoralePosinbar> result;
+
+  unsigned int offset = 0;
+  for (const auto &e : events) {
+    offset += e.rest.raw_value();
+    result.push_back(offset % beats_in_bar);
+    offset += e.duration.raw_value();
   }
 
   return result;
@@ -644,7 +683,8 @@ public:
     std::vector<double>
     dist_entropies(const std::vector<ChoraleEvent> &seq) const;
 
-  std::vector<ChoraleEvent> random_walk(unsigned int len);
+  std::vector<ChoraleEvent> 
+  random_walk(unsigned int len, const QuantizedDuration &timesig);
 
   void learn(const std::vector<ChoraleEvent> &seq);
 

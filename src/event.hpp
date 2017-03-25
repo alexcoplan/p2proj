@@ -16,8 +16,8 @@ public:
 // dummy events in set {G,A,B,D}
 class DummyEvent : public SequenceEvent {
 private:
-  const unsigned int coded;
-  const char raw_char;
+  unsigned int coded;
+  char raw_char;
 
 public:
   constexpr static int cardinality = 4;
@@ -49,9 +49,31 @@ public:
   static std::vector<EventPair>
   zip(const std::vector<T1> &left, const std::vector<T2> &right) {
     assert(left.size() == right.size());
-    std::vector<EventPair> result{};
+    std::vector<EventPair> result;
     for (unsigned int i = 0; i < left.size(); i++)
       result.push_back({ left[i], right[i] });
+
+    return result;
+  }
+
+  static std::vector<EventPair>
+  zip_tail(const std::vector<T1> &vec_l, const std::vector<T2> &vec_r) {
+    // for now, we allow the lengths to differ by at most one element. this
+    // accounts for viewpoints that take a first-order difference (e.g. seqint)
+    // but should also catch any obvious error cases
+    auto len_diff = abs((int)vec_l.size() - (int)vec_r.size());
+    assert(len_diff <= 1); 
+
+    unsigned result_len = std::min(vec_l.size(), vec_r.size());
+    std::vector<EventPair> result;
+    if (vec_l.size() > vec_r.size()) {
+      for (unsigned i = 0; i < result_len; i++)
+        result.push_back({ vec_l[i+len_diff], vec_r[i] });
+      return result;
+    }
+
+    for (unsigned i = 0; i < result_len; i++)
+      result.push_back({ vec_l[i], vec_r[i+len_diff] });
 
     return result;
   }

@@ -7,6 +7,7 @@ struct ChoraleMocker {
   static const MidiPitch default_pitch;
   static const QuantizedDuration default_dur; 
   static const QuantizedDuration default_rest_dur;
+  static const QuantizedDuration default_timesig;
   static const KeySig default_key;
 
   static std::vector<ChoralePitch> 
@@ -17,9 +18,11 @@ struct ChoraleMocker {
     return result;
   }
 
-  static std::vector<ChoraleDuration>
+  // can box either ChoraleDuration or ChoraleRest
+  template<typename T>
+  static std::vector<T>
   box_durations(const std::vector<unsigned int> &durs) {
-    std::vector<ChoraleDuration> result;
+    std::vector<T> result;
     for (auto d : durs)
       result.push_back(QuantizedDuration {d});
     return result;
@@ -28,6 +31,7 @@ struct ChoraleMocker {
   static ChoraleEvent mock(const ChoralePitch &p, const ChoraleDuration &d) {
     return ChoraleEvent(
       default_key,
+      default_timesig,
       p,
       d,
       default_rest_dur
@@ -37,6 +41,7 @@ struct ChoraleMocker {
   static ChoraleEvent mock(const ChoralePitch &p) {
     return ChoraleEvent(
       default_key, 
+      default_timesig,
       p,
       default_dur, 
       default_rest_dur
@@ -46,24 +51,65 @@ struct ChoraleMocker {
   static ChoraleEvent mock(const ChoraleDuration &d) {
     return ChoraleEvent(
       default_key, 
+      default_timesig,
       default_pitch, 
       d,
       default_rest_dur
     );
   }
 
+  static ChoraleEvent mock(const ChoraleDuration &d, const ChoraleTimeSig &ts) {
+    return ChoraleEvent(
+      default_key, ts,
+      default_pitch,
+      d,
+      default_rest_dur
+    );
+  }
+
+  static ChoraleEvent 
+  mock(const ChoraleDuration &d, const ChoraleRest &r, const ChoraleTimeSig &ts) {
+    return ChoraleEvent(
+      default_key, ts,
+      default_pitch,
+      d, r);
+  }
+
   static ChoraleEvent mock(const ChoraleRest &r) {
     return ChoraleEvent(
       default_key,
+      default_timesig,
       default_pitch, 
       default_dur, 
       r
     );
   }
+
+
+  template<typename T>
+  static std::vector<ChoraleEvent>
+  mock_sequence(const std::vector<T> &vals, const ChoraleTimeSig &ts) {
+    std::vector<ChoraleEvent> result;
+    std::transform(vals.begin(), vals.end(), std::back_inserter(result),
+      [ts](const T &v) { return ChoraleMocker::mock(v, ts); });
+    return result;
+  }
+
+  template<typename P, typename Q>
+  static std::vector<ChoraleEvent>
+  mock_sequence(const std::vector<P> &left, 
+                const std::vector<Q> &right, 
+                const ChoraleTimeSig &ts) { 
+    assert(left.size() == right.size());
+    std::vector<ChoraleEvent> result;
+    for (unsigned int i = 0; i < left.size(); i++)
+      result.push_back(ChoraleMocker::mock(left[i], right[i], ts));
+    return result;
+  }
   
   template<typename T>
   static std::vector<ChoraleEvent>
-  mock_sequence(std::vector<T> vals) {
+  mock_sequence(const std::vector<T> &vals) {
     std::vector<ChoraleEvent> result;
     std::transform(vals.begin(), vals.end(), std::back_inserter(result),
       [](const T &v) { return ChoraleMocker::mock(v); } );
@@ -72,7 +118,7 @@ struct ChoraleMocker {
 
   template<typename P, typename Q>
   static std::vector<ChoraleEvent>
-  mock_sequence(std::vector<P> left, std::vector<Q> right) {
+  mock_sequence(const std::vector<P> &left, const std::vector<Q> &right) {
     assert(left.size() == right.size());
     std::vector<ChoraleEvent> result;
     for (unsigned int i = 0; i < left.size(); i++)
@@ -81,14 +127,17 @@ struct ChoraleMocker {
   }
 };
 
+const KeySig
+ChoraleMocker::default_key = KeySig(0);
+
+const QuantizedDuration
+ChoraleMocker::default_timesig = QuantizedDuration(16);
+
 const MidiPitch
 ChoraleMocker::default_pitch = MidiPitch(60);
 
 const QuantizedDuration 
 ChoraleMocker::default_dur = QuantizedDuration(4);
-
-const KeySig
-ChoraleMocker::default_key = KeySig(0);
 
 const QuantizedDuration
 ChoraleMocker::default_rest_dur = QuantizedDuration(0);
@@ -194,15 +243,15 @@ TEST_CASE("Check predictions/entropy calculations in MVS") {
 TEST_CASE("Check ChoraleEvent template magic") {
   std::vector<ChoraleEvent> test_events {
     ChoraleEvent(
-      ChoraleMocker::default_key, MidiPitch(60), 
-      QuantizedDuration(4), QuantizedDuration(0)
+      ChoraleMocker::default_key, ChoraleMocker::default_timesig,
+      MidiPitch(60), QuantizedDuration(4), QuantizedDuration(0)
     ),
     ChoraleEvent(
-      ChoraleMocker::default_key,
+      ChoraleMocker::default_key, ChoraleMocker::default_timesig,
       MidiPitch(62), QuantizedDuration(6), ChoraleRest(2)
     ),
     ChoraleEvent(
-      ChoraleMocker::default_key,
+      ChoraleMocker::default_key, ChoraleMocker::default_timesig,
       MidiPitch(64), QuantizedDuration(4), ChoraleRest(0)
     )
   };
@@ -215,7 +264,7 @@ TEST_CASE("Check ChoraleEvent template magic") {
   auto expected_pitches = ChoraleMocker::box_pitches(raw_pitches);
 
   std::vector<unsigned int> raw_durs { 4,6,4 };
-  auto expected_durs = ChoraleMocker::box_durations(raw_durs);
+  auto expected_durs = ChoraleMocker::box_durations<ChoraleDuration>(raw_durs);
 
   std::vector<ChoraleRest> expected_rests{ 
     ChoraleRest(0),
@@ -354,7 +403,7 @@ TEST_CASE("Check GeneralLinkedVP works in place of BasicLinkedVP") {
 
   for (auto eg : egs) {
     auto pitches = ChoraleMocker::box_pitches(eg.first);
-    auto durs    = ChoraleMocker::box_durations(eg.second);
+    auto durs    = ChoraleMocker::box_durations<ChoraleDuration>(eg.second);
     auto events  = ChoraleMocker::mock_sequence(pitches, durs);
 
     auto dist_old = basic_vp.predict(events);
@@ -364,5 +413,45 @@ TEST_CASE("Check GeneralLinkedVP works in place of BasicLinkedVP") {
       REQUIRE( dist_old.probability_for(e) == dist_gen.probability_for(e) );
   }
 }
+
+TEST_CASE("Check posinbar lifting is correct") {
+  const ChoraleTimeSig three_four(QuantizedDuration(12));
+  const ChoraleTimeSig  four_four(QuantizedDuration(16));
+
+  std::vector<unsigned> duration_eg { 4, 8, 4, 2, 1, 1, 2, 2, 4, 4 };
+  std::vector<ChoralePosinbar> dur_expect_44 { 0, 4, 12, 0, 2, 3, 4, 6, 8, 12 };
+  std::vector<ChoralePosinbar> dur_expect_34 { 0, 4, 0, 4, 6, 7, 8, 10, 0, 4 };
+
+  auto boxed_durs = ChoraleMocker::box_durations<ChoraleDuration>(duration_eg);
+  auto mocked_34 = ChoraleMocker::mock_sequence(boxed_durs, three_four);
+  auto mocked_44 = ChoraleMocker::mock_sequence(boxed_durs, four_four);
+
+  auto lifted_34 = ChoraleEvent::lift<ChoralePosinbar>(mocked_34);
+  auto lifted_44 = ChoraleEvent::lift<ChoralePosinbar>(mocked_44);
+
+  REQUIRE( lifted_34 == dur_expect_34 );
+  REQUIRE( lifted_44 == dur_expect_44 );
+
+  std::pair<std::vector<unsigned>, std::vector<unsigned>> dur_rest_eg {
+    { 4, 2, 2, 4, 4, 8, 8 },
+    { 8, 0, 0, 4, 0, 0, 0 }
+  };
+
+  std::vector<ChoralePosinbar> dr_expected_44 { 8, 12, 14, 4, 8, 12, 4 };
+  std::vector<ChoralePosinbar> dr_expected_34 { 8, 0, 2, 8, 0, 4, 0 };
+
+  auto dr_durs  = ChoraleMocker::box_durations<ChoraleDuration>(dur_rest_eg.first);
+  auto dr_rests = ChoraleMocker::box_durations<ChoraleRest>(dur_rest_eg.second);
+ 
+  auto dr_mocked_44 = ChoraleMocker::mock_sequence(dr_durs, dr_rests, four_four);
+  auto dr_mocked_34 = ChoraleMocker::mock_sequence(dr_durs, dr_rests, three_four);
+
+  auto dr_lifted_44 = ChoraleEvent::lift<ChoralePosinbar>(dr_mocked_44);
+  auto dr_lifted_34 = ChoraleEvent::lift<ChoralePosinbar>(dr_mocked_34);
+
+  REQUIRE( dr_lifted_44 == dr_expected_44 );
+  REQUIRE( dr_lifted_34 == dr_expected_34 );
+}
+
 
 

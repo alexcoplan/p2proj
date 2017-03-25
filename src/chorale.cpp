@@ -156,11 +156,20 @@ ChoraleRest::ChoraleRest(unsigned int c) : CodedEvent(c) {
 
 ChoraleRest::ChoraleRest(const QuantizedDuration &qd) :
   CodedEvent(map_in(qd.duration)) {
-  if (code >= cardinality) {
+  if (code >= cardinality || (qd.duration % 4) != 0) {
     std::string msg = "Bad initialisation of ChoraleRest (duration = ";
     msg += std::to_string(qd.duration) + ")";
     throw ChoraleTypeError(msg);
   }
+}
+
+/********************************************************************
+ * Implementation of stringification for chorale types
+ ********************************************************************/
+
+std::ostream& operator<<(std::ostream &os, const ChoralePosinbar &pos) {
+  os << "pos(" << pos.encode() << ")";
+  return os;
 }
 
 /*************************************************************
@@ -438,7 +447,8 @@ void ChoraleVPLayer::reset_viewpoints() {
     vp_ptr->reset();
 }
 
-std::vector<ChoraleEvent> ChoraleMVS::random_walk(unsigned int len) {
+std::vector<ChoraleEvent> 
+ChoraleMVS::random_walk(unsigned int len, const QuantizedDuration &timesig) {
   assert(len > 1);
 
   std::vector<ChoraleEvent> buffer;
@@ -448,7 +458,7 @@ std::vector<ChoraleEvent> ChoraleMVS::random_walk(unsigned int len) {
   auto first_dur   = predict<ChoraleDuration>({}).sample();
   auto first_rest  = predict<ChoraleRest>({}).sample();
 
-  ChoraleEvent first_event(keysig, first_pitch, first_dur, first_rest);
+  ChoraleEvent first_event(keysig, timesig, first_pitch, first_dur, first_rest);
   buffer.push_back(first_event);
   short_term_layer.learn_from_tail(buffer);
 
@@ -456,7 +466,7 @@ std::vector<ChoraleEvent> ChoraleMVS::random_walk(unsigned int len) {
     auto pitch = predict<ChoralePitch>(buffer).sample();
     auto dur   = predict<ChoraleDuration>(buffer).sample();
     auto rest  = predict<ChoraleRest>(buffer).sample();
-    ChoraleEvent event(keysig, pitch, dur, rest);
+    ChoraleEvent event(keysig, timesig, pitch, dur, rest);
     buffer.push_back(event);
     short_term_layer.learn_from_tail(buffer);
   }

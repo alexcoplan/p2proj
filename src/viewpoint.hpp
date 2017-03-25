@@ -201,7 +201,7 @@ public:
     // efficiency, but vectors will do for now.
     auto left = EventStructure::template lift<T_hidden>(events);
     auto right = EventStructure::template lift<T_predict>(events);
-    return T_pair::zip(left, right);
+    return T_pair::zip_tail(left, right);
   }
 
   EventDistribution<T_surface>

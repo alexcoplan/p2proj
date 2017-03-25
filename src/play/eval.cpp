@@ -27,11 +27,14 @@ void parse_subcorpus(
     unsigned int prev_offset   = first_note_j[1];
     unsigned int prev_duration = first_note_j[2];
 
+    // get key and time signatures
     unsigned int num_sharps = chorale_j["key_sig_sharps"];
     KeySig ks(num_sharps);
+    unsigned int bar_length = chorale_j["time_sig_amt"];
+    QuantizedDuration ts(bar_length);
 
     chorale_events.push_back(ChoraleEvent(
-      ks, MidiPitch(first_pitch), 
+      ks, ts, MidiPitch(first_pitch), 
       QuantizedDuration(prev_duration), 
       QuantizedDuration(prev_offset)
     ));
@@ -48,8 +51,10 @@ void parse_subcorpus(
       QuantizedDuration rest_dur{rest_amt};
 
       chorale_events.push_back(ChoraleEvent(
-        ks,
-        MidiPitch(pitch), QuantizedDuration(duration), rest_amt
+        ks, ts,
+        MidiPitch(pitch), 
+        QuantizedDuration(duration), 
+        rest_amt
       ));
 
       prev_offset = offset;
@@ -224,8 +229,8 @@ void bias_grid_sweep(const corpus_t &corpus, ChoraleMVS &mvs, double max_intra,
 void generate(ChoraleMVS &mvs, 
               const unsigned int len, 
               const std::string &json_fname) {
-  std::cout << "Generating piece of length " << len << "... " << std::flush;
-  auto piece = mvs.random_walk(len);
+  std::cout << "Generating piece of length " << len << " in 4/4..." << std::flush;
+  auto piece = mvs.random_walk(len, QuantizedDuration(16));
   std::cout << "done." << std::endl;
 
   std::cout << "Entropy of generated piece: " << std::endl << std::flush;
@@ -269,10 +274,19 @@ int main(void) {
   ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoralePitch>
     pxd_predict_pitch(hist);
 
-  /* TODO
   // ir_x_d ~ intref cross duration
-  ChoraleMVS::
-  */
+  ChoraleMVS::GenLinkedVP<ChoraleIntref, ChoraleDuration> 
+    ir_x_d_predict_dur(hist);
+
+  // iv_x_d ~ seqint cross duration
+  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleInterval>
+    dur_predict_seqint(hist);
+
+  ChoraleMVS::GenLinkedVP<ChoraleInterval, ChoraleIntref>
+    seqint_predict_intref(hist);
+
+  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleRest>
+    dur_predict_rest(hist);
 
   ChoraleMVS::GenVP<ChoraleRest> rest_vp(hist);
   ChoraleMVS::GenVP<ChoraleInterval> interval_vp(hist);
@@ -295,10 +309,13 @@ int main(void) {
     mvs_ptr->add_viewpoint(&pitch_vp);
     mvs_ptr->add_viewpoint(&pxd_predict_pitch);
     mvs_ptr->add_viewpoint(&pxd_predict_duration);
+    mvs_ptr->add_viewpoint(&dur_predict_seqint);
+    mvs_ptr->add_viewpoint(&seqint_predict_intref);
     mvs_ptr->add_viewpoint(&duration_vp);
     mvs_ptr->add_viewpoint(&interval_vp);
     mvs_ptr->add_viewpoint(&intref_vp);
     mvs_ptr->add_viewpoint(&rest_vp);
+    mvs_ptr->add_viewpoint(&dur_predict_rest);
   }
 
   corpus_t train_corp;
@@ -309,8 +326,8 @@ int main(void) {
   train(train_corp, {&lt_only, &full_mvs});
   std::cout << "done." << std::endl;
 
-  double max_intra = 0.0;
-  double max_inter = 0.0;
+  double max_intra = 0.25;
+  double max_inter = 0.25;
   double step = 0.25;
   bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
   
