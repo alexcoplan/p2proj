@@ -228,9 +228,13 @@ void bias_grid_sweep(const corpus_t &corpus, ChoraleMVS &mvs, double max_intra,
 
 void generate(ChoraleMVS &mvs, 
               const unsigned int len, 
+              const QuantizedDuration &ts_dur,
               const std::string &json_fname) {
-  std::cout << "Generating piece of length " << len << " in 4/4..." << std::flush;
-  auto piece = mvs.random_walk(len, QuantizedDuration(16));
+  ChoraleTimeSig timesig(ts_dur);
+  std::cout 
+    << "Generating piece of length " << len 
+    << " in " << timesig << ".." << std::flush;
+  auto piece = mvs.random_walk(len, ts_dur);
   std::cout << "done." << std::endl;
 
   std::cout << "Entropy of generated piece: " << std::endl << std::flush;
@@ -240,6 +244,8 @@ void generate(ChoraleMVS &mvs,
   std::cout << "-->    Pitch: " << pitch_entropy << std::endl;
   std::cout << "--> Duration: " << dur_entropy << std::endl;
   std::cout << "-->     Rest: " << rest_entropy << std::endl;
+  std::cout << "-->    Total: "
+    << (pitch_entropy + dur_entropy + rest_entropy) << std::endl;
 
   auto pitch_xents = mvs.cross_entropies<ChoralePitch>(piece);
   auto dur_xents   = mvs.cross_entropies<ChoraleDuration>(piece);
@@ -264,9 +270,27 @@ void generate(ChoraleMVS &mvs,
 }
 
 int main(void) {
+  const QuantizedDuration three_four(12);
+  const QuantizedDuration four_four(16);
+
   const unsigned int hist = 5;
   ChoraleMVS::GenVP<ChoralePitch> pitch_vp(hist);
   ChoraleMVS::GenVP<ChoraleDuration> duration_vp(hist);
+
+  // seqint crossed with things
+  ChoraleMVS::GenLinkedVP<ChoraleIntref, ChoraleInterval> 
+    iref_pred_seqint(hist);
+  ChoraleMVS::GenLinkedVP<ChoraleInterval, ChoraleIntref> 
+    seqint_pred_iref(hist);
+
+  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleInterval>
+    dur_pred_seqint(hist);
+  ChoraleMVS::GenLinkedVP<ChoraleInterval, ChoraleDuration>
+    seqint_pred_dur(hist);
+
+  // intref x fib
+  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoraleIntref>
+    fib_pred_iref(hist);
 
   // pxd ~ pitch cross duration
   ChoraleMVS::GenLinkedVP<ChoralePitch, ChoraleDuration> 
@@ -278,19 +302,32 @@ int main(void) {
   ChoraleMVS::GenLinkedVP<ChoraleIntref, ChoraleDuration> 
     ir_x_d_predict_dur(hist);
 
-  // iv_x_d ~ seqint cross duration
-  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleInterval>
-    dur_predict_seqint(hist);
+  // posinbar crossed with things
+  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleDuration>
+    posxdur_p_dur(hist);
 
-  ChoraleMVS::GenLinkedVP<ChoraleInterval, ChoraleIntref>
-    seqint_predict_intref(hist);
+  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleRest>
+    posxrest_p_rest(hist);
 
-  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleRest>
-    dur_predict_rest(hist);
+  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleIntref>
+    posxiref_p_iref(hist);
+
+  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleInterval>
+    posxsint_p_sint(hist);
+
+  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoralePitch>
+    posinbar_p_pitch(hist);
 
   ChoraleMVS::GenVP<ChoraleRest> rest_vp(hist);
   ChoraleMVS::GenVP<ChoraleInterval> interval_vp(hist);
   ChoraleMVS::GenVP<ChoraleIntref> intref_vp(hist);
+
+  // triply-linked VPs
+  ChoraleMVS::TripleLinkedVP<ChoralePosinbar, ChoraleRest, ChoraleDuration> 
+   clock_duration(hist);
+
+  ChoraleMVS::TripleLinkedVP<ChoralePosinbar, ChoraleDuration, ChoraleRest>
+    clock_rest(hist);
 
   auto lt_config = MVSConfig::long_term_only(1.0);
   ChoraleMVS lt_only(lt_config);
@@ -298,24 +335,37 @@ int main(void) {
   MVSConfig full_config;
   full_config.lt_history = hist;
   full_config.st_history = 3;
-  full_config.enable_short_term = true;
+  full_config.enable_short_term = false;
   full_config.mvs_name = "full mvs for evaluation";
-  full_config.intra_layer_bias = 1.3;
-  full_config.inter_layer_bias = 1.0;
+  full_config.intra_layer_bias = 0.25;
+  full_config.inter_layer_bias = 0.5;
 
   ChoraleMVS full_mvs(full_config);
 
+  // n.b. foe => first-order effectiveness
   for (auto mvs_ptr : {&lt_only, &full_mvs}) {
-    mvs_ptr->add_viewpoint(&pitch_vp);
-    mvs_ptr->add_viewpoint(&pxd_predict_pitch);
-    mvs_ptr->add_viewpoint(&pxd_predict_duration);
-    mvs_ptr->add_viewpoint(&dur_predict_seqint);
-    mvs_ptr->add_viewpoint(&seqint_predict_intref);
+    // pitch predictors
+    mvs_ptr->add_viewpoint(&pitch_vp); // benchmark: pitch alone => 2.48279
+    //mvs_ptr->add_viewpoint(&iref_pred_seqint); // *bad*
+    //mvs_ptr->add_viewpoint(&seqint_pred_iref); // foe: 0.02887
+    //mvs_ptr->add_viewpoint(&dur_pred_seqint); // foe: -0.0651
+    mvs_ptr->add_viewpoint(&posxiref_p_iref); // foe: 0.10129
+    mvs_ptr->add_viewpoint(&posinbar_p_pitch); // foe: 0.13485!
+    //mvs_ptr->add_viewpoint(&posxsint_p_sint); // foe: -0.06588
+    //mvs_ptr->add_viewpoint(&intref_vp); // foe: 0.0935
+    mvs_ptr->add_viewpoint(&interval_vp); // foe: -0.07416
+
+
+    // duration predictors
     mvs_ptr->add_viewpoint(&duration_vp);
-    mvs_ptr->add_viewpoint(&interval_vp);
-    mvs_ptr->add_viewpoint(&intref_vp);
+    //mvs_ptr->add_viewpoint(&clock_duration);
+    //mvs_ptr->add_viewpoint(&ir_x_d_predict_dur);
+    //mvs_ptr->add_viewpoint(&seqint_pred_dur);
+
+    // rest predictors
     mvs_ptr->add_viewpoint(&rest_vp);
-    mvs_ptr->add_viewpoint(&dur_predict_rest);
+    //mvs_ptr->add_viewpoint(&clock_rest);
+    mvs_ptr->add_viewpoint(&posxrest_p_rest);
   }
 
   corpus_t train_corp;
@@ -326,12 +376,12 @@ int main(void) {
   train(train_corp, {&lt_only, &full_mvs});
   std::cout << "done." << std::endl;
 
-  double max_intra = 0.25;
-  double max_inter = 0.25;
+  double max_intra = 0.0;
+  double max_inter = 0.0;
   double step = 0.25;
   bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
   
-  //generate(full_mvs, 42, "out/gend.json");
+  //generate(full_mvs, 42, four_four, "out/gend.json");
 }
 
 

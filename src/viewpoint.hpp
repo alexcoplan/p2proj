@@ -229,6 +229,60 @@ public:
   GeneralLinkedVP(unsigned int hist) : Base(hist) {}
 };
 
+// template to model a triply-linked type. we use this template rather than
+// writing out the full expression partly for brevity, but also because it
+// enforces the same nesting convention everywhere.
+template<class T_a, class T_b, class T_c>
+using TripleLink = EventPair<EventPair<T_a, T_b>, T_c>;
+
+template<class EventStructure, class T_l, class T_r, class T_p>
+using TripleLinkedBase = 
+  Viewpoint<EventStructure, TripleLink<T_l, T_r, T_p>, SurfaceType<T_p>>;
+
+template<class EventStructure, class T_hleft, class T_hright, class T_predict>
+class TripleLinkedVP :
+  public TripleLinkedBase<EventStructure, T_hleft, T_hright, T_predict> {
+protected:
+  // set up the relevant types / template aliases
+  using T_hidden = EventPair<T_hleft, T_hright>;
+  using T_model = TripleLink<T_hleft, T_hright, T_predict>;
+  using T_surface = SurfaceType<T_predict>;
+  using Base = TripleLinkedBase<EventStructure, T_hleft, T_hright, T_predict>;
+  using PredBase = Predictor<EventStructure, T_surface>;
+
+public:
+  std::vector<T_model>
+  lift(const std::vector<EventStructure> &events) const override {
+    auto h_left = EventStructure::template lift<T_hleft>(events);
+    auto h_right = EventStructure::template lift<T_hright>(events);
+    auto main_es = EventStructure::template lift<T_predict>(events);
+    auto hidden_es = T_hidden::zip_tail(h_left, h_right);
+    return T_model::zip_tail(hidden_es, main_es);
+  }
+
+  EventDistribution<T_surface>
+  predict(const std::vector<EventStructure> &ctx) const override {
+    auto lifted = lift(ctx);
+    auto triple_dist = this->model.gen_successor_dist(lifted);
+    std::array<double, T_predict::cardinality> summed_out{{0.0}};
+    for (auto e_predict : EventEnumerator<T_predict>())
+      for(auto e_hidden : EventEnumerator<T_hidden>()) {
+        T_model pair(e_hidden, e_predict);
+        summed_out[e_predict.encode()] += triple_dist.probability_for(pair);
+      }
+
+    auto derived_dist = EventDistribution<T_predict>(summed_out);
+    return EventStructure::reify(ctx, derived_dist);
+  }
+
+  bool can_predict(const std::vector<EventStructure> &) const override {
+    return true; // TODO: see other implementations in this file
+  }
+
+  PredBase *clone() const override { return new TripleLinkedVP(*this); }
+  TripleLinkedVP(unsigned int hist) : Base(hist) {}
+};
+
 /************************************************************
  * Legacy code below here
  *

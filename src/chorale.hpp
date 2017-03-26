@@ -172,6 +172,14 @@ public:
   ChoralePosinbar(unsigned int c) : CodedEvent(c) { assert(c < cardinality); }
 };
 
+class ChoraleFib : public CodedEvent {
+public:
+  constexpr static unsigned int cardinality = 2;
+  unsigned int encode() const override { return code; }
+  ChoraleFib(bool fib) : CodedEvent(fib ? 1 : 0) {}
+  ChoraleFib(unsigned int c);
+};
+
 class ChoraleRest : public CodedEvent {
 public:
   constexpr static unsigned int cardinality = 6;
@@ -254,6 +262,7 @@ public:
  **********************************************************/
 
 std::ostream& operator<<(std::ostream &os, const ChoralePosinbar &pos);
+std::ostream& operator<<(std::ostream &os, const ChoraleTimeSig &ts);
 
 /**********************************************************
  * ChoraleEvent declaration
@@ -383,6 +392,28 @@ ChoraleEvent::lift(const std::vector<ChoraleEvent> &events) {
   for (const auto &e : events) {
     offset += e.rest.raw_value();
     result.push_back(offset % beats_in_bar);
+    offset += e.duration.raw_value();
+  }
+
+  return result;
+}
+
+template<>
+inline
+std::vector<ChoraleFib>
+ChoraleEvent::lift(const std::vector<ChoraleEvent> &events) {
+  if (events.empty())
+    return {};
+
+  auto timesig = events.front().timesig;
+  unsigned int beats_in_bar = timesig.raw_value();
+
+  std::vector<ChoraleFib> result;
+
+  unsigned int offset = 0;
+  for (const auto &e : events) {
+    offset += e.rest.raw_value();
+    result.push_back((offset % beats_in_bar) == 0);
     offset += e.duration.raw_value();
   }
 
@@ -626,10 +657,17 @@ struct MVSConfig {
 
 class ChoraleMVS {
 public:
+  // here we declare some viewpoint aliases for convenience, starting with old
+  // baisc viewpoints:
   template<class T>
   using BasicVP =
     BasicViewpoint<ChoraleEvent, T>;
+  
+  template<class T1, class T2>
+  using BasicLinkedVP =
+    BasicLinkedViewpoint<ChoraleEvent, T1, T2>;
 
+  // and also general viewpoints:
   template<class T>
   using GenVP =
     GeneralViewpoint<ChoraleEvent, T>;
@@ -638,9 +676,10 @@ public:
   using GenLinkedVP =
     GeneralLinkedVP<ChoraleEvent, T1, T2>;
 
-  template<class T1, class T2>
-  using BasicLinkedVP =
-    BasicLinkedViewpoint<ChoraleEvent, T1, T2>;
+  template<class P, class Q, class R>
+  using TripleLinkedVP =
+    TripleLinkedVP<ChoraleEvent, P, Q, R>;
+
 
 private:
   template<class T>

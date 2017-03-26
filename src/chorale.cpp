@@ -163,12 +163,29 @@ ChoraleRest::ChoraleRest(const QuantizedDuration &qd) :
   }
 }
 
+/***************************************************
+ * ChoraleFib implementation
+ ***************************************************/
+
+ChoraleFib::ChoraleFib(unsigned int c) : CodedEvent(c) {
+  if (c >= cardinality) {
+    std::string msg = "Bad direct initialisation of ChoraleFib (code = ";
+    msg += std::to_string(c) + ")";
+    throw ChoraleTypeError(msg);
+  }
+}
+
 /********************************************************************
  * Implementation of stringification for chorale types
  ********************************************************************/
 
 std::ostream& operator<<(std::ostream &os, const ChoralePosinbar &pos) {
   os << "pos(" << pos.encode() << ")";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream &os, const ChoraleTimeSig &ts) {
+  os << (ts.raw_value() == 12 ? "3/4" : "4/4");
   return os;
 }
 
