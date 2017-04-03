@@ -10,8 +10,10 @@
 \usepackage{microtype}
 \usepackage{longtable} % so we can break the timetable across two pages
 
-\usepackage[style=numeric,backend=bibtex]{biblatex}
+\usepackage[style=numeric,backend=biber]{biblatex}
 \bibliography{refs.bib}
+
+\emergencystretch=1.5em
 
 \begin{document}
 
@@ -246,16 +248,16 @@ These possible extensions include:
 \newpage
 
 \section{Timetable}
-
+% weirdly, the \vspace{0mm} seems to fix a load of underfull \hbox errors in the
+% following longtable (whne compiled with xelatex)
 \begin{longtable}{ p{4cm} | p{11cm} } \hline 
-
 06/10/16 -- 19/10/16 Michaelmas Weeks 1-2 & \textbf{Proposal}. Done. \\ \hline
 20/10/16 -- 02/11/16 Michaelmas Weeks 3-4 & \textbf{Research Phase}. 
 Research multiple viewpoint systems, RNNs, and perform preliminary research on
 evaluation techniques.  Investigate options for corpus material and format.
 Devise and fix internal representation for musical data. Prepare test corpus.
 Gain familiarity with core libraries (e.g.\ TensorFlow) and modern C++ features.
-\newline
+\newline\vspace{0mm}
 
 \textbf{Milestone}: Report summarising research and design decisions to
 supervisor. \emph{Due 2nd November 2016}.
@@ -264,7 +266,8 @@ supervisor. \emph{Due 2nd November 2016}.
 	Preliminaries}.
 Implement parser for format determined during research phase (e.g.\ ABC, MIDI,
 MusicXML). Implement internal representation and associated music-theoretic
-tooling. Once complete, commence work on MVS implementation. \newline
+tooling. Once complete, commence work on MVS implementation. 
+\newline\vspace{0mm}
 
 \textbf{Milestone}: Working parser with accompanying (passing) tests. Underlying
 context model implementation for MVS complete. \emph{Due 16th
@@ -273,7 +276,8 @@ context model implementation for MVS complete. \emph{Due 16th
 
 17/11/16 -- 30/11/16 Michaelmas Weeks 7-8 & \textbf{Implementation: MVS}.
 Continue implementation of MVS. The system need not be complete in the exact
-viewpoints used, but the underlying machinery should be. \newline
+viewpoints used, but the underlying machinery should be. 
+\newline\vspace{0mm}
 
 \textbf{Milestone}: Working MVS demonstrated to supervisor. Induction of
 viewpoints, generation from individual viewpoints and interpolation of viewpoint
@@ -282,7 +286,8 @@ induction) should be accompanied by passing unit tests.
 \emph{Due 30th November 2016}. \\ \hline
 
 01/12/16 -- 14/12/16 Xmas Vac.\ Weeks 1-2 & \textbf{Implementation: RNN}.
-Begin implementation of RNN. Some slack allowed in this period. \newline
+Begin implementation of RNN. Some slack allowed in this period. 
+\newline\vspace{0mm}
 
 \textbf{Milestone}: Basic RNN implementation without LSTM, using a simple input
 representation (e.g.\ pitch-only) completed. \newline 
@@ -292,10 +297,10 @@ representation (e.g.\ pitch-only) completed. \newline
 15/12/16 -- 04/01/17 Xmas Vac.\ Weeks 3-5 & \textbf{Implementation: MVS II}.
 Refine implementation of MVS. Experiment with various different viewpoints.
 Refer to Whorley \cite{whorley2013phd} for direction here.
-\newline
+\newline\vspace{0mm}
 
 \textbf{Extension}: If time, extend MVS to generate polyphony in this stage. 
-\newline
+\newline\vspace{0mm}
 
 \textbf{Milestone}: MVS assembled, document summarising implementation progress
 including sample output sent to supervisor. 
@@ -303,10 +308,10 @@ including sample output sent to supervisor.
 \\ \hline
 05/01/17 -- 18/01/17 Xmas Vac.\ Weeks 6-7 & \textbf{Implementation: RNN II}.
 Refine implementation of RNN. Investigate implementing LSTM model. Some slack
-allowed in this phase. \newline
+allowed in this phase. \newline\vspace{0mm}
 
 \textbf{Extension}: Continue extending MVS to generate polyphony, or extend
-RNN. \newline
+RNN. \newline\vspace{0mm}
 
 \textbf{Milestone}: Demonstration of RNN and MVS to supervisor for start of
 term. \emph{Due 19th January 2017}.
@@ -314,7 +319,7 @@ term. \emph{Due 19th January 2017}.
 
 19/01/17 -- 01/02/17 Lent Weeks 1-2 & \textbf{Review}.
 Review progress so far. Continue iteratively refining models. Design listening
-trials for evaluation. \newline
+trials for evaluation. \newline\vspace{0mm}
 
 \textbf{Milestone}: Progress Report \& Presentation. \emph{Due 12pm, 3rd
 	February}.
@@ -322,17 +327,19 @@ trials for evaluation. \newline
 
 02/02/17 -- 15/02/17 Lent Weeks 3-4 & \textbf{Evaluation}.
 Arrange and conduct listening trials. Also perform any ``offline'' evaluation in
-this phase e.g.\ collecting data from models, analysing output etc. \newline
+this phase e.g.\ collecting data from models, analysing output etc.
+\newline\vspace{0mm}
 
 \textbf{Extension}: If time available, and requisite extension components
-complete, carry out music-theoretic evaluation of polyphony. \newline
+complete, carry out music-theoretic evaluation of polyphony.
+\newline\vspace{0mm}
 
 \textbf{Milestone}: Listening trials arranged \emph{by 9th February}.
 \\ \hline
 
 16/02/17 -- 01/03/17 Lent Weeks 5-6 & \textbf{Dissertation: Preparation}.
 Finish evaluation and data collection. Write bullet-point conclusion and 
-evaluation chapters. Write up implementation. \newline
+evaluation chapters. Write up implementation. \newline\vspace{0mm}
 
 \textbf{Milestone}: Data from evaluation collected by \emph{23rd February}.
 Conclusion outlined in bullet points. Implementation chapter
@@ -340,13 +347,14 @@ complete. \emph{Due 1st March 2017}.
 \\ \hline
 
 02/03/17 -- 15/03/17 Lent Weeks 7-8 & \textbf{Dissertation: Introduction}.
-Write preparation and introduction chapters of dissertation. \newline
+Write preparation and introduction chapters of dissertation.
+\newline\vspace{0mm}
 
 \textbf{Milestone}: Chapter drafts to supervisor. \emph{Due 15th March}.
 \\ \hline
 
 16/03/17 -- 29/03/17 Easter Vac.\ Weeks 1-2 & Write evaluation chapter of
-dissertation. Revise drafts of chapters written thus far. \newline
+dissertation. Revise drafts of chapters written thus far. \newline\vspace{0mm}
 
 \textbf{Milestone}: First complete draft to supervisor. \emph{Due 29th March}.
 \\ \hline
@@ -358,7 +366,7 @@ dissertation (e.g.\ figures etc.)
 
 13/04/17 -- 26/04/17 Easter Vac.\ Weeks 5-6 & 
 Finish the dissertation by the end of the Easter vacation. Slack for revision
-allowed in this phase. \newline
+allowed in this phase. \newline\vspace{0mm}
 
 \textbf{Milestone}: Final draft sent to supervisor by \emph{26th April 2017}.
 \\ \hline

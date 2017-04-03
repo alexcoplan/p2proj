@@ -42,6 +42,9 @@ src/rnn/json_out
 *.run.xml
 *-blx.bib
 *.synctex.*
+*.bcf
+*.lof
+*.toc
 
 # Font files for presentation
 presentation/slides/js/katex/fonts
