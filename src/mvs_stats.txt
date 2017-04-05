@@ -1,0 +1,38 @@
+# params: intra_b = 0.25, inter_b = 0.5, lt_hist = 5, st_hist = 3
+
+## Pitch 
+
+optimized (w/o fib triple links):
+{ pitch, duration->intref, posinbar->pitch, duration->seqint, posinbar->intref, 
+  duration->pitch, rest->seqint, rest->intref }
+ => 1.90477
+
+## Duration
+
+optimized (with fib triple links):
+{ duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
+ => 0.855181
+
+## Rest
+
+optimized (with fib triple links):
+{ rest, (fib x duration)->rest, (fib x pitch)->rest, duration->rest }
+ => 0.142237
+
+# parms: intra_b = 0.0, inter_b = 0.0, lt_hist = 5, st_hist = 3
+
+## Rest
+
+optimized (w/ fib triple links):
+{ rest, (fib x duration)->rest, (fib x intref)->rest }
+ => 0.109711
+
+nb. this means that the choice of entropy bias affects the choice of viewpoints!
+we can't just choose the entropy bias ad hoc up front and optimise it later...
+
+TODO:
+1. Add triple-linked fib VPs for pitch
+2. Run all VP selections at different entropy biases (nominally (0.0, 0.25)^2)
+and record results: write dissertation or work on survey while processing!
+3. Generate new samples and continue
+
