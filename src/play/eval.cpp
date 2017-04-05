@@ -374,17 +374,17 @@ void MVSOptimizer::optimize(double eps_terminate,
       vp_stack.pop_back();
     }
 
-    assert(best_addition != nullptr);
-
     double delta = prev_best_xent - round_best_xent;
     std::cout << "round delta: " << delta << " bits" << std::endl;
     std::cout << " round best: " << round_best_xent <<  " bits" << std::endl;
-    std::cout << "    best vp: " << best_addition->vp_name() << std::endl;
 
+    if (best_addition != nullptr)
+      std::cout << "    best vp: " << best_addition->vp_name() << std::endl;
+    else
+      std::cout << "no vps to add." << std::endl;
 
     if (delta < eps_terminate) {
-      std::cout << std::endl;
-      std::cout << "Optimisation complete." << std::endl;
+      std::cout << std::endl << "Optimisation complete." << std::endl;
       std::cout << "Final system: " 
         << vps_to_string(vp_stack) << std::endl;
       std::cout << "Final xentropy: "
@@ -637,6 +637,34 @@ int main(void) {
   ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIOI, ChoraleRest>
     fibxioi_p_rest(hist);
 
+  // fib triple links predicting intref
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleDuration, ChoraleIntref>
+    fibxdur_p_intref(hist);
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleInterval, ChoraleIntref>
+    fibxseqint_p_intref(hist);
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIOI, ChoraleIntref>
+    fibxioi_p_intref(hist);
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleRest, ChoraleIntref>
+    fibxrest_p_intref(hist);
+
+  // fib triple links predicting seqint
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleDuration, ChoraleInterval>
+    fibxdur_p_seqint(hist);
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIntref, ChoraleInterval>
+    fibxintref_seqint(hist);
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIOI, ChoraleInterval>
+    fibxioi_p_seqint(hist);
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleRest, ChoraleInterval>
+    fibxrest_p_seqint(hist);
+
+  // fib triple links predicting pitch
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleDuration, ChoralePitch>
+    fibxdur_p_pitch(hist);
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIOI, ChoralePitch>
+    fibxioi_p_pitch(hist);
+  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleRest, ChoralePitch>
+    fibxrest_p_pitch(hist);
+
   auto lt_config = MVSConfig::long_term_only(1.0);
   ChoraleMVS lt_only(lt_config);
 
@@ -645,8 +673,8 @@ int main(void) {
   full_config.st_history = 3;
   full_config.enable_short_term = true;
   full_config.mvs_name = "full mvs for evaluation";
-  full_config.intra_layer_bias = 0.0;
-  full_config.inter_layer_bias = 0.0;
+  full_config.intra_layer_bias = 0.25;
+  full_config.inter_layer_bias = 0.5;
 
   // n.b. we don't need to add the base VPs of each type as the optimizer
   // includes these for us (it doesn't take them from the pool)
@@ -657,6 +685,7 @@ int main(void) {
   // derived from pitch
   optimizer.add_to_pool(&seqint_vp);
   optimizer.add_to_pool(&intref_vp);
+  /*
   // inter-pitch crosses
   optimizer.add_to_pool(&seqint_p_intref);
   optimizer.add_to_pool(&intref_p_seqint);
@@ -681,13 +710,26 @@ int main(void) {
   optimizer.add_to_pool(&fib_p_seqint);
   optimizer.add_to_pool(&fib_p_pitch);
 
+  // fib triple links -> pitch
+  optimizer.add_to_pool(&fibxdur_p_intref);
+  optimizer.add_to_pool(&fibxseqint_p_intref);
+  optimizer.add_to_pool(&fibxioi_p_intref);
+  optimizer.add_to_pool(&fibxrest_p_intref);
+  optimizer.add_to_pool(&fibxdur_p_seqint);
+  optimizer.add_to_pool(&fibxintref_seqint);
+  optimizer.add_to_pool(&fibxioi_p_seqint);
+  optimizer.add_to_pool(&fibxrest_p_seqint);
+  optimizer.add_to_pool(&fibxdur_p_pitch);
+  optimizer.add_to_pool(&fibxioi_p_pitch);
+  optimizer.add_to_pool(&fibxrest_p_pitch);
+
   // TODO: also try dur and rest with clock VPs
   // this will be slow though
   //
   // may also want to consider triple-linking fib with existing linked vps since
   // its state space is so small that it won't hurt performance too much
 
-  /*** duration predictors into pool ***/
+  // *** duration predictors into pool ***
   // (pitch type)->dur
   optimizer.add_to_pool(&pitch_p_dur);
   optimizer.add_to_pool(&intref_p_dur);
@@ -705,7 +747,7 @@ int main(void) {
   optimizer.add_to_pool(&fibxseqint_p_dur);
   optimizer.add_to_pool(&fibxintref_p_dur);
 
-  /*** rest predictors into pool ***/
+  // *** rest predictors into pool ***
   optimizer.add_to_pool(&pitch_p_rest);
   optimizer.add_to_pool(&intref_p_rest);
   optimizer.add_to_pool(&seqint_p_rest);
@@ -721,13 +763,14 @@ int main(void) {
   optimizer.add_to_pool(&fibxpitch_p_rest);
   optimizer.add_to_pool(&fibxseqint_p_rest);
   optimizer.add_to_pool(&fibxintref_p_rest);
+  */
 
   corpus_t train_corp;
   corpus_t test_corp;
   parse("corpus/fixed_rests_t5.json", train_corp, test_corp);
 
   double eps_terminate = 0.001;
-  optimizer.optimize<ChoraleRest>(eps_terminate, train_corp, test_corp);
+  optimizer.optimize<ChoralePitch>(eps_terminate, train_corp, test_corp);
 
   /*
   ChoraleMVS full_mvs(full_config);

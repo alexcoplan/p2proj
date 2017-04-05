@@ -105,9 +105,9 @@ void ContextModel<b>::set_history(unsigned int h) {
 template<int b>
 void ContextModel<b>::clear_model() {
   for (unsigned int i = 0; i < b; i++) {
-    if (trie_root.children[i] != NULL) {
+    if (trie_root.children[i] != nullptr) {
       delete trie_root.children[i];
-      trie_root.children[i] = NULL;
+      trie_root.children[i] = nullptr;
     }
   }
 

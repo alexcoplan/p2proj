@@ -709,7 +709,7 @@ struct MVSConfig {
 class ChoraleMVS {
 public:
   // here we declare some viewpoint aliases for convenience, starting with old
-  // baisc viewpoints:
+  // basic viewpoints:
   template<class T>
   using BasicVP =
     BasicViewpoint<ChoraleEvent, T>;

@@ -34,7 +34,12 @@ public:
   virtual std::string vp_name() const = 0;
 
   virtual Predictor *clone() const = 0;
+
+  virtual ~Predictor();
 };
+
+template<class ES, class T>
+inline Predictor<ES,T>::~Predictor() {}
 
 namespace template_magic {
   /* IsDerived<T>
@@ -339,9 +344,7 @@ public:
     return true; // basic VPs can always predict
   }
 
-  BasicLinkedViewpoint *clone() const override {
-    return new BasicLinkedViewpoint(*this);
-  }
+  BasicLinkedViewpoint *clone() const override { return new BasicLinkedViewpoint(*this); }
 
   std::string vp_name() const override {
     return "old-(" + T_hidden::type_name + "->" + T_predict::type_name + ")";

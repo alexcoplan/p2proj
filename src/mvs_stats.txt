@@ -1,27 +1,38 @@
-# params: intra_b = 0.25, inter_b = 0.5, lt_hist = 5, st_hist = 3
+# Notes on auto-optimised MVSs and their performance
 
-## Pitch 
+## params: intra_b = 0.25, inter_b = 0.5, lt_hist = 5, st_hist = 3
+
+### Pitch 
 
 optimized (w/o fib triple links):
 { pitch, duration->intref, posinbar->pitch, duration->seqint, posinbar->intref, 
   duration->pitch, rest->seqint, rest->intref }
- => 1.90477
+ => 1.90477 bits
 
-## Duration
+optimized (with fib triple links):
+{ pitch, (fib x duration)->intref, duration->pitch, posinbar->seqint, rest->intref, (fib x duration)->pitch }
+ => 1.89096 bits
+
+sigkilled while evaluating:
+{ pitch, (fib x duration)->intref, duration->pitch, posinbar->seqint, rest->intref, (fib x duration)->pitch, rest->pitch }
+(leak now fixed). so further improvements possible
+
+
+### Duration
 
 optimized (with fib triple links):
 { duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
  => 0.855181
 
-## Rest
+### Rest
 
 optimized (with fib triple links):
 { rest, (fib x duration)->rest, (fib x pitch)->rest, duration->rest }
  => 0.142237
 
-# parms: intra_b = 0.0, inter_b = 0.0, lt_hist = 5, st_hist = 3
+## parms: intra_b = 0.0, inter_b = 0.0, lt_hist = 5, st_hist = 3
 
-## Rest
+### Rest
 
 optimized (w/ fib triple links):
 { rest, (fib x duration)->rest, (fib x intref)->rest }
