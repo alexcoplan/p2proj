@@ -31,6 +31,8 @@ public:
   virtual bool 
     can_predict(const std::vector<EventStructure> &es) const = 0;
 
+  virtual std::string vp_name() const = 0;
+
   virtual Predictor *clone() const = 0;
 };
 
@@ -177,6 +179,10 @@ public:
     return true; 
   }
 
+  std::string vp_name() const override {
+    return T_viewpoint::type_name;
+  }
+
   PredBase *clone() const override { return new GeneralViewpoint(*this); }
   GeneralViewpoint(unsigned int hist) : Base(hist) {}
 };
@@ -223,6 +229,10 @@ public:
     // TODO: eventually remove this from the Predictor<> interface once all VPs
     // have been properly subsumed by these generalised VPs
     return true; 
+  }
+
+  std::string vp_name() const override {
+    return T_hidden::type_name + "->" + T_predict::type_name;
   }
 
   PredBase *clone() const override { return new GeneralLinkedVP(*this); }
@@ -279,6 +289,12 @@ public:
     return true; // TODO: see other implementations in this file
   }
 
+  std::string vp_name() const override {
+    return "(" + T_hleft::type_name + " x " 
+               + T_hright::type_name + ")->" 
+               + T_predict::type_name;
+  }
+
   PredBase *clone() const override { return new TripleLinkedVP(*this); }
   TripleLinkedVP(unsigned int hist) : Base(hist) {}
 };
@@ -327,6 +343,10 @@ public:
     return new BasicLinkedViewpoint(*this);
   }
 
+  std::string vp_name() const override {
+    return "old-(" + T_hidden::type_name + "->" + T_predict::type_name + ")";
+  }
+
   BasicLinkedViewpoint(unsigned int history) : BaseVP(history) {}
 };
 
@@ -348,6 +368,10 @@ public:
   }
 
   VPBase *clone() const override { return new BasicViewpoint(*this); }
+
+  std::string vp_name() const override {
+    return "old-" + T_basic::type_name;
+  }
 
   BasicViewpoint(int history) : VPBase(history) {}
 };

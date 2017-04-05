@@ -66,6 +66,7 @@ class ChoraleIntref;
 class ChoralePitch : public CodedEvent {
 public:
   constexpr static unsigned int cardinality = 22;
+  const static std::string type_name;
 
 private:
   const static std::array<const std::string, cardinality> pitch_strings;
@@ -101,6 +102,7 @@ public:
 class ChoraleDuration : public CodedEvent {
 public:
   constexpr static unsigned int cardinality = 15;
+  const static std::string type_name;
 
 private:
   const static std::array<unsigned int, cardinality> duration_domain;
@@ -122,6 +124,7 @@ public:
 class ChoraleKeySig : public CodedEvent {
 public:
   constexpr static int cardinality = 9;
+  const static std::string type_name;
 
 private:
   constexpr static int min_sharps = -4;
@@ -150,6 +153,7 @@ public:
 class ChoraleTimeSig : public CodedEvent {
 public:
   constexpr static unsigned int cardinality = 3;
+  const static std::string type_name;
 
 private:
   static const std::array<unsigned int, cardinality> time_sig_domain;
@@ -168,6 +172,7 @@ public:
 class ChoralePosinbar : public CodedEvent {
 public:
   constexpr static unsigned int cardinality = 16;
+  const static std::string type_name;
   unsigned int encode() const override { return code; }
   ChoralePosinbar(unsigned int c) : CodedEvent(c) { assert(c < cardinality); }
 };
@@ -175,6 +180,7 @@ public:
 class ChoraleFib : public CodedEvent {
 public:
   constexpr static unsigned int cardinality = 2;
+  const static std::string type_name;
   unsigned int encode() const override { return code; }
   ChoraleFib(bool fib) : CodedEvent(fib ? 1 : 0) {}
   ChoraleFib(unsigned int c);
@@ -183,6 +189,7 @@ public:
 class ChoraleRest : public CodedEvent {
 public:
   constexpr static unsigned int cardinality = 6;
+  const static std::string type_name;
 
 private:
   constexpr static unsigned int map_in(unsigned int rest_len) {
@@ -212,6 +219,7 @@ class ChoraleInterval : public CodedEvent {
 public:
   using derived_from = ChoralePitch;
   constexpr static unsigned int cardinality = 22;
+  const static std::string type_name;
 
 private:
   // domain is {-12, -9, -8, ..., 8, 9, 12}
@@ -248,6 +256,7 @@ class ChoraleIntref : public CodedEvent {
 public:
   using derived_from = ChoralePitch;
   constexpr static unsigned int cardinality = 12;
+  const static std::string type_name;
 
   unsigned int encode() const override { return code; }
   std::string string_render() const override {
@@ -255,6 +264,22 @@ public:
   }
 
   ChoraleIntref(unsigned int code);
+};
+
+class ChoraleIOI : public CodedEvent {
+public:
+  constexpr static unsigned int cardinality = 11;
+  const static std::string type_name;
+  const static std::array<unsigned int, cardinality> ioi_domain;
+  unsigned int encode() const override { return code; }
+  unsigned int map_in(unsigned int dur);
+  unsigned int map_out(unsigned int code);
+
+  ChoraleIOI(unsigned int c) :
+    CodedEvent(c) { assert(c < cardinality); }
+
+  ChoraleIOI(const QuantizedDuration &dur) :
+    CodedEvent(map_in(dur.duration)) { assert(code < cardinality); }
 };
 
 /**********************************************************
@@ -338,6 +363,25 @@ ChoraleDuration ChoraleEvent::project() const { return duration; }
 template<>
 inline
 ChoraleRest ChoraleEvent::project() const { return rest; }
+
+template<>
+inline
+std::vector<ChoraleIOI>
+ChoraleEvent::lift(const std::vector<ChoraleEvent> &events) {
+  if (events.size() <= 1)
+    return {};
+
+  std::vector<ChoraleIOI> result;
+  for (unsigned int i = 1; i < events.size(); i++) {
+    auto prev = events[i-1];
+    auto curr = events[i];
+
+    auto ioi_amt = curr.rest.raw_value() + prev.duration.raw_value();
+    result.push_back(QuantizedDuration(ioi_amt));
+  }
+
+  return result;
+}
 
 template<>
 inline
@@ -463,9 +507,12 @@ public:
     return new IntervalViewpoint(*this);
   }
 
+  std::string vp_name() const override {
+    return "old-seqint";
+  }
+
   EventDistribution<ChoralePitch>
     predict(const std::vector<ChoraleEvent> &pitches) const override;
-
 };
 
 class IntrefViewpoint :
@@ -485,6 +532,10 @@ public:
 
   IntrefViewpoint *clone() const override {
     return new IntrefViewpoint(*this);
+  }
+
+  std::string vp_name() const override {
+    return "old-intref";
   }
 
   EventDistribution<ChoralePitch>
@@ -680,15 +731,14 @@ public:
   using TripleLinkedVP =
     TripleLinkedVP<ChoraleEvent, P, Q, R>;
 
-
-private:
   template<class T>
   using Pred =
     Predictor<ChoraleEvent, T>;
 
+private:
   ChoraleVPLayer short_term_layer;
   ChoraleVPLayer long_term_layer;
-  BasicVP<ChoraleKeySig> key_distribution;
+  GenVP<ChoraleKeySig> key_distribution;
   bool enable_short_term;
 
 public:

@@ -64,7 +64,8 @@ validation_nums = individual_chorale_rs_nums[0:args.validation_chorales]
 # event counters: these determine which values syntactic values of a given type
 # are actually used in the corpus
 counters : Dict[str, Counter] = {} 
-types = ["pitch", "duration", "keysig", "timesig", "seqint", "intref", "rest"]
+types = ["pitch", "duration", "keysig", "timesig", "seqint", "intref", "rest",
+    "ioi"]
 for t in types:
   counters[t] = Counter()
 
@@ -90,6 +91,7 @@ def m21_to_internal(m21_notes, referent, anac_ql):
 
   prev_pitch = None
   prev_end_q = None # end = offset + duration
+  prev_offset_q = None
 
   counters["rest"].update([ql_quantize(anac_ql + m21_notes[0].offset)])
 
@@ -107,7 +109,11 @@ def m21_to_internal(m21_notes, referent, anac_ql):
 
     if prev_end_q is not None:
       counters["rest"].update([offset_q - prev_end_q])
+    if prev_offset_q is not None:
+      counters["ioi"].update([offset_q - prev_offset_q])
+
     prev_end_q = offset_q + duration_q
+    prev_offset_q = offset_q
 
     counters["pitch"].update([n.pitch.midi])
     counters["duration"].update([duration_q])

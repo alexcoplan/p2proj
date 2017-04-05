@@ -7,6 +7,22 @@
 #define SHARP(X,N) #X "\\sharp{}$_{" #N "}$"
 #define FLAT(X,N) "\\flatten{" #X "}_" #N
 
+// list of all types currently implemented and their names within the multiple
+// viewpoint formalism
+// *** basic types
+const std::string ChoralePitch::type_name    = "pitch";
+const std::string ChoraleDuration::type_name = "duration";
+const std::string ChoraleRest::type_name     = "rest";
+const std::string ChoraleKeySig::type_name   = "keysig";
+const std::string ChoraleTimeSig::type_name  = "timesig";
+
+// *** derived types
+const std::string ChoraleInterval::type_name = "seqint";
+const std::string ChoraleIntref::type_name   = "intref";
+const std::string ChoralePosinbar::type_name = "posinbar";
+const std::string ChoraleFib::type_name      = "fib";
+const std::string ChoraleIOI::type_name      = "ioi";
+
 /***************************************************
  * ChoralePitch implementation
  ***************************************************/
@@ -299,10 +315,27 @@ std::string ChoraleInterval::string_render() const {
 }
 
 // intref implementation
-
 ChoraleIntref::ChoraleIntref(unsigned int c) :
   CodedEvent(c) {
   assert(c < cardinality);
+}
+
+const std::array<unsigned int, ChoraleIOI::cardinality>
+ChoraleIOI::ioi_domain = {
+  { 1, 2, 3, 4, 6, 8, 12, 14, 16, 20, 24 }
+};
+
+unsigned int ChoraleIOI::map_in(unsigned int dur) {
+  for (unsigned int i = 0; i < cardinality; i++)
+    if (ioi_domain[i] == dur)
+      return i;
+
+  std::string msg = "Bad IOI: " + std::to_string(dur);
+  throw ChoraleTypeError(msg);
+}
+
+unsigned int ChoraleIOI::map_out(unsigned int c) {
+  return ioi_domain[c];
 }
 
 /********************************************************************
