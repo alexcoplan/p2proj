@@ -504,7 +504,20 @@ int main(void) {
   const QuantizedDuration three_four(12);
   const QuantizedDuration four_four(16);
 
-  const unsigned int hist = 5;
+  using T_optimize = ChoraleRest;
+  const unsigned int hist    = 6;
+  const unsigned int st_hist = 6;
+
+  auto lt_config = MVSConfig::long_term_only(1.0);
+  ChoraleMVS lt_only(lt_config);
+
+  MVSConfig full_config;
+  full_config.lt_history = hist;
+  full_config.st_history = st_hist;
+  full_config.enable_short_term = true;
+  full_config.mvs_name = "full mvs for evaluation";
+  full_config.intra_layer_bias = 0.0;
+  full_config.inter_layer_bias = 0.25;
 
   ChoraleMVS::GenVP<ChoralePitch> pitch_vp(hist);
   ChoraleMVS::GenVP<ChoraleDuration> duration_vp(hist);
@@ -665,17 +678,6 @@ int main(void) {
   ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleRest, ChoralePitch>
     fibxrest_p_pitch(hist);
 
-  auto lt_config = MVSConfig::long_term_only(1.0);
-  ChoraleMVS lt_only(lt_config);
-
-  MVSConfig full_config;
-  full_config.lt_history = hist;
-  full_config.st_history = 3;
-  full_config.enable_short_term = true;
-  full_config.mvs_name = "full mvs for evaluation";
-  full_config.intra_layer_bias = 0.25;
-  full_config.inter_layer_bias = 0.5;
-
   // n.b. we don't need to add the base VPs of each type as the optimizer
   // includes these for us (it doesn't take them from the pool)
   MVSOptimizer optimizer(full_config);
@@ -685,7 +687,6 @@ int main(void) {
   // derived from pitch
   optimizer.add_to_pool(&seqint_vp);
   optimizer.add_to_pool(&intref_vp);
-  /*
   // inter-pitch crosses
   optimizer.add_to_pool(&seqint_p_intref);
   optimizer.add_to_pool(&intref_p_seqint);
@@ -763,78 +764,21 @@ int main(void) {
   optimizer.add_to_pool(&fibxpitch_p_rest);
   optimizer.add_to_pool(&fibxseqint_p_rest);
   optimizer.add_to_pool(&fibxintref_p_rest);
-  */
+  // the killer rhythmic vp
+  //optimizer.add_to_pool(&clock_rest); // (very expensive)
 
   corpus_t train_corp;
   corpus_t test_corp;
   parse("corpus/fixed_rests_t5.json", train_corp, test_corp);
 
   double eps_terminate = 0.001;
-  optimizer.optimize<ChoralePitch>(eps_terminate, train_corp, test_corp);
+  optimizer.optimize<T_optimize>(eps_terminate, train_corp, test_corp);
 
   /*
   ChoraleMVS full_mvs(full_config);
   full_mvs.add_viewpoint(&pitch_vp);
   full_mvs.add_viewpoint(&duration_vp);
   full_mvs.add_viewpoint(&rest_vp);
-
-  train(train_corp, {&full_mvs});
-
-  double max_intra = 0.0;
-  double max_inter = 0.0;
-  double step = 0.25;
-  bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
-  */
-
-  /*
-  // n.b. foe => first-order effectiveness
-  // foe taken with (intra_layer 0.25, inter_layer 0.5, lt_hist 5, st_hist 3)
-  for (auto mvs_ptr : {&lt_only, &full_mvs}) {
-    // good system: 
-    // pitch: { pitch, seqint dur->seqint, dur->pitch, pos->iref, pos->pitch }
-    //   dur: { dur, pitch->dur, pos->dur, seqint->dur }
-
-    // *** pitch predictors (primitive):
-    mvs_ptr->add_viewpoint(&pitch_vp); // benchmark: pitch alone => 2.30912
-    //mvs_ptr->add_viewpoint(&seqint_vp); // foe: 0.0939
-    //mvs_ptr->add_viewpoint(&intref_vp); // foe: 0.05249
-    
-    // *** pitch  predictors (linked):
-    mvs_ptr->add_viewpoint(&posinbar_p_intref); // foe: 0.20506
-    //mvs_ptr->add_viewpoint(&posinbar_p_seqint); // foe: 0.2051
-    mvs_ptr->add_viewpoint(&dur_p_seqint); // foe: 0.20356
-    //mvs_ptr->add_viewpoint(&dur_p_pitch); // foe: 0.14405 (v good)
-    mvs_ptr->add_viewpoint(&intref_p_seqint); // foe: 0.14133 (v good)
-    mvs_ptr->add_viewpoint(&posinbar_p_pitch); // foe: 0.13485 (good)
-    //mvs_ptr->add_viewpoint(&ioi_p_pitch); // foe: 0.0872
-    //mvs_ptr->add_viewpoint(&seqint_p_intref); // foe: 0.07033
-
-    // *** duration predictors
-    mvs_ptr->add_viewpoint(&duration_vp); // benchmark: dur alone => 0.957828
-    //mvs_ptr->add_viewpoint(&ioi_p_dur); // foe: 0.005793
-    //mvs_ptr->add_viewpoint(&pitch_p_dur); // foe: 0.032973
-    //mvs_ptr->add_viewpoint(&posinbar_p_dur); // foe: 0.093191
-    //mvs_ptr->add_viewpoint(&clock_duration); // foe: 0.101675
-    //mvs_ptr->add_viewpoint(&rest_p_dur); // foe: 0.014745
-    //mvs_ptr->add_viewpoint(&intref_p_dur); // foe: 0.016286
-    //mvs_ptr->add_viewpoint(&seqint_p_dur); // foe: -0.002191
-
-    // *** rest predictors
-    // { clock->rest, posinbar->rest, dur->rest }: 0.021333 effectiveness
-    // { clock->rest, posinbar->rest, dur->rest, intref->rest }: 0.021076 :/
-    // { dur->rest, posinbar->rest, intref->rest }: 0.018142 effectiveness
-    // { posinbar->rest, dur->rest }: 0.01764 effectiveness
-    mvs_ptr->add_viewpoint(&rest_vp); // benchmark: rest alone => 0.13079
-    //mvs_ptr->add_viewpoint(&clock_rest); // foe: 0.019662
-    //mvs_ptr->add_viewpoint(&dur_p_rest); // foe: 0.014718
-    //mvs_ptr->add_viewpoint(&posinbar_p_rest); // foe: 0.012614
-    //mvs_ptr->add_viewpoint(&intref_p_rest); // foe: 0.010797
-    
-    // *** rest predictors (not very useful)
-    //mvs_ptr->add_viewpoint(&pitch_p_rest); // foe: 0.006659
-    //mvs_ptr->add_viewpoint(&ioi_p_rest); // foe: -0.060714 (bad)
-    //mvs_ptr->add_viewpoint(&seqint_p_rest); // foe: -0.116818 (bad!)
-  }
 
   std::cout << "Training... " << std::flush;
   train(train_corp, {&lt_only, &full_mvs});

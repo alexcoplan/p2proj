@@ -1,49 +1,148 @@
 # Notes on auto-optimised MVSs and their performance
 
-## params: intra_b = 0.25, inter_b = 0.5, lt_hist = 5, st_hist = 3
+## Summary:
 
-### Pitch 
+params: intra = 1.0, inter = 1.0, hlong = 5, hshort = 3
+-> pitch: 1.92076  bits
+->   dur: 0.877222 bits
+->  rest: 0.168287 bits
+=> total: 2.966269 bits
 
-optimized (w/o fib triple links):
+intra = 0.25, inter = 0.5, hlong = 5, hshort = 3
+-> pitch: 1.87665  bits
+->   dur: 0.855181 bits
+->  rest: 0.142237 bits
+=> total: 2.870468 bits
+
+params: intra = 0.25, inter = 0.25, hlong = 5, hshort = 3
+-> pitch: 1.88721  bits
+->   dur: 0.851932 bits
+->  rest: 0.12494  bits
+=> total: 2.864082 bits
+
+intra = 0.0,  inter = 0.0, hlong = 5, hshort = 3
+-> pitch: 1.89277  bits
+->   dur: 0.851912 bits
+->  rest: 0.109711 bits
+=> total: 2.854393 bits
+
+params: intra = 0.0, inter = 0.25, hlong = 5, hshort = 3
+-> pitch: 1.87631  bits
+->   dur: 0.850202 bits
+->  rest: 0.125608 bits
+=> total: 2.85212  bits
+
+params: intra = 0.0, inter = 0.25, hlong = 6, hshort = 3
+-> pitch: 1.88207  bits
+->   dur: 0.844522 bits
+->  rest: 0.123912 bits
+=> total: 2.850504 bits
+
+params: intra = 0.0, inter = 0.25, hlong = 6, hshort = 6
+=> total:
+
+## Full systems
+
+### params: intra = 0.25, inter = 0.5, hlong = 5, hshort = 3
+
+pitch, optimized (w/o fib triple links):
 { pitch, duration->intref, posinbar->pitch, duration->seqint, posinbar->intref, 
   duration->pitch, rest->seqint, rest->intref }
  => 1.90477 bits
 
-optimized (with fib triple links):
+pitch, optimized (with fib triple links):
 { pitch, (fib x duration)->intref, duration->pitch, posinbar->seqint, rest->intref, (fib x duration)->pitch }
  => 1.89096 bits
 
-sigkilled while evaluating:
-{ pitch, (fib x duration)->intref, duration->pitch, posinbar->seqint, rest->intref, (fib x duration)->pitch, rest->pitch }
-(leak now fixed). so further improvements possible
+pitch, fully optimized (with fib 3-links):
+{ pitch, (fib x duration)->intref, duration->pitch, posinbar->seqint, rest->intref, (fib x duration)->pitch, (fib x ioi)->intref, duration->seqint, (fib x ioi)->pitch }
+ => 1.87665 bits
 
-
-### Duration
-
-optimized (with fib triple links):
+duration, optimized (with fib triple links):
 { duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
  => 0.855181
 
-### Rest
-
-optimized (with fib triple links):
+rest, optimized (with fib triple links):
 { rest, (fib x duration)->rest, (fib x pitch)->rest, duration->rest }
  => 0.142237
 
-## parms: intra_b = 0.0, inter_b = 0.0, lt_hist = 5, st_hist = 3
+total: 2.874068 bits
 
-### Rest
+### parms: intra = 0.0, inter = 0.0, hlong = 5, hshort = 3
 
-optimized (w/ fib triple links):
+pitch, fully optimized:
+{ pitch, (fib x duration)->intref, duration->seqint, (fib x ioi)->pitch, (fib x intref)->seqint, duration->intref, (fib x duration)->pitch, posinbar->seqint, (fib x ioi)->intref, duration->pitch }
+ => 1.89277 bits
+
+duration, fully optimized:
+{ duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
+ => 0.851912 bits
+
+rest, optimized (w/ fib triple links):
 { rest, (fib x duration)->rest, (fib x intref)->rest }
  => 0.109711
 
-nb. this means that the choice of entropy bias affects the choice of viewpoints!
-we can't just choose the entropy bias ad hoc up front and optimise it later...
+total: 2.854393
 
-TODO:
-1. Add triple-linked fib VPs for pitch
-2. Run all VP selections at different entropy biases (nominally (0.0, 0.25)^2)
-and record results: write dissertation or work on survey while processing!
-3. Generate new samples and continue
+### params: intra = 1.0, inter = 1.0, hlong = 5, hshort = 3
+
+pitch: 1.92076 bits
+{ pitch, (fib x duration)->pitch, duration->intref, (fib x ioi)->pitch, rest->intref, duration->pitch, (fib x duration)->intref, rest->pitch, posinbar->pitch }
+
+duration: 0.877222 bits
+{ duration, posinbar->duration, (fib x rest)->duration }
+
+rest: 0.168287 bits
+{ rest, (fib x duration)->rest, (fib x pitch)->rest, duration->rest }
+
+toatal: 2.966269 bits
+
+### params: intra = 0.25, inter = 0.25, hlong = 5, hshort = 3
+
+pitch: 1.88721 bits
+{ pitch, (fib x duration)->intref, duration->seqint, (fib x ioi)->pitch, (fib x seqint)->intref, (fib x duration)->pitch }
+
+duration: 0.851932 bits
+{ duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
+
+rest: 0.12494 bits
+{ rest, (fib x duration)->rest, (fib x pitch)->rest, duration->rest }
+
+total: 2.864082
+
+### params: intra = 0.0, inter = 0.25, hlong = 5, hshort = 3
+
+pitch: 1.87631 bits
+{ pitch, (fib x duration)->intref, duration->seqint, (fib x ioi)->pitch, (fib x seqint)->intref, (fib x duration)->pitch, ioi->seqint, duration->intref, posinbar->pitch }
+
+duration: 0.850202 bits
+{ duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
+
+rest: 0.125608 bits
+{ rest, (fib x duration)->rest, (fib x intref)->rest }
+
+### parmas: intra = 0.0, inter = 0.25, hlong = 6, hshort = 3
+
+pitch: 1.88207 bits
+{ pitch, (fib x duration)->intref, ioi->seqint, (fib x duration)->pitch, (fib x seqint)->intref, duration->pitch, posinbar->seqint, duration->intref, (fib x ioi)->pitch, rest->seqint }
+
+duration: 0.844522 bits
+{ duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
+
+rest: 0.123912 bits
+{ rest, (fib x duration)->rest, (fib x intref)->rest }
+
+total: 2.850504 bits
+
+### params: intra = 0.0, inter = 0.25, hlong = 6, hshort = 6
+
+pitch: 1.87753 bits
+{ pitch, (fib x duration)->intref, ioi->seqint, (fib x duration)->pitch, (fib x seqint)->intref, duration->pitch, duration->seqint, (fib x ioi)->pitch, rest->intref, posinbar->intref }
+
+duration: 0.831846 bits
+{ duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
+
+rest: 0.124085 bits
+{ rest, (fib x duration)->rest, (fib x intref)->rest }
+
 

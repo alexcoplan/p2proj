@@ -21,6 +21,7 @@ const std::string ChoraleInterval::type_name = "seqint";
 const std::string ChoraleIntref::type_name   = "intref";
 const std::string ChoralePosinbar::type_name = "posinbar";
 const std::string ChoraleFib::type_name      = "fib";
+const std::string ChoraleFip::type_name      = "fip";
 const std::string ChoraleIOI::type_name      = "ioi";
 
 /***************************************************
@@ -186,6 +187,18 @@ ChoraleRest::ChoraleRest(const QuantizedDuration &qd) :
 ChoraleFib::ChoraleFib(unsigned int c) : CodedEvent(c) {
   if (c >= cardinality) {
     std::string msg = "Bad direct initialisation of ChoraleFib (code = ";
+    msg += std::to_string(c) + ")";
+    throw ChoraleTypeError(msg);
+  }
+}
+
+/***************************************************
+ * ChoraleFip implementation
+ ***************************************************/
+
+ChoraleFip::ChoraleFip(unsigned int c) : CodedEvent(c) {
+  if (c >= cardinality) {
+    std::string msg = "Bad direct initialisation of ChoraleFip (code = ";
     msg += std::to_string(c) + ")";
     throw ChoraleTypeError(msg);
   }

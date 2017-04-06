@@ -186,6 +186,15 @@ public:
   ChoraleFib(unsigned int c);
 };
 
+class ChoraleFip : public CodedEvent {
+public:
+  constexpr static unsigned int cardinality = 2;
+  const static std::string type_name;
+  unsigned int encode() const override { return code; }
+  ChoraleFip(bool fip) : CodedEvent(fip ? 1 : 0) {}
+  ChoraleFip(unsigned int c);
+};
+
 class ChoraleRest : public CodedEvent {
 public:
   constexpr static unsigned int cardinality = 6;
@@ -460,6 +469,20 @@ ChoraleEvent::lift(const std::vector<ChoraleEvent> &events) {
     result.push_back((offset % beats_in_bar) == 0);
     offset += e.duration.raw_value();
   }
+
+  return result;
+}
+
+template<>
+inline
+std::vector<ChoraleFip>
+ChoraleEvent::lift(const std::vector<ChoraleEvent> &events) {
+  if (events.empty())
+    return {};
+
+  std::vector<ChoraleFip> result{ true };
+  for (unsigned int i = 1; i < events.size(); i++)
+    result.push_back(false);
 
   return result;
 }
