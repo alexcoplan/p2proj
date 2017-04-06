@@ -11,12 +11,12 @@
 \usepackage{longtable}
 \usepackage{microtype}
 
-\usepackage[style=numeric,backend=biber]{biblatex}
-\addbibresource{refs.bib}
+%\usepackage[style=numeric,backend=biber]{biblatex}
+%\addbibresource{refs.bib}
 
 \usepackage{docmute}   % only needed to allow inclusion of proposal.tex
 
-\newcommand{\todo}{\textcolor{red}{\textbf{TODO}}}
+\newcommand{\todo}{\textcolor{red}{\textbf{todo}~}}
 
 \raggedbottom                           % try to avoid widows and orphans
 \sloppy
@@ -76,8 +76,10 @@ by \texttt{detex diss.tex | tr -cd '0-9A-Za-z $\tt\backslash$n' | wc -w}
 
 The original aim of this project was to implement two models for music
 generation and subsequently compare them: namely, a \emph{recurrent neural
-network} (RNN) and \emph{multiple viewpoint system} (MVS). The two models were
-to be compared using both a listening survey and some objective evaluation.
+network} and \emph{multiple viewpoint system}. The two models were
+to be compared using both a listening survey involving human participants and
+objective metrics of evaluation, such as information-theoretic measures
+of predictive performance.
 
 \section*{Work Completed}
 
@@ -118,13 +120,88 @@ Acknowledge acknowledge acknowledge.
 
 \chapter{Introduction}
 
-Here is a citation \cite{pearce2001evaluation}. 
+The modelling and automated generation of music is a central task in an approach
+to understanding computational creativity. It is natural to ask whether
+computers can produce music that is compelling to humans, and indeed, this
+question has long been posed by researchers, with practical efforts dating back
+to the mid-1950s \cite{ames1987automated}. 
+
+This dissertation investigates the application of two modern techniques to
+\emph{melody generation}, a task highly amenable to statistical
+modelling and machine learning. 
+
+An automated system for melody generation is motivated by end-user applications
+in \emph{computer-assisted composition}, whereby the system can provide
+inspiration for a human composer, either by generating entirely novel melodies
+within stylistic constraints, or extending or extemporising based on melodic
+fragments wrtiten by the human composer. Such a system might augment the
+capabilities of typical music notation software. 
+
+Markov modelling is a simple yet effective technique for capturing the
+statistics of sequential data. An obvious tool to apply to the modelling of
+melody is the Markov chain \cite{ames1989markov}. However, an important
+observation to make is that music has a rich underlying structure: modelling the
+statistics of notes directly (the \emph{surface structure}) is insufficient to
+capture the complex language of musical style. This observation motivated the
+development of more sophisticated models, known as \emph{multiple viewpoint
+systems} \cite{conklin1995viewpoints}.  A multiple viewpoint system exploits the
+rich underlying event structure of complex languages by combining the
+predictions of an ensemble of Markov models, each modelling a different
+attribute of an event space.
+
+Recurrent neural networks (RNNs), the natural topology of neural network for
+modelling sequential data, have been widely applied to tasks such as language
+modelling, optical character recognition, time-series modelling and forecasting,
+and indeed to the modelling of music (\todo cite). A RNN is an end-to-end
+sequence learning tool which relies on very little domain knowledge aside from
+the chosen input representation. This means that a system designed for
+character-level language modelling can equally be trained to model melody
+without changing the network architecture. In practice, however, we shall see
+that slight architectural modifications can be of use.
+
+The aim of this work is to compare the performance of multiple viewpoint systems
+with that of recurrent neural networks on a task of stylistically-constrained
+melody generation. In particular, we assess the predictive performance of the
+models on a corpus of melodies used in the chorale harmonisations of J.S.\ Bach.
+Furthermore, we compare the sampled outputs from each model by means of a
+listening survey involving human participants.
+
+\section{Background}
+
+The development and implementation of the recurrent neural network in this work
+can be understood with minimal knowledge of music theory. In general, the
+multiple viewpoint formalism can also be expressed independently of any domain
+knowledge.  However, to understand the application of the multiple viewpoint
+framework to music requires an elementary understanding of music theory.  This
+section introduces the relevant terminology to enable such dissussion.
+
+We shall constrain our discussion to the context of Western classical music,
+since the style which we wish to model lies within this context. A \emph{pitch}
+is an abstract concept which is related to the frequency of a musical
+note. Two pitches are said to be an \emph{octave} apart if one has double the
+frequency of the other. In Western classical music, each octave is divided into
+twelve distinct note names. A note name, such as G, is typically thought of as
+not just a single pitch, but a \emph{pitch class}: a set constructed by taking
+the transitive reflexive closure of the \emph{octave} relation.
+
+The mapping between pitch and frequency is known as \emph{temperament}, which on
+modern instruments is typically \emph{equal}, meaning that the frequency space is
+equally divided among the twelve pitches in an octave. More precisely, the
+$k$\textsuperscript{th} note of a chromatic scale with base frequency $\nu_0$ is
+given by $2^{k/12}\cdot\nu_0$. As an aside, all recordings of
+model outputs in this work were made using equal temperament. Herein
+we will work with the abstraction of pitch, ignoring the underlying frequencies
+of notes.
+
+\todo SPN, grounding with A440.
+
+Terms to define: \emph{interval}, \emph{pitch}, \emph{pitch class},
+\emph{metre}, \emph{bar}, \ldots
 
 \section{Work Accomplished}
 
-\section{Motivation}
 
-\section{Background}
+
 
 \section{Related Work}
 
@@ -154,6 +231,7 @@ Here is a citation \cite{pearce2001evaluation}.
 
 \chapter{Project Proposal}
 
-\input{proposal}
+\todo uncomment me!
+%\input{proposal}
 
 \end{document}
