@@ -4,6 +4,8 @@
 #include "sequence_model.hpp"
 #include <type_traits>
 
+#define DEFAULT_HIST 3
+
 /* Predictor
  *
  * The fully abstract interface implemented by all viewpoints */
@@ -190,6 +192,7 @@ public:
 
   PredBase *clone() const override { return new GeneralViewpoint(*this); }
   GeneralViewpoint(unsigned int hist) : Base(hist) {}
+  GeneralViewpoint() : Base(DEFAULT_HIST) {}
 };
 
 template<class EventStructure, class T_h, class T_p>
@@ -242,6 +245,7 @@ public:
 
   PredBase *clone() const override { return new GeneralLinkedVP(*this); }
   GeneralLinkedVP(unsigned int hist) : Base(hist) {}
+  GeneralLinkedVP() : Base(DEFAULT_HIST) {}
 };
 
 // template to model a triply-linked type. we use this template rather than
@@ -302,6 +306,7 @@ public:
 
   PredBase *clone() const override { return new TripleLinkedVP(*this); }
   TripleLinkedVP(unsigned int hist) : Base(hist) {}
+  TripleLinkedVP() : Base(DEFAULT_HIST) {}
 };
 
 /************************************************************
@@ -344,7 +349,9 @@ public:
     return true; // basic VPs can always predict
   }
 
-  BasicLinkedViewpoint *clone() const override { return new BasicLinkedViewpoint(*this); }
+  BasicLinkedViewpoint *clone() const override { 
+    return new BasicLinkedViewpoint(*this); 
+  }
 
   std::string vp_name() const override {
     return "old-(" + T_hidden::type_name + "->" + T_predict::type_name + ")";

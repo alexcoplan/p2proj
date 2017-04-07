@@ -517,7 +517,10 @@ ChoraleMVS::random_walk(unsigned int len, const QuantizedDuration &timesig) {
   std::vector<ChoraleEvent> buffer;
 
   auto keysig = key_distribution.predict({}).sample();
-  auto first_pitch = predict<ChoralePitch>({}).sample();
+
+  // for now just start on the tonic
+  ChoralePitch first_pitch(MidiPitch(60 + keysig.referent().pitch));
+
   auto first_dur   = predict<ChoraleDuration>({}).sample();
   auto first_rest  = predict<ChoraleRest>({}).sample();
 

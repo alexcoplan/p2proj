@@ -162,13 +162,11 @@ evaluate(const corpus_t &corpus, double intra_bias, double inter_bias,
 
   std::vector<EntropyMeasurement> result(mvss.size());
 
-  //unsigned int i = 1;
+  unsigned int i = 1;
 
   for (const auto &c : corpus) {
-    /*
     if (++i % 4 == 0)
       std::cout << "=" << std::flush;
-      */
 
     unsigned int j = 0;
     for (auto mvs_ptr : mvss) {
@@ -179,7 +177,7 @@ evaluate(const corpus_t &corpus, double intra_bias, double inter_bias,
     }
   }
 
-  //std::cout << std::endl;
+  std::cout << std::endl;
 
   for (auto &point : result) {
     point.h_pitch /= corpus.size();
@@ -500,11 +498,185 @@ void generate(ChoraleMVS &mvs,
   render(piece, entropy_map, json_fname);
 }
 
+struct VPPool {
+  ChoraleMVS::GenVP<ChoralePitch> pitch_vp;
+  ChoraleMVS::GenVP<ChoraleDuration> duration_vp;
+  ChoraleMVS::GenVP<ChoraleRest> rest_vp;
+  ChoraleMVS::GenVP<ChoraleInterval> seqint_vp;
+  ChoraleMVS::GenVP<ChoraleIntref> intref_vp;
+
+  // inter-pitch crosses 
+  ChoraleMVS::GenLinkedVP<ChoraleIntref, ChoraleInterval> intref_p_seqint;
+  ChoraleMVS::GenLinkedVP<ChoraleInterval, ChoraleIntref> seqint_p_intref;
+
+  // pitch-like cross duration
+  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleInterval> dur_p_seqint;
+  ChoraleMVS::GenLinkedVP<ChoraleInterval, ChoraleDuration> seqint_p_dur;
+  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleIntref> dur_p_intref;
+  ChoraleMVS::GenLinkedVP<ChoraleIntref, ChoraleDuration> intref_p_dur;
+  ChoraleMVS::GenLinkedVP<ChoralePitch, ChoraleDuration> pitch_p_dur;
+  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoralePitch> dur_p_pitch;
+
+  // rest crossed with things
+  ChoraleMVS::GenLinkedVP<ChoraleRest, ChoraleDuration> rest_p_dur;
+  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleRest> dur_p_rest;
+  ChoraleMVS::GenLinkedVP<ChoraleRest, ChoralePitch> rest_p_pitch;
+  ChoraleMVS::GenLinkedVP<ChoralePitch, ChoraleRest> pitch_p_rest;
+  ChoraleMVS::GenLinkedVP<ChoraleInterval, ChoraleRest> seqint_p_rest;
+  ChoraleMVS::GenLinkedVP<ChoraleRest, ChoraleInterval> rest_p_seqint;
+  ChoraleMVS::GenLinkedVP<ChoraleIntref, ChoraleRest> intref_p_rest;
+  ChoraleMVS::GenLinkedVP<ChoraleRest, ChoraleIntref> rest_p_intref;
+
+  // posinbar crossed with things
+  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleDuration> posinbar_p_dur;
+  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleRest> posinbar_p_rest;
+  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleIntref> posinbar_p_intref;
+  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleInterval> posinbar_p_seqint;
+  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoralePitch> posinbar_p_pitch;
+
+  // ioi crossed with things
+  ChoraleMVS::GenLinkedVP<ChoraleIOI, ChoralePitch> ioi_p_pitch;
+  ChoraleMVS::GenLinkedVP<ChoraleIOI, ChoraleDuration> ioi_p_dur;
+  ChoraleMVS::GenLinkedVP<ChoraleIOI, ChoraleRest> ioi_p_rest;
+  ChoraleMVS::GenLinkedVP<ChoraleIOI, ChoraleInterval> ioi_p_seqint;
+  ChoraleMVS::GenLinkedVP<ChoraleIOI, ChoraleIntref> ioi_p_intref;
+
+  // fib crossed with the predcitve types
+  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoralePitch> fib_p_pitch;
+  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoraleInterval> fib_p_seqint;
+  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoraleIntref> fib_p_intref;
+  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoraleDuration> fib_p_dur;
+  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoraleRest> fib_p_rest;
+
+  // triply-linked VPs below
+  template<typename P, typename Q, typename R>
+  using Trip = ChoraleMVS::TripleLinkedVP<P,Q,R>;
+
+  template<typename L, typename R>
+  using FibTrip = Trip<ChoraleFib, L, R>;
+
+  // fib triple links predcting duration
+  FibTrip<ChoraleRest, ChoraleDuration> fibxrest_p_dur;
+  FibTrip<ChoraleIntref, ChoraleDuration> fibxintref_p_dur;
+  FibTrip<ChoraleInterval, ChoraleDuration> fibxseqint_p_dur;
+  FibTrip<ChoralePitch, ChoraleDuration> fibxpitch_p_dur;
+  FibTrip<ChoraleIOI, ChoraleDuration> fibxioi_p_dur;
+
+  // fib triple links predicting rest
+  FibTrip<ChoraleDuration, ChoraleRest> fibxdur_p_rest;
+  FibTrip<ChoraleIntref, ChoraleRest> fibxintref_p_rest;
+  FibTrip<ChoraleInterval, ChoraleRest> fibxseqint_p_rest;
+  FibTrip<ChoralePitch, ChoraleRest> fibxpitch_p_rest;
+  FibTrip<ChoraleIOI, ChoraleRest> fibxioi_p_rest;
+
+  // fib triple links predicting intref
+  FibTrip<ChoraleDuration, ChoraleIntref> fibxdur_p_intref;
+  FibTrip<ChoraleInterval, ChoraleIntref> fibxseqint_p_intref;
+  FibTrip<ChoraleIOI, ChoraleIntref> fibxioi_p_intref;
+  FibTrip<ChoraleRest, ChoraleIntref> fibxrest_p_intref;
+
+  // fib triple links predicting seqint
+  FibTrip<ChoraleDuration, ChoraleInterval> fibxdur_p_seqint;
+  FibTrip<ChoraleIntref, ChoraleInterval> fibxintref_seqint;
+  FibTrip<ChoraleIOI, ChoraleInterval> fibxioi_p_seqint;
+  FibTrip<ChoraleRest, ChoraleInterval> fibxrest_p_seqint;
+
+  // fib triple links predicting pitch
+  FibTrip<ChoraleDuration, ChoralePitch> fibxdur_p_pitch;
+  FibTrip<ChoraleIOI, ChoralePitch> fibxioi_p_pitch;
+  FibTrip<ChoraleRest, ChoralePitch> fibxrest_p_pitch;
+
+  Trip<ChoralePosinbar, ChoraleRest, ChoraleDuration> clock_duration;
+  Trip<ChoralePosinbar, ChoraleDuration, ChoraleRest> clock_rest;
+};
+
+void add_vps_to_optimizer(VPPool &p, MVSOptimizer &o) {
+  /*** pitch predictors into pool ***/
+
+  // derived from pitch
+  o.add_to_pool(&p.seqint_vp);
+  o.add_to_pool(&p.intref_vp);
+  // inter-pitch crosses
+  o.add_to_pool(&p.seqint_p_intref);
+  o.add_to_pool(&p.intref_p_seqint);
+  // posinbar->(pitch type)
+  o.add_to_pool(&p.posinbar_p_intref);
+  o.add_to_pool(&p.posinbar_p_seqint);
+  o.add_to_pool(&p.posinbar_p_pitch);
+  // dur->(pitch type)
+  o.add_to_pool(&p.dur_p_intref);
+  o.add_to_pool(&p.dur_p_seqint);
+  o.add_to_pool(&p.dur_p_pitch);
+  // ioi->(pitch type)
+  o.add_to_pool(&p.ioi_p_intref);
+  o.add_to_pool(&p.ioi_p_seqint);
+  o.add_to_pool(&p.ioi_p_pitch);
+  // rest->(pitch type)
+  o.add_to_pool(&p.rest_p_intref);
+  o.add_to_pool(&p.rest_p_seqint);
+  o.add_to_pool(&p.rest_p_pitch);
+  // fib->(pitch type)
+  o.add_to_pool(&p.fib_p_intref);
+  o.add_to_pool(&p.fib_p_seqint);
+  o.add_to_pool(&p.fib_p_pitch);
+
+  // fib triple links -> pitch
+  o.add_to_pool(&p.fibxdur_p_intref);
+  o.add_to_pool(&p.fibxseqint_p_intref);
+  o.add_to_pool(&p.fibxioi_p_intref);
+  o.add_to_pool(&p.fibxrest_p_intref);
+  o.add_to_pool(&p.fibxdur_p_seqint);
+  o.add_to_pool(&p.fibxintref_seqint);
+  o.add_to_pool(&p.fibxioi_p_seqint);
+  o.add_to_pool(&p.fibxrest_p_seqint);
+  o.add_to_pool(&p.fibxdur_p_pitch);
+  o.add_to_pool(&p.fibxioi_p_pitch);
+  o.add_to_pool(&p.fibxrest_p_pitch);
+
+  // *** duration predictors into pool ***
+  // (pitch type)->dur
+  o.add_to_pool(&p.pitch_p_dur);
+  o.add_to_pool(&p.intref_p_dur);
+  o.add_to_pool(&p.seqint_p_dur);
+  // link-only types
+  o.add_to_pool(&p.posinbar_p_dur);
+  o.add_to_pool(&p.ioi_p_dur);
+  o.add_to_pool(&p.fib_p_dur);
+  // rest
+  o.add_to_pool(&p.rest_p_dur);
+  // triple fib links
+  o.add_to_pool(&p.fibxrest_p_dur);
+  o.add_to_pool(&p.fibxioi_p_dur);
+  o.add_to_pool(&p.fibxpitch_p_dur);
+  o.add_to_pool(&p.fibxseqint_p_dur);
+  o.add_to_pool(&p.fibxintref_p_dur);
+
+  // *** rest predictors into pool ***
+  o.add_to_pool(&p.pitch_p_rest);
+  o.add_to_pool(&p.intref_p_rest);
+  o.add_to_pool(&p.seqint_p_rest);
+  // link-only types
+  o.add_to_pool(&p.posinbar_p_rest);
+  o.add_to_pool(&p.ioi_p_rest);
+  o.add_to_pool(&p.fib_p_rest);
+  // dur
+  o.add_to_pool(&p.dur_p_rest);
+  // fib triple links predicting rest
+  o.add_to_pool(&p.fibxdur_p_rest);
+  o.add_to_pool(&p.fibxioi_p_rest);
+  o.add_to_pool(&p.fibxpitch_p_rest);
+  o.add_to_pool(&p.fibxseqint_p_rest);
+  o.add_to_pool(&p.fibxintref_p_rest);
+}
+
 int main(void) {
+  corpus_t train_corp;
+  corpus_t test_corp;
+  parse("corpus/fixed_rests_t5.json", train_corp, test_corp);
+
   const QuantizedDuration three_four(12);
   const QuantizedDuration four_four(16);
 
-  using T_optimize = ChoraleRest;
   const unsigned int hist    = 6;
   const unsigned int st_hist = 6;
 
@@ -516,281 +688,51 @@ int main(void) {
   full_config.st_history = st_hist;
   full_config.enable_short_term = true;
   full_config.mvs_name = "full mvs for evaluation";
-  full_config.intra_layer_bias = 0.0;
-  full_config.inter_layer_bias = 0.25;
+  full_config.intra_layer_bias = 0.1;
+  full_config.inter_layer_bias = 0.1;
 
-  ChoraleMVS::GenVP<ChoralePitch> pitch_vp(hist);
-  ChoraleMVS::GenVP<ChoraleDuration> duration_vp(hist);
+  VPPool p;
 
-  // inter-pitch crosses 
-  ChoraleMVS::GenLinkedVP<ChoraleIntref, ChoraleInterval> 
-    intref_p_seqint(hist);
-  ChoraleMVS::GenLinkedVP<ChoraleInterval, ChoraleIntref> 
-    seqint_p_intref(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleInterval>
-    dur_p_seqint(hist);
-  ChoraleMVS::GenLinkedVP<ChoraleInterval, ChoraleDuration>
-    seqint_p_dur(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleIntref>
-    dur_p_intref(hist);
-
-  // pxd ~ pitch cross duration
-  ChoraleMVS::GenLinkedVP<ChoralePitch, ChoraleDuration> 
-    pitch_p_dur(hist);
-  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoralePitch>
-    dur_p_pitch(hist);
-
-  // rest crossed with things
-  ChoraleMVS::GenLinkedVP<ChoraleRest, ChoraleDuration>
-    rest_p_dur(hist);
-  ChoraleMVS::GenLinkedVP<ChoraleDuration, ChoraleRest>
-    dur_p_rest(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleRest, ChoralePitch>
-    rest_p_pitch(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleInterval, ChoraleRest>
-    seqint_p_rest(hist);
-  ChoraleMVS::GenLinkedVP<ChoraleRest, ChoraleInterval>
-    rest_p_seqint(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleIntref, ChoraleRest>
-    intref_p_rest(hist);
-  ChoraleMVS::GenLinkedVP<ChoraleRest, ChoraleIntref>
-    rest_p_intref(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoralePitch, ChoraleRest>
-    pitch_p_rest(hist);
-  ChoraleMVS::GenLinkedVP<ChoraleIntref, ChoraleDuration> 
-    intref_p_dur(hist);
-
-  // posinbar crossed with things
-  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleDuration>
-    posinbar_p_dur(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleRest>
-    posinbar_p_rest(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleIntref>
-    posinbar_p_intref(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoraleInterval>
-    posinbar_p_seqint(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoralePosinbar, ChoralePitch>
-    posinbar_p_pitch(hist);
-
-  // ioi cross with things
-  ChoraleMVS::GenLinkedVP<ChoraleIOI, ChoralePitch>
-    ioi_p_pitch(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleIOI, ChoraleDuration>
-    ioi_p_dur(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleIOI, ChoraleRest>
-    ioi_p_rest(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleIOI, ChoraleInterval>
-    ioi_p_seqint(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleIOI, ChoraleIntref>
-    ioi_p_intref(hist);
-
-  // fib crossed with the predcitve types
-  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoralePitch>
-    fib_p_pitch(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoraleInterval>
-    fib_p_seqint(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoraleIntref>
-    fib_p_intref(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoraleDuration>
-    fib_p_dur(hist);
-
-  ChoraleMVS::GenLinkedVP<ChoraleFib, ChoraleRest>
-    fib_p_rest(hist);
-
-
-  ChoraleMVS::GenVP<ChoraleRest> rest_vp(hist);
-  ChoraleMVS::GenVP<ChoraleInterval> seqint_vp(hist);
-  ChoraleMVS::GenVP<ChoraleIntref> intref_vp(hist);
-
-  // triply-linked VPs
-  ChoraleMVS::TripleLinkedVP<ChoralePosinbar, ChoraleRest, ChoraleDuration> 
-   clock_duration(hist);
-
-  ChoraleMVS::TripleLinkedVP<ChoralePosinbar, ChoraleDuration, ChoraleRest>
-    clock_rest(hist);
-
-  // fib triple links predcting duration
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleRest, ChoraleDuration>
-    fibxrest_p_dur(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIntref, ChoraleDuration>
-    fibxintref_p_dur(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleInterval, ChoraleDuration>
-    fibxseqint_p_dur(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoralePitch, ChoraleDuration>
-    fibxpitch_p_dur(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIOI, ChoraleDuration>
-    fibxioi_p_dur(hist);
-
-  // fib triple links predicting rest
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleDuration, ChoraleRest>
-    fibxdur_p_rest(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIntref, ChoraleRest>
-    fibxintref_p_rest(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleInterval, ChoraleRest>
-    fibxseqint_p_rest(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoralePitch, ChoraleRest>
-    fibxpitch_p_rest(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIOI, ChoraleRest>
-    fibxioi_p_rest(hist);
-
-  // fib triple links predicting intref
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleDuration, ChoraleIntref>
-    fibxdur_p_intref(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleInterval, ChoraleIntref>
-    fibxseqint_p_intref(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIOI, ChoraleIntref>
-    fibxioi_p_intref(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleRest, ChoraleIntref>
-    fibxrest_p_intref(hist);
-
-  // fib triple links predicting seqint
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleDuration, ChoraleInterval>
-    fibxdur_p_seqint(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIntref, ChoraleInterval>
-    fibxintref_seqint(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIOI, ChoraleInterval>
-    fibxioi_p_seqint(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleRest, ChoraleInterval>
-    fibxrest_p_seqint(hist);
-
-  // fib triple links predicting pitch
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleDuration, ChoralePitch>
-    fibxdur_p_pitch(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleIOI, ChoralePitch>
-    fibxioi_p_pitch(hist);
-  ChoraleMVS::TripleLinkedVP<ChoraleFib, ChoraleRest, ChoralePitch>
-    fibxrest_p_pitch(hist);
-
-  // n.b. we don't need to add the base VPs of each type as the optimizer
-  // includes these for us (it doesn't take them from the pool)
   MVSOptimizer optimizer(full_config);
-
-  /*** pitch predictors into pool ***/
-
-  // derived from pitch
-  optimizer.add_to_pool(&seqint_vp);
-  optimizer.add_to_pool(&intref_vp);
-  // inter-pitch crosses
-  optimizer.add_to_pool(&seqint_p_intref);
-  optimizer.add_to_pool(&intref_p_seqint);
-  // posinbar->(pitch type)
-  optimizer.add_to_pool(&posinbar_p_intref);
-  optimizer.add_to_pool(&posinbar_p_seqint);
-  optimizer.add_to_pool(&posinbar_p_pitch);
-  // dur->(pitch type)
-  optimizer.add_to_pool(&dur_p_intref);
-  optimizer.add_to_pool(&dur_p_seqint);
-  optimizer.add_to_pool(&dur_p_pitch);
-  // ioi->(pitch type)
-  optimizer.add_to_pool(&ioi_p_intref);
-  optimizer.add_to_pool(&ioi_p_seqint);
-  optimizer.add_to_pool(&ioi_p_pitch);
-  // rest->(pitch type)
-  optimizer.add_to_pool(&rest_p_intref);
-  optimizer.add_to_pool(&rest_p_seqint);
-  optimizer.add_to_pool(&rest_p_pitch);
-  // fib->(pitch type)
-  optimizer.add_to_pool(&fib_p_intref);
-  optimizer.add_to_pool(&fib_p_seqint);
-  optimizer.add_to_pool(&fib_p_pitch);
-
-  // fib triple links -> pitch
-  optimizer.add_to_pool(&fibxdur_p_intref);
-  optimizer.add_to_pool(&fibxseqint_p_intref);
-  optimizer.add_to_pool(&fibxioi_p_intref);
-  optimizer.add_to_pool(&fibxrest_p_intref);
-  optimizer.add_to_pool(&fibxdur_p_seqint);
-  optimizer.add_to_pool(&fibxintref_seqint);
-  optimizer.add_to_pool(&fibxioi_p_seqint);
-  optimizer.add_to_pool(&fibxrest_p_seqint);
-  optimizer.add_to_pool(&fibxdur_p_pitch);
-  optimizer.add_to_pool(&fibxioi_p_pitch);
-  optimizer.add_to_pool(&fibxrest_p_pitch);
-
-  // TODO: also try dur and rest with clock VPs
-  // this will be slow though
-  //
-  // may also want to consider triple-linking fib with existing linked vps since
-  // its state space is so small that it won't hurt performance too much
-
-  // *** duration predictors into pool ***
-  // (pitch type)->dur
-  optimizer.add_to_pool(&pitch_p_dur);
-  optimizer.add_to_pool(&intref_p_dur);
-  optimizer.add_to_pool(&seqint_p_dur);
-  // link-only types
-  optimizer.add_to_pool(&posinbar_p_dur);
-  optimizer.add_to_pool(&ioi_p_dur);
-  optimizer.add_to_pool(&fib_p_dur);
-  // rest
-  optimizer.add_to_pool(&rest_p_dur);
-  // triple fib links
-  optimizer.add_to_pool(&fibxrest_p_dur);
-  optimizer.add_to_pool(&fibxioi_p_dur);
-  optimizer.add_to_pool(&fibxpitch_p_dur);
-  optimizer.add_to_pool(&fibxseqint_p_dur);
-  optimizer.add_to_pool(&fibxintref_p_dur);
-
-  // *** rest predictors into pool ***
-  optimizer.add_to_pool(&pitch_p_rest);
-  optimizer.add_to_pool(&intref_p_rest);
-  optimizer.add_to_pool(&seqint_p_rest);
-  // link-only types
-  optimizer.add_to_pool(&posinbar_p_rest);
-  optimizer.add_to_pool(&ioi_p_rest);
-  optimizer.add_to_pool(&fib_p_rest);
-  // dur
-  optimizer.add_to_pool(&dur_p_rest);
-  // fib triple links predicting rest
-  optimizer.add_to_pool(&fibxdur_p_rest);
-  optimizer.add_to_pool(&fibxioi_p_rest);
-  optimizer.add_to_pool(&fibxpitch_p_rest);
-  optimizer.add_to_pool(&fibxseqint_p_rest);
-  optimizer.add_to_pool(&fibxintref_p_rest);
-  // the killer rhythmic vp
-  //optimizer.add_to_pool(&clock_rest); // (very expensive)
-
-  corpus_t train_corp;
-  corpus_t test_corp;
-  parse("corpus/fixed_rests_t5.json", train_corp, test_corp);
+  add_vps_to_optimizer(p, optimizer);
 
   double eps_terminate = 0.001;
-  optimizer.optimize<T_optimize>(eps_terminate, train_corp, test_corp);
-
-  /*
+  optimizer.optimize<ChoraleRest>(eps_terminate, train_corp, test_corp);
+  
+/*
   ChoraleMVS full_mvs(full_config);
-  full_mvs.add_viewpoint(&pitch_vp);
-  full_mvs.add_viewpoint(&duration_vp);
-  full_mvs.add_viewpoint(&rest_vp);
+  // pitch predictors
+  full_mvs.add_viewpoint(&p.pitch_vp);
+  full_mvs.add_viewpoint(&p.fibxdur_p_intref);
+  full_mvs.add_viewpoint(&p.ioi_p_seqint);
+  full_mvs.add_viewpoint(&p.fibxdur_p_pitch);
+  full_mvs.add_viewpoint(&p.fibxseqint_p_intref);
+  full_mvs.add_viewpoint(&p.dur_p_pitch);
+  full_mvs.add_viewpoint(&p.dur_p_seqint);
+  full_mvs.add_viewpoint(&p.fibxioi_p_pitch);
+  full_mvs.add_viewpoint(&p.rest_p_intref);
+  full_mvs.add_viewpoint(&p.posinbar_p_intref);
+  // duration predictors
+  full_mvs.add_viewpoint(&p.duration_vp);
+  full_mvs.add_viewpoint(&p.posinbar_p_dur);
+  full_mvs.add_viewpoint(&p.fibxpitch_p_dur);
+  full_mvs.add_viewpoint(&p.fibxrest_p_dur);
+  // rest predictors
+  full_mvs.add_viewpoint(&p.rest_vp);
+  full_mvs.add_viewpoint(&p.fibxdur_p_rest);
+  full_mvs.add_viewpoint(&p.fibxintref_p_rest);
 
   std::cout << "Training... " << std::flush;
   train(train_corp, {&lt_only, &full_mvs});
   std::cout << "done." << std::endl;
 
-  double max_intra = 0.0;
-  double max_inter = 0.0;
-  double step = 0.25;
-  bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
-  */
+  double max_intra = 0.1;
+  double max_inter = 0.1;
+  double step = 0.05;
+  //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
   
-  //generate(full_mvs, 42, four_four, "out/gend.json");
+  generate(full_mvs, 64, four_four, "out/gend.json");
+  */
 }
 
 

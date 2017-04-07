@@ -39,7 +39,10 @@ params: intra = 0.0, inter = 0.25, hlong = 6, hshort = 3
 => total: 2.850504 bits
 
 params: intra = 0.0, inter = 0.25, hlong = 6, hshort = 6
-=> total:
+-> pitch: 1.87753  bits
+->   dur: 0.831846 bits
+->  rest: 0.124085 bits
+=> total: 2.833461 bits
 
 ## Full systems
 
@@ -113,10 +116,13 @@ total: 2.864082
 ### params: intra = 0.0, inter = 0.25, hlong = 5, hshort = 3
 
 pitch: 1.87631 bits
-{ pitch, (fib x duration)->intref, duration->seqint, (fib x ioi)->pitch, (fib x seqint)->intref, (fib x duration)->pitch, ioi->seqint, duration->intref, posinbar->pitch }
+{ pitch, (fib x duration)->intref, duration->seqint, (fib x ioi)->pitch, 
+  (fib x seqint)->intref, (fib x duration)->pitch, ioi->seqint, 
+  duration->intref, posinbar->pitch }
 
 duration: 0.850202 bits
-{ duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
+{ duration, posinbar->duration, (fib x pitch)->duration, 
+  (fib x rest)->duration }
 
 rest: 0.125608 bits
 { rest, (fib x duration)->rest, (fib x intref)->rest }
@@ -124,10 +130,13 @@ rest: 0.125608 bits
 ### parmas: intra = 0.0, inter = 0.25, hlong = 6, hshort = 3
 
 pitch: 1.88207 bits
-{ pitch, (fib x duration)->intref, ioi->seqint, (fib x duration)->pitch, (fib x seqint)->intref, duration->pitch, posinbar->seqint, duration->intref, (fib x ioi)->pitch, rest->seqint }
+{ pitch, (fib x duration)->intref, ioi->seqint, (fib x duration)->pitch, 
+  (fib x seqint)->intref, duration->pitch, posinbar->seqint, duration->intref, 
+  (fib x ioi)->pitch, rest->seqint }
 
 duration: 0.844522 bits
-{ duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
+{ duration, posinbar->duration, (fib x pitch)->duration, 
+  (fib x rest)->duration }
 
 rest: 0.123912 bits
 { rest, (fib x duration)->rest, (fib x intref)->rest }
@@ -137,12 +146,34 @@ total: 2.850504 bits
 ### params: intra = 0.0, inter = 0.25, hlong = 6, hshort = 6
 
 pitch: 1.87753 bits
-{ pitch, (fib x duration)->intref, ioi->seqint, (fib x duration)->pitch, (fib x seqint)->intref, duration->pitch, duration->seqint, (fib x ioi)->pitch, rest->intref, posinbar->intref }
+{ pitch, (fib x duration)->intref, ioi->seqint, (fib x duration)->pitch, 
+  (fib x seqint)->intref, duration->pitch, duration->seqint, 
+  (fib x ioi)->pitch, rest->intref, posinbar->intref }
 
 duration: 0.831846 bits
-{ duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
+{ duration, posinbar->duration, (fib x pitch)->duration, 
+  (fib x rest)->duration }
 
 rest: 0.124085 bits
 { rest, (fib x duration)->rest, (fib x intref)->rest }
 
+total: 2.833456 bits
 
+after bias sweep found optimum at (0.1,0.1) with 2.82955 bits total.
+todo maybe: retry vp selection with these biases?
+
+### params: intra = 0.1, inter = 0.1, hlong = hshort = 6
+note: duration + rest systems same as (0.0, 0.25) (above) but different pitch
+
+pitch: 1.8808 bits
+{ pitch, (fib x duration)->intref, duration->seqint, (fib x ioi)->pitch, 
+  (fib x rest)->intref, (fib x duration)->pitch, ioi->seqint, duration->intref,
+  posinbar->pitch, intref->seqint }
+
+duration: 0.831534 bits
+{ duration, posinbar->duration, (fib x pitch)->duration, (fib x rest)->duration }
+
+rest: 0.112523 bits
+{ rest, (fib x duration)->rest, (fib x intref)->rest }
+
+total: 2.824857 bits
