@@ -10,9 +10,18 @@
 \usepackage{enumitem}
 \usepackage{longtable}
 \usepackage{microtype}
+\usepackage{stmaryrd}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{lilyglyphs}
+\usepackage{fontspec}
 
-%\usepackage[style=numeric,backend=biber]{biblatex}
-%\addbibresource{refs.bib}
+\newcommand{\set}[1]{ \left\{ #1 \right\} }
+\newcommand{\insharp}[0]{\sharp[raise=0.1,scale=0.8]}
+\newcommand{\inflat}[0]{\flat[raise=0.1,scale=0.8]}
+
+\usepackage[style=numeric,backend=biber]{biblatex}
+\addbibresource{refs.bib}
 
 \usepackage{docmute}   % only needed to allow inclusion of proposal.tex
 
@@ -133,7 +142,7 @@ modelling and machine learning.
 An automated system for melody generation is motivated by end-user applications
 in \emph{computer-assisted composition}, whereby the system can provide
 inspiration for a human composer, either by generating entirely novel melodies
-within stylistic constraints, or extending or extemporising based on melodic
+within stylistic constraints, or extemporising on or extending melodic
 fragments wrtiten by the human composer. Such a system might augment the
 capabilities of typical music notation software. 
 
@@ -168,6 +177,8 @@ listening survey involving human participants.
 
 \section{Background}
 
+\subsection{Music Theory}
+
 The development and implementation of the recurrent neural network in this work
 can be understood with minimal knowledge of music theory. In general, the
 multiple viewpoint formalism can also be expressed independently of any domain
@@ -177,35 +188,86 @@ section introduces the relevant terminology to enable such dissussion.
 
 We shall constrain our discussion to the context of Western classical music,
 since the style which we wish to model lies within this context. A \emph{pitch}
-is an abstract concept which is related to the frequency of a musical
-note. Two pitches are said to be an \emph{octave} apart if one has double the
-frequency of the other. In Western classical music, each octave is divided into
-twelve distinct note names. A note name, such as G, is typically thought of as
-not just a single pitch, but a \emph{pitch class}: a set constructed by taking
-the transitive reflexive closure of the \emph{octave} relation.
+is an abstract concept which is related to the frequency of a musical note.
+Formally, if $p,q$ are pitches with corresponding frequencies $\nu_p,\nu_q$,
+then if $\nu_q = 2\nu_p$, $p$ and $q$ are said to span an \emph{octave}, with
+$q$ an octave above $p$. In Western classical music, each octave is divided into
+twelve distinct \emph{note names} (A through G modified by accidentals
+\insharp{} or \inflat{}). A note name, such as `B\inflat' (or, equivalently,
+A\insharp), is typically thought of as not just a single pitch, but a
+\emph{pitch class}, the set of all pitches an integer number of octaves above or
+below any pitch with that note name.  Formally, given some reference frequency
+$\nu_n$ for a note name $n$, the set of frequencies of the pitches in the pitch
+class for $n$ is given by $\set{ 2^k \cdot \nu_n\ |\ k \in \mathbb{Z} }.$
 
 The mapping between pitch and frequency is known as \emph{temperament}, which on
 modern instruments is typically \emph{equal}, meaning that the frequency space is
 equally divided among the twelve pitches in an octave. More precisely, the
-$k$\textsuperscript{th} note of a chromatic scale with base frequency $\nu_0$ is
+$(k+1)$\textsuperscript{th} note of the chromatic scale with base frequency $\nu_0$ is
 given by $2^{k/12}\cdot\nu_0$. As an aside, all recordings of
 model outputs in this work were made using equal temperament. Herein
 we will work with the abstraction of pitch, ignoring the underlying frequencies
 of notes.
 
-\todo SPN, grounding with A440.
+To refer to specific pitches, we make use of \emph{scientific pitch notation}
+(SPN). Write $N_k$ where $N$ is a note name and $k$ is an octave number. To
+ground all the definitions made thus far, we use the standard reference
+frequency $\mathrm{A}_4 \triangleq 440\ \mathrm{Hz}$. An \emph{interval} refers
+to the difference in pitch between two notes. Consecutive note names are said to
+be a \emph{semi-tone} apart, and an interval of two semi-tones is known as a
+\emph{tone}. Later in this work we shall further abstract pitch and intervals
+using MIDI pitch numbering, and further concepts shall be defined as necessary.
 
-Terms to define: \emph{interval}, \emph{pitch}, \emph{pitch class},
-\emph{metre}, \emph{bar}, \ldots
+\todo talk about key/tonality? this section getting quite long \ldots
+
+\subsection{Melody Generation}
+
+\todo Reference literature to explain why this is difficult task.
 
 \section{Work Accomplished}
 
+A complete framework for implementing Multiple Viewpoint Systems in \verb!C++!
+has been implemeneted. The formalism as described by Conklin et al.\
+\cite{conklin1995viewpoints} has been fully implemented.  At a low level, the
+PPM A algorithm \cite{cleary1984ppm} was implemented for smoothing
+variable-order context models, which can be parameterised over arbitary types
+using \verb!C++!  templates. The distributions predicted by these context models
+can be combined using either a \emph{weighted arithmetic} scheme (as per
+\cite{conklin1995viewpoints}) or \emph{weighted geometric} scheme, the latter
+found to be more effective by Pearce \cite{pearce2005construction} and Whorley
+\cite{whorley2013phd}. 
 
+Using these primitives, \emph{primitive}, \emph{derived}, \emph{linked}, and
+\emph{triply-linked} viewpoints can be instantiated over arbitrary combinations
+of types. Sampling by random walk was implemented for melody generation.
+Finally, an automatic viewpoint selection algorithm in the form of \emph{forward
+step-wise selection} \cite{whorley2013phd} was implemented.
 
+Code for corpus preparation and analysis was written in Python using the
+\texttt{music21} package. This code was used by both the MVS and RNN
+implementations.
+
+A multi-layer LSTM recurrent neural network was implemented in Python using
+TensorFlow \cite{abadi2016tensorflow}. The network supports \emph{dropout} for
+regularisation as per Zaremba et al.\ \cite{zaremba2014recurrent}. A separate
+``front-end'' to the RNN was implemented which allows the same internal model to
+be used for character-level language modelling and melody modelling. Random walk
+sampling was implemented. In addition, modifications to the conventional
+sequence-prediction RNN architecture were made by feeding the network additional
+\emph{global} musical information at each timestep, which was found to improve
+performance significantly.
+
+Finally, a website for human evaluation was developed. This will be discussed in
+detail in chapter~\ref{chap:eval}.
 
 \section{Related Work}
 
-\todo Structure
+The method of multiple viewpoints was first applied to music in 1988 by Conklin
+\& Cleary \cite{conklin1988modelling} (no: Ebcioglu??). The authors motivate the use of multiple
+viewpoint systems in music by making the observation that it is insufficient to
+model the surface structure of music alone.
+
+\section{Structure}
 
 \chapter{Preparation}
 
@@ -213,8 +275,7 @@ Terms to define: \emph{interval}, \emph{pitch}, \emph{pitch class},
 
 \chapter{Implementation}
 
-
-\chapter{Evaluation}
+\chapter{Evaluation}\label{chap:eval}
 
 
 \chapter{Conclusion}
@@ -223,7 +284,7 @@ Terms to define: \emph{interval}, \emph{pitch}, \emph{pitch class},
 % the bibliography
 \addcontentsline{toc}{chapter}{Bibliography}
 \todo
-%\printbibliography
+\printbibliography
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % the appendices
