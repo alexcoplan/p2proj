@@ -460,42 +460,57 @@ void generate(ChoraleMVS &mvs,
               const QuantizedDuration &ts_dur,
               const std::string &json_fname) {
   ChoraleTimeSig timesig(ts_dur);
-  std::cout 
-    << "Generating piece of length " << len 
-    << " in " << timesig << ".." << std::flush;
-  auto piece = mvs.random_walk(len, ts_dur);
-  std::cout << "done." << std::endl;
 
-  std::cout << "Entropy of generated piece: " << std::endl << std::flush;
-  auto pitch_entropy = mvs.avg_sequence_entropy<ChoralePitch>(piece);
-  auto dur_entropy = mvs.avg_sequence_entropy<ChoraleDuration>(piece);
-  auto rest_entropy = mvs.avg_sequence_entropy<ChoraleRest>(piece);
-  std::cout << "-->    Pitch: " << pitch_entropy << std::endl;
-  std::cout << "--> Duration: " << dur_entropy << std::endl;
-  std::cout << "-->     Rest: " << rest_entropy << std::endl;
-  std::cout << "-->    Total: "
-    << (pitch_entropy + dur_entropy + rest_entropy) << std::endl;
+  double pitch_entropy = 0.0;
+  double dur_entropy = 0.0;
+  double rest_entropy = 0.0;
 
-  auto pitch_xents = mvs.cross_entropies<ChoralePitch>(piece);
-  auto dur_xents   = mvs.cross_entropies<ChoraleDuration>(piece);
-  auto rest_xents  = mvs.cross_entropies<ChoraleRest>(piece);
+  while (true) {
+    std::cout 
+      << "Generating piece of length " << len 
+      << " in " << timesig << ".." << std::flush;
+    auto piece = mvs.random_walk(len, ts_dur);
+    std::cout << "done." << std::endl;
 
-  auto pitch_dents = mvs.dist_entropies<ChoralePitch>(piece);
-  auto dur_dents   = mvs.dist_entropies<ChoraleDuration>(piece);
-  auto rest_dents  = mvs.dist_entropies<ChoraleRest>(piece);
+    std::cout << "Entropy of generated piece: " << std::endl << std::flush;
+    pitch_entropy = mvs.avg_sequence_entropy<ChoralePitch>(piece);
+    dur_entropy = mvs.avg_sequence_entropy<ChoraleDuration>(piece);
+    rest_entropy = mvs.avg_sequence_entropy<ChoraleRest>(piece);
+    std::cout << "-->    Pitch: " << pitch_entropy << std::endl;
+    std::cout << "--> Duration: " << dur_entropy << std::endl;
+    std::cout << "-->     Rest: " << rest_entropy << std::endl;
+    std::cout << "-->    Total: "
+      << (pitch_entropy + dur_entropy + rest_entropy) << std::endl;
 
-  std::vector<double> total_xents(piece.size());
-  std::vector<double> total_dents(piece.size());
-  for (unsigned int i = 0; i < piece.size(); i++) {
-    total_xents[i] = pitch_xents.at(i) + dur_xents.at(i) + rest_xents.at(i);
-    total_dents[i] = pitch_dents.at(i) + dur_dents.at(i) + rest_dents.at(i);
+    if (pitch_entropy < 1.6 || dur_entropy < 0.6 || 
+        pitch_entropy > 2.1 || dur_entropy > 1.1) {
+      std::cout << "likely bad sample, rejecting..." << std::endl;;
+      continue;
+    }
+
+    std::cout << "accepting sample." << std::endl;
+    auto pitch_xents = mvs.cross_entropies<ChoralePitch>(piece);
+    auto dur_xents   = mvs.cross_entropies<ChoraleDuration>(piece);
+    auto rest_xents  = mvs.cross_entropies<ChoraleRest>(piece);
+
+    auto pitch_dents = mvs.dist_entropies<ChoralePitch>(piece);
+    auto dur_dents   = mvs.dist_entropies<ChoraleDuration>(piece);
+    auto rest_dents  = mvs.dist_entropies<ChoraleRest>(piece);
+
+    std::vector<double> total_xents(piece.size());
+    std::vector<double> total_dents(piece.size());
+    for (unsigned int i = 0; i < piece.size(); i++) {
+      total_xents[i] = pitch_xents.at(i) + dur_xents.at(i) + rest_xents.at(i);
+      total_dents[i] = pitch_dents.at(i) + dur_dents.at(i) + rest_dents.at(i);
+    }
+
+    std::map<std::string, std::vector<double>> entropy_map;
+    entropy_map.insert({"cross_entropies", total_xents});
+    entropy_map.insert({"dist_entropies", total_dents});
+
+    render(piece, entropy_map, json_fname);
+    return;
   }
-
-  std::map<std::string, std::vector<double>> entropy_map;
-  entropy_map.insert({"cross_entropies", total_xents});
-  entropy_map.insert({"dist_entropies", total_dents});
-
-  render(piece, entropy_map, json_fname);
 }
 
 struct VPPool {
@@ -677,8 +692,8 @@ int main(void) {
   const QuantizedDuration three_four(12);
   const QuantizedDuration four_four(16);
 
-  const unsigned int hist    = 6;
-  const unsigned int st_hist = 6;
+  const unsigned int hist    = 3;
+  const unsigned int st_hist = 2;
 
   auto lt_config = MVSConfig::long_term_only(1.0);
   ChoraleMVS lt_only(lt_config);
@@ -697,21 +712,21 @@ int main(void) {
   add_vps_to_optimizer(p, optimizer);
 
   double eps_terminate = 0.001;
-  optimizer.optimize<ChoraleRest>(eps_terminate, train_corp, test_corp);
-  
-/*
+  optimizer.optimize<ChoralePitch>(eps_terminate, train_corp, test_corp);
+
+  /*
   ChoraleMVS full_mvs(full_config);
   // pitch predictors
   full_mvs.add_viewpoint(&p.pitch_vp);
   full_mvs.add_viewpoint(&p.fibxdur_p_intref);
-  full_mvs.add_viewpoint(&p.ioi_p_seqint);
-  full_mvs.add_viewpoint(&p.fibxdur_p_pitch);
-  full_mvs.add_viewpoint(&p.fibxseqint_p_intref);
-  full_mvs.add_viewpoint(&p.dur_p_pitch);
   full_mvs.add_viewpoint(&p.dur_p_seqint);
   full_mvs.add_viewpoint(&p.fibxioi_p_pitch);
-  full_mvs.add_viewpoint(&p.rest_p_intref);
-  full_mvs.add_viewpoint(&p.posinbar_p_intref);
+  full_mvs.add_viewpoint(&p.fibxrest_p_intref);
+  full_mvs.add_viewpoint(&p.fibxdur_p_pitch);
+  full_mvs.add_viewpoint(&p.ioi_p_seqint);
+  full_mvs.add_viewpoint(&p.dur_p_intref);
+  full_mvs.add_viewpoint(&p.posinbar_p_pitch);
+  full_mvs.add_viewpoint(&p.intref_p_seqint);
   // duration predictors
   full_mvs.add_viewpoint(&p.duration_vp);
   full_mvs.add_viewpoint(&p.posinbar_p_dur);
@@ -731,7 +746,7 @@ int main(void) {
   double step = 0.05;
   //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
   
-  generate(full_mvs, 64, four_four, "out/gend.json");
+  generate(full_mvs, 64, three_four, "out/gend.json");
   */
 }
 
