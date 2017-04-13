@@ -15,6 +15,8 @@
 \usepackage{amssymb}
 \usepackage{lilyglyphs}
 \usepackage{fontspec}
+\usepackage{csquotes}
+\usepackage{float} % figure positioning
 
 \newcommand{\set}[1]{ \left\{ #1 \right\} }
 \newcommand{\insharp}[0]{\sharp[raise=0.1,scale=0.8]}
@@ -143,7 +145,7 @@ An automated system for melody generation is motivated by end-user applications
 in \emph{computer-assisted composition}, whereby the system can provide
 inspiration for a human composer, either by generating entirely novel melodies
 within stylistic constraints, or extemporising on or extending melodic
-fragments wrtiten by the human composer. Such a system might augment the
+fragments written by the human composer. Such a system might augment the
 capabilities of typical music notation software. 
 
 Markov modelling is a simple yet effective technique for capturing the
@@ -155,12 +157,12 @@ capture the complex language of musical style. This observation motivated the
 development of more sophisticated models, known as \emph{multiple viewpoint
 systems} \cite{conklin1995viewpoints}.  A multiple viewpoint system exploits the
 rich underlying event structure of complex languages by combining the
-predictions of an ensemble of Markov models, each modelling a different
+predictions of an ensemble of context models, each modelling a different
 attribute of an event space.
 
 Recurrent neural networks (RNNs), the natural topology of neural network for
 modelling sequential data, have been widely applied to tasks such as language
-modelling, optical character recognition, time-series modelling and forecasting,
+modelling, image captioning, time-series modelling and forecasting,
 and indeed to the modelling of music (\todo cite). A RNN is an end-to-end
 sequence learning tool which relies on very little domain knowledge aside from
 the chosen input representation. This means that a system designed for
@@ -184,7 +186,7 @@ can be understood with minimal knowledge of music theory. In general, the
 multiple viewpoint formalism can also be expressed independently of any domain
 knowledge.  However, to understand the application of the multiple viewpoint
 framework to music requires an elementary understanding of music theory.  This
-section introduces the relevant terminology to enable such dissussion.
+section introduces the relevant terminology to enable such discussion.
 
 We shall constrain our discussion to the context of Western classical music,
 since the style which we wish to model lies within this context. A \emph{pitch}
@@ -217,6 +219,7 @@ to the difference in pitch between two notes. Consecutive note names are said to
 be a \emph{semi-tone} apart, and an interval of two semi-tones is known as a
 \emph{tone}. Later in this work we shall further abstract pitch and intervals
 using MIDI pitch numbering, and further concepts shall be defined as necessary.
+In the MIDI tuning standard, $\mathrm{A}_4$ corresponds to pitch number $69$.
 
 \todo talk about key/tonality? this section getting quite long \ldots
 
@@ -227,51 +230,240 @@ using MIDI pitch numbering, and further concepts shall be defined as necessary.
 \section{Work Accomplished}
 
 A complete framework for implementing Multiple Viewpoint Systems in \verb!C++!
-has been implemeneted. The formalism as described by Conklin et al.\
+has been implemented. The formalism as described by Conklin et al.\
 \cite{conklin1995viewpoints} has been fully implemented.  At a low level, the
-PPM A algorithm \cite{cleary1984ppm} was implemented for smoothing
-variable-order context models, which can be parameterised over arbitary types
-using \verb!C++!  templates. The distributions predicted by these context models
-can be combined using either a \emph{weighted arithmetic} scheme (as per
-\cite{conklin1995viewpoints}) or \emph{weighted geometric} scheme, the latter
-found to be more effective by Pearce \cite{pearce2005construction} and Whorley
-\cite{whorley2013phd}. 
+\emph{prediction by partial match} (PPM) algorithm \cite{cleary1984ppm} was
+implemented for smoothing variable-order context models, which can be
+parameterised over arbitrary types using \verb!C++!  templates. The distributions
+predicted by these context models can be combined using either a \emph{weighted
+arithmetic} scheme (as per \cite{conklin1995viewpoints}) or \emph{weighted
+geometric} scheme, the latter found to be more effective by both Pearce
+\cite{pearce2005construction} and Whorley \cite{whorley2013phd}.
 
-Using these primitives, \emph{primitive}, \emph{derived}, \emph{linked}, and
-\emph{triply-linked} viewpoints can be instantiated over arbitrary combinations
-of types. Sampling by random walk was implemented for melody generation.
-Finally, an automatic viewpoint selection algorithm in the form of \emph{forward
-step-wise selection} \cite{whorley2013phd} was implemented.
+Abstractions were made such that, using these primitives, \emph{primitive},
+\emph{derived}, \emph{linked}, and \emph{triply-linked} viewpoints can be
+instantiated over arbitrary combinations of types. Both a \emph{long-term}
+model, for capturing regularity throughout the corpus, and a \emph{short-term}
+model, for capturing the regularity within a composition, were implemented.
+Sampling by random walk was implemented for melody generation.  Finally, an
+automatic viewpoint selection algorithm in the form of \emph{forward step-wise
+selection} \cite{whorley2013phd} was implemented.
 
 Code for corpus preparation and analysis was written in Python using the
 \texttt{music21} package. This code was used by both the MVS and RNN
 implementations.
 
 A multi-layer LSTM recurrent neural network was implemented in Python using
-TensorFlow \cite{abadi2016tensorflow}. The network supports \emph{dropout} for
-regularisation as per Zaremba et al.\ \cite{zaremba2014recurrent}. A separate
+TensorFlow \cite{abadi2016tensorflow}. The network includes \emph{dropout} for
+regularisation as per Zaremba et al.\ \cite{zaremba2014recurrent}. A decoupled
 ``front-end'' to the RNN was implemented which allows the same internal model to
-be used for character-level language modelling and melody modelling. Random walk
-sampling was implemented. In addition, modifications to the conventional
-sequence-prediction RNN architecture were made by feeding the network additional
-\emph{global} musical information at each timestep, which was found to improve
-performance significantly.
+be used for character-level language modelling and music modelling. Random walk
+sampling was implemented for generation. In addition, modifications to the
+conventional sequence-prediction RNN architecture were made by feeding the
+network additional \emph{global} musical information at each timestep, which was
+found to improve performance significantly.
 
 Finally, a website for human evaluation was developed. This will be discussed in
-detail in chapter~\ref{chap:eval}.
+detail in Chapter~\ref{chap:eval}.
 
 \section{Related Work}
 
-The method of multiple viewpoints was first applied to music in 1988 by Conklin
-\& Cleary \cite{conklin1988modelling} (no: Ebcioglu??). The authors motivate the use of multiple
-viewpoint systems in music by making the observation that it is insufficient to
-model the surface structure of music alone.
+The general method of multiple viewpoints was first applied to music in 1986 by
+Ebcioğlu in a rule-based system for chorale harmonisation
+\cite{ebcioglu1986expert}.  This system used hand-crafted rules written in
+first-order logic which were expressed in terms of different viewpoints of the
+music. This system did not make use of Markov models, the main primitive
+underlying \emph{statistical} viewpoint systems.
+
+In 1988, Conklin and Cleary \cite{conklin1988modelling} applied multiple
+viewpoints with underlying probabilistic Markov models to modelling Gregorian
+chant and simple two-part polyphony. The authors make use of the
+\emph{prediction by partial match} (PPM) algorithm \cite{cleary1984ppm} for
+smoothing variable-order Markov models, but the escape method used is not
+specified.  An ad-hoc, unweighted method is used for combining the predictions
+of viewpoints.
+
+Conklin and Witten went on to develop a formalism around multiple viewpoints in
+a key 1995 paper \cite{conklin1995viewpoints}. The authors justify discounting
+the
+\emph{knowledge engineering} approach:
+
+\begin{displayquote}
+``There are too many exceptions to any
+logical system of musical description, and it will be difficult to ensure the
+completeness of an intuited theory. The system will always exclude some valid
+pieces. The generations of a theory are bound to reflect the biases of an
+engineer; this is the only way they might be called creative.''
+\end{displayquote}
+
+With similar reasoning, we shall only consider models which learn from data.  At
+this point in time, the convention in the literature became to use ``multiple
+viewpoint system'' to refer to \emph{statistical} viewpoint systems with
+underlying context models: a convention we shall also adopt.
+
+Many of the ideas in this paper were first published in Conklin's 1990 thesis
+\cite{conklin1990prediction}. The notion of separate \emph{long-term} and
+\emph{short-term} models in a viewpoint system was introduced in this work.
+Conklin also details a principled method for distribution combination, namely
+\emph{entropy-weighted arithmetic combination}. 
+
+Among the contributions from his 2005 thesis \cite{pearce2005construction},
+Pearce introduces a \emph{geometric} viewpoint combination technique, shown to
+outperform its arithmetic counterpart, as well as a method for automatic
+viewpoint selection, thereby greatly reducing the selection bias in multiple
+viewpoint systems. The work concerns the modelling of melody.
+
+More recent work by Whorley~\cite{whorley2013phd} uses multiple viewpoint
+systems to model four-part harmony in Bach chorales.
+
 
 \section{Structure}
 
+\todo
+
 \chapter{Preparation}
 
-\todo
+A high-level goal of this work which motivates the choice of models involved is
+understanding to what extent \emph{feature engineering} impacts the
+effectiveness of muscial models. A recurrent neural network, at one extreme, is
+a domain-independent, end-to-end learning system, capable of learning to extract
+high-level features from sequential data (\todo cite?). A system of viewpoints,
+however, relies on its creator to use domain knowledge to determine a set of
+salient features, encoded in the form of the \emph{pool} of viewpoints made
+available to the system.
+
+\todo mention \textbf{starting point}: not sure where this should go right now.
+
+\section{Deliverables}
+
+Recalling the proposal, the success criteria for the project include the
+following deliverables:
+\begin{itemize}
+  \item A program or tool for importing the corpus in the desired format.
+  \item A multiple viewpoint system (MVS) capable of generating melody.
+  \item A recurrent neural network (RNN) capable of generating melody.
+  \item Quantitative and human evaluation.
+\end{itemize}
+
+This chapter concerns the ideas behind the first three of these, along with
+a discussion of the research and decisions made prior to implementation.
+Chatper~\ref{chap:eval} will discsuss the design and implementation of the
+human evaluation survey in detail, as well as quantitative evaluation.
+
+\section{Corpus Preparation}
+
+The chosen corpus was a set of chorale melodies used in the harmonisations of
+J.S.\ Bach. The Bach Chorales are a corpus of great interest in the
+computational modelling of music: the style is unified, yet with significant
+inter-opus variance; it is not too complex, yet not overly simplistic.
+
+Initial inspection of relevant corpora and their formats indicated that writing
+a parser for an established music notation format such as MusicXML would take a
+considerable amount of time and offer limited flexibility. After further
+research, it was decided that the Python pacakge \texttt{music21} would be
+utilised. \texttt{music21} is an open-source toolkit for computational
+musicology. This package was especially useful for the task of corpus
+preparation due to the following features:
+\begin{itemize}
+  \item Built-in corpora including the Bach chorales in MusicXML format.
+  \item Parser for various music notation formats, including MusicXML.
+  \item High-level features for manipulating musical data.
+\end{itemize}
+
+As will be discussed later, the flexibility offered by \texttt{music21} became
+of great use later in the project as the requirements in corpus preparation and
+analysis changed.
+
+An internal format for melody based on a representation used commonly in the
+multiple viewpoint system literature (e.g.\ \cite{conklin1995viewpoints}) was
+decided on. It was decided that musical time should be quantised with a quantum
+of $1/16$\textsuperscript{th} notes (semiquavers). 
+
+This representation was to be used internally for both the MVS and
+RNN implementations. A note $n$ is represented as a tuple $(p,o,d) \in
+\mathbb{N}^3$ where $p$ is the MIDI pitch number of $n$, $o$ is the onset 
+time, and $d$ is the duration. A melody is then a list of such tuples. Note that
+rests are not explicitly represented in this encoding.
+
+\section{Multiple Viewpoint Systems}
+
+In this section, the key theory, algorithms, and data structures underpinning
+multiple viewpoint systems are introduced. The notation and formalism is as per
+Conklin and Witten \cite{conklin1995viewpoints}. We start by defining some
+notation which will be used throughout this section.
+
+\begin{itemize}[itemsep=0mm]
+  \item If $\tau$ is a type, then $[\tau]$ is the \emph{syntactic domain} of
+    that type: all elements of type $\tau$.   
+  \item $S^*$ denotes the set of all sequences drawn from a set $S$.
+  \item $e_i^j$ abbreviates the sequence $(e_i,e_{i+1},\ldots,e_{j-1},e_j)$ and
+    $()$ the empty sequence.
+  \item $\zeta$ denotes the \emph{event space}, the set of all possible events
+    that can occur in sequences of interest. For example, a simple event space
+    for melody might be:
+    $$ [\mathrm{pitch}] \times [\mathrm{duration}] \times [\mathrm{rest}]. $$
+\end{itemize}
+
+\subsection{Context Models}
+
+The central primitive underlying a multiple viewpoint system is the
+\emph{context model}. In general, a context model modelling some type $\tau$ is
+a data structure storing sequences in $[\tau]^*$, together with an inference
+procedure predicting distributions over $[\tau]$.
+
+While first-order Markov chains make predictions based on just one timestep of
+context, an $n$\textsuperscript{th} order Markov chain makes predictions based
+on $n$ elements of context. For notational convenience, and for consistency with
+the literature, we generally refer to the \emph{history} $h = n+1$ of an
+$n$\textsuperscript{th} order Markov model. Such a model stores and models
+$h$-grams.
+
+The context models we consider are variable-order Markov models with some
+maximum hisory $\hbar$.  Such a model can be thought of as a combination of
+Markov models with history $1,2,\ldots,\hbar$. 
+
+A known problem with high-order Markov models is their space complexity. A naïve
+tabular approach uses $\Theta(|[\tau]|^h)$ space.  In practice, such high-order
+models are \emph{sparse}: most $h$-grams are never seen in the training data. A
+data structure which exploits this sparsity is the \emph{suffix tree} or
+\emph{trie}.  In such a structure, the nodes are events, each with an associated
+count, and a path from the root corresponds uniquely to a particular $h$-gram.
+Figure~\ref{fig:dur-trie} illustrates this data structure, in this case the trie
+supporting a context model over musical durations. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=455pt]{figs/duration_vp.pdf}
+\caption{Trie for a context model over duration with $\hbar = 3$}
+\label{fig:dur-trie}
+\end{figure}
+
+The algorithm for extracting $h$-grams for a training sequence $e_1^k$ works by
+passing a sliding window of size $\hbar$ across the input sequence, and
+generating the sequences $e_{i-\hbar+1}^{i}, e_{i-\hbar+2}^{i}, \ldots,\ e_i^i,
+()$ for $i \in [\hbar,k]$. For $i \in [1,\hbar-1]$, a smaller window size is
+used to avoid running off the left end of our input sequence. \todo [give full
+pseudocode in the appendix or implementation chapter and reference here? or
+pseudocode here? it's only six lines]. This sliding window procedure is
+illustrated in Figure~\ref{fig:hgram-extract} for an input sequence $e_1^5$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=300pt]{figs/sliding_window_tmp.jpg}
+\caption{Illustration of the $h$-gram extraction algorithm with $\hbar = 3$}
+\label{fig:hgram-extract}
+\end{figure}
+
+Each $h$-gram $e_i^j$ generated by the extraction algorithm is passed to a
+subroutine which looks up $e_i^j$ in the trie. If it is found, then its count is
+incremented. Otherwise, $e_i^j$ is inserted into the trie, the resulting node
+initialised to have a count of 1. Note that $()$, the empty sequence,
+corresponds to the root node in the trie.
+
+Once we have constructed the trie for a context model, we need an algorithm to
+perform \emph{inference}. In particular, we want to compute $\mathbb{P}(e' |
+e_1^k)$ for some next event $e' \in [\tau]$ and input context $e_1^k \in
+[\tau]^*$.
 
 \chapter{Implementation}
 

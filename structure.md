@@ -17,6 +17,15 @@
   - choice of tools, libraries
   - choice of software engineering strategy
 
+# Implementation
+ - remember to mention interesting challenges as well as successes
 
+# Evaluation:
+ - compare with numbers from Pearce/Whorley
 
+## ideas
+ - pathalogical examples
+ - cross entropy
+ - human evaluation
+ - subjective evaluation (annotated score + cross entropy/time)
 
