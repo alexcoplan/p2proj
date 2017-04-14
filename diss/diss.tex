@@ -325,7 +325,7 @@ systems to model four-part harmony in Bach chorales.
 
 A high-level goal of this work which motivates the choice of models involved is
 understanding to what extent \emph{feature engineering} impacts the
-effectiveness of muscial models. A recurrent neural network, at one extreme, is
+effectiveness of musical models. A recurrent neural network, at one extreme, is
 a domain-independent, end-to-end learning system, capable of learning to extract
 high-level features from sequential data (\todo cite?). A system of viewpoints,
 however, relies on its creator to use domain knowledge to determine a set of
@@ -347,7 +347,7 @@ following deliverables:
 
 This chapter concerns the ideas behind the first three of these, along with
 a discussion of the research and decisions made prior to implementation.
-Chatper~\ref{chap:eval} will discsuss the design and implementation of the
+Chapter~\ref{chap:eval} will discuss the design and implementation of the
 human evaluation survey in detail, as well as quantitative evaluation.
 
 \section{Corpus Preparation}
@@ -360,7 +360,7 @@ inter-opus variance; it is not too complex, yet not overly simplistic.
 Initial inspection of relevant corpora and their formats indicated that writing
 a parser for an established music notation format such as MusicXML would take a
 considerable amount of time and offer limited flexibility. After further
-research, it was decided that the Python pacakge \texttt{music21} would be
+research, it was decided that the Python package \texttt{music21} would be
 utilised. \texttt{music21} is an open-source toolkit for computational
 musicology. This package was especially useful for the task of corpus
 preparation due to the following features:
@@ -398,6 +398,7 @@ notation which will be used throughout this section.
   \item $S^*$ denotes the set of all sequences drawn from a set $S$.
   \item $e_i^j$ abbreviates the sequence $(e_i,e_{i+1},\ldots,e_{j-1},e_j)$ and
     $()$ the empty sequence.
+  \item $s :: e$ denotes the sequence $s$ with event $e$ appended.
   \item $\zeta$ denotes the \emph{event space}, the set of all possible events
     that can occur in sequences of interest. For example, a simple event space
     for melody might be:
@@ -419,7 +420,7 @@ $n$\textsuperscript{th} order Markov model. Such a model stores and models
 $h$-grams.
 
 The context models we consider are variable-order Markov models with some
-maximum hisory $\hbar$.  Such a model can be thought of as a combination of
+maximum history $\hbar$.  Such a model can be thought of as a combination of
 Markov models with history $1,2,\ldots,\hbar$. 
 
 A known problem with high-order Markov models is their space complexity. A naïve
@@ -465,7 +466,104 @@ perform \emph{inference}. In particular, we want to compute $\mathbb{P}(e' |
 e_1^k)$ for some next event $e' \in [\tau]$ and input context $e_1^k \in
 [\tau]^*$.
 
+The maximum likelihood solution to this problem is simply to use the relative
+frequency of the $h$-gram of interest:
+\begin{equation}
+  \mathbb{P}(e'|e_1^k) = \frac{ C(e_1^k::e') }{ \sum_{e''} C(e_1^k::e'') }
+  \label{eq:ctx-max-like}
+\end{equation}
+where $C(e_i^j)$ denotes the count associated with $e_i^j$ in the trie, or $0$
+if such a node does not exist. Note that all sequences longer than $\hbar$ (and
+contexts longer than $\hbar-1$) are implicitly ignored, so $\forall j \in
+\mathbb{N}.\ C(e_{k-\hbar-j}^k) = C(e_{k-\hbar+1}^k)$ and
+$\mathbb{P}(e'|e_{k-\hbar+1-j}^k) = \mathbb{P}(e'|e_{k-\hbar+2}^k)$.
+
+There are two main problems with this solution. The first is that we want our
+models to be \emph{non-exclusive}; that is, $\forall e' \in [\tau].\
+\mathbb{P}(e' | e_1^k) > 0$. An \emph{exclusive} model would limit the scope for
+creativity in the system, and moreover, from a practical standpoint, evaluation
+metrics such as \emph{cross-entropy} require calculating log-probabilities: we
+therefore want to avoid zero probabilities. This model, however, may be
+exclusive.
+
+The second problem with this solution is that it does not deal with \emph{novel
+contexts}. In particular, suppose we have not seen the context $e_1^k$. Then,
+clearly, the denominator of (\ref{eq:ctx-max-like}) will be zero, which is
+equally problematic.
+
+An algorithm which attends to both of these issues is \emph{prediction by
+partial match} (PPM) \cite{cleary1984ppm}. The central idea behind PPM is that,
+instead of distributing the probability mass entirely among the complete
+matches, as per (\ref{eq:ctx-max-like}), we instead reserve some amount of the
+probability mass known as the \emph{escape probability}. The escape probability
+is then distributed recursively among a lower-order model. In this sense, PPM
+implements \emph{backoff smoothing}.
+
+\todo PPM A Pseudocode
+
+\subsection{Viewpoints}
+
+\todo formalism
+
+\subsection{Combining Viewpoints}
+
+\todo MVS architecture diagram
+
+\section{Recurrent Neural Networks}
+
+\subsection{Basic RNN}
+
+\todo RNN explanation with diagram as per Goodfellow DL book.
+
+\subsection{LSTM}
+
+\todo Explain exploding/vanishing gradients.
+
+\todo LSTM explanation, citing papers on constant gradient flow.
+
+\subsection{Regularisation}
+
+\todo Explain dropout applied to RNN.
+
+\subsection{Tooling}
+
+\todo Explain TensorFlow, \textbf{why it was chosen}, notion of computational
+graph, etc.
+
 \chapter{Implementation}
+
+\section{Corpus Preparation and Analysis}
+
+\todo Maybe some graphs illustrating distributions in corpus as per
+\texttt{analyse\_corpus.py}.
+
+\section{Multiple Viewpoint System}
+
+\todo Using the framework of multiple viewpoints outlined in the preparation,
+discuss the \emph{specific} viewpoints implemented.
+
+\subsection{Software Architecture}
+
+\todo Diagram illustrating the (code) architecture of the MVS. 
+
+\todo Explain use of
+\texttt{C++} templates illustrating correspondence between formalism and
+implementation.
+
+\section{Recurrent Neural Network}
+
+\subsection{Early Experiments}
+
+\todo Mention language modelling precursor: maybe include snippet of output?
+
+\subsection{Corpus Preprocessing}
+
+\todo Describe the method of \emph{tonal inflation} in order for the RNN to
+learn the key as an emergent property of each composition.
+
+\subsection{Domain-specific Features}
+
+\todo Explain ``clock'' inputs. Discuss symmetry with multiple viewpoints.
 
 \chapter{Evaluation}\label{chap:eval}
 
