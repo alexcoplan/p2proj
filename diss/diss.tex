@@ -18,6 +18,11 @@
 \usepackage{csquotes}
 \usepackage{float} % figure positioning
 
+% pseudocode typesetting
+\usepackage{algorithmicx}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+
 \newcommand{\set}[1]{ \left\{ #1 \right\} }
 \newcommand{\insharp}[0]{\sharp[raise=0.1,scale=0.8]}
 \newcommand{\inflat}[0]{\flat[raise=0.1,scale=0.8]}
@@ -493,13 +498,87 @@ equally problematic.
 
 An algorithm which attends to both of these issues is \emph{prediction by
 partial match} (PPM) \cite{cleary1984ppm}. The central idea behind PPM is that,
-instead of distributing the probability mass entirely among the complete
+instead of distributing the probability mass entirely among the exact context
 matches, as per (\ref{eq:ctx-max-like}), we instead reserve some amount of the
 probability mass known as the \emph{escape probability}. The escape probability
 is then distributed recursively among a lower-order model. In this sense, PPM
-implements \emph{backoff smoothing}.
+is a form of \emph{backoff smoothing}.
 
-\todo PPM A Pseudocode
+Backoff smoothing algorithms are typically formulated recursively, as per
+(\ref{eq:ppm-general}).
+\begin{equation}\label{eq:ppm-general}
+  \mathbb{P}(e' | e_1^k) = \begin{cases}
+  \alpha(e'|e_1^k) & C(e' | e_1^k) > 0 \\
+\gamma(e_1^k) \cdot \mathbb{P}(e' | e_{(k - \hbar) + 2}^k) & \text{otherwise}
+\end{cases} 
+\end{equation} 
+
+If no match is found for any model, the recursion bottoms out with a uniform
+distribution. The choice of \emph{escape probability} $\gamma(\cdot)$ is known
+as the \emph{escape method}: established methods include A, B, C, D, and AX
+\cite{pearce2004improved}. PPM A, the method implemented in this work, uses the
+following $\alpha$ and $\gamma$ functions:
+\begin{align}
+  \label{eq:ppm-a}
+  \alpha(e' | e_1^k) &= \frac{ C(e' | e_1^k) }{ 1 + \sum_{e''} C(e'' | e_1^k) }
+  \\
+  \gamma(e_1^k) &= \frac{ 1 }{ 1 + \sum_{e'} C(e' | e_1^k) }
+\end{align}
+
+This recursive formulation can be somewhat misleading, as the notation implies
+that (\ref{eq:ppm-general}) gives rise to complete probability distributions.
+This is in fact not the case, as illustrated by \todo.
+
+\todo Figure illustrating why simple formulation is not complete.
+
+There are two typical solutions for this lack of normalisation in PPM: in
+earlier work, authors often simply compute an improper distribution and
+later normalise it (e.g.\ \cite{conklin1990prediction}). A more sophisticated
+solution which reasons about the possible $h$-grams that can be escaped to is
+known as PPM with \emph{exclusion} \cite{pearce2004improved}, detailed in
+Algorithm~\ref{alg:ppm-a}.
+
+The key to \emph{exclusion} in this algorithm is the \textit{Dead} set that is
+maintained throughout the recursion. This set should be initialised to
+$\varnothing$ and later populated with those events that we \emph{could} have
+already matched at a higher-order model and therefore no longer need to consider
+at lower-order models. To compute $\mathbb{P}(e' | e_1^k)$ we call
+\Call{ppm-a}{$e_1^k$, $1$, $e'$, $\varnothing$}.
+
+\begin{algorithm}[H]
+  \caption{PPM A with exclusion}
+  \label{alg:ppm-a}
+  \begin{algorithmic}[1]
+    \Function{ppm-a}{$e_1^k$, $i_{\mathrm{begin}}$, $e'$,
+    \textit{Dead}}
+      \State $\textit{Alive} \gets [\tau] \setminus \textit{Dead}$
+      \If{$i_{\mathrm{begin}} > k$}
+      \State \Return $1 / |\textit{Alive}|$ \Comment{Base case: uniform
+      distribution}
+      \EndIf
+      \State $i \gets i_{\mathrm{begin}}$
+      \For{$i : i_{\mathrm{begin}} \rightarrow k$}
+      \If{$C(e_i^k) > 0$} \textbf{break}
+      \Comment{Find longest context match}
+        \EndIf       
+      \EndFor 
+      \State $\textit{Known} \gets \set{ e'' \in [\tau]\ |\ C(e_i^k :: e'') > 0 }$
+      \State $\textit{Novel} \gets Alive \setminus Known$ \Comment{All
+      events we could escape for}
+      \If{$\textit{Novel} = \varnothing$}
+        \State \Return $C(e_i^k :: e') / \sum_{e'' \in \textit{Alive}}
+        C(e_i^k :: e'')$ \Comment{No possible need for ecsape}
+      \EndIf
+      \If{$e' \in \textit{Known}$}
+      \State \Return $C(e_i^k::e') / (1 + \sum_{e'' \in \textit{Alive}}
+      C(e_i^k :: e'') )$ \Comment{Matched $e_i^k::e'$}
+      \EndIf
+      \State $p_\epsilon \gets 1 / (1 + \sum_{e'' \in Alive} C(e_i^k :: e''))$
+      \State \Return $p_\epsilon\ \cdot\ $\Call{ppm-a}{$e_1^k$, $i+1$, $e'$,
+      $Dead \cup Known$} \Comment{Escape recursively}
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
 
 \subsection{Viewpoints}
 
