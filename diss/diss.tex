@@ -605,7 +605,7 @@ at lower-order models. To compute $\mathbb{P}(e' | e_1^k)$ we call
       events we could escape for}
       \State $s \gets \sum_{e'' \in \textit{Alive}} C(e_i^k :: e'')$ 
       \If{$\textit{Novel} = \varnothing$}
-        \State \Return $C(e_i^k :: e') / s$ \Comment{No possible need for ecsape}
+        \State \Return $C(e_i^k :: e') / s$ \Comment{No possible need for escape}
       \EndIf
       \If{$e' \in \textit{Known}$}
       \State \Return $C(e_i^k::e') / (1 + s)$ \Comment{Matched $e_i^k::e'$}
@@ -630,7 +630,7 @@ An obvious approach to allow the system to generalise would be to model some or
 all of the $\tau_i$ \emph{independently}. To see why this might be useful,
 consider that while there is certainly some correlation between e.g.\ pitch and
 duration, much of the rhythmic regularity in a particular corpus is independent
-of the pitch of the notes: thus, it is likely to be fruitful to model duraiton
+of the pitch of the notes: thus, it is likely to be fruitful to model duration
 independently of any of the other musical attributes.
 
 Further, complex languages such as music can be viewed from many abstract
@@ -708,7 +708,7 @@ In practice, we shall see that it is typically easier to implement $\Phi_\tau$
 directly. However, formally, it is cleaner to specify $\Psi_\tau$ to define a
 particular viewpoint.
 
-Now conisder a viewpoint over a type $\tau$ derived from some surface type
+Now consider a viewpoint over a type $\tau$ derived from some surface type
 $\tau'$. This viewpoint will predict distributions over the abstract type
 $\tau$, but we actually need a distribution over the concrete $\tau'$. 
 
@@ -786,7 +786,7 @@ Figure~\ref{fig:dist-comb-plot} shows the effect of using these two schemes on
 some example distributions. It can be seen that a very low probability
 prediction from one distribution has considerably more bearing with the
 geometric scheme. Note also that when combining distributions $C$ and $D$, since
-$D$ has much lower entropy, it has considerbaly more effect on the overall
+$D$ has much lower entropy, it has considerably more effect on the overall
 result under both schemes.
 
 \begin{figure}[H]
