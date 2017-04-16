@@ -142,9 +142,9 @@ computers can produce music that is compelling to humans, and indeed, this
 question has long been posed by researchers, with practical efforts dating back
 to the mid-1950s \cite{ames1987automated}. 
 
-This dissertation investigates the application of two modern techniques to
-\emph{melody generation}, a task highly amenable to statistical
-modelling and machine learning. 
+The aim of this work is to implement and compare two modern techniques for
+\emph{melody generation}, a task highly amenable to statistical modelling and
+machine learning. 
 
 An automated system for melody generation is motivated by end-user applications
 in \emph{computer-assisted composition}, whereby the system can provide
@@ -245,14 +245,15 @@ In the MIDI tuning standard, $\mathrm{A}_4$ corresponds to pitch number $69$.
 
 A complete framework for implementing Multiple Viewpoint Systems in \verb!C++!
 has been implemented. The formalism as described by Conklin et al.\
-\cite{conklin1995viewpoints} has been fully implemented.  At a low level, the
-\emph{prediction by partial match} (PPM) algorithm \cite{cleary1984ppm} was
-implemented for smoothing variable-order context models, which can be
-parameterised over arbitrary types using \verb!C++!  templates. The distributions
-predicted by these context models can be combined using either a \emph{weighted
-arithmetic} scheme (as per \cite{conklin1995viewpoints}) or \emph{weighted
-geometric} scheme, the latter found to be more effective by both Pearce
-\cite{pearce2005construction} and Whorley \cite{whorley2013phd}.
+\cite{conklin1995viewpoints} has been fully implemented.  At the core of the
+framework, the \emph{prediction by partial match} (PPM) algorithm
+\cite{cleary1984ppm} was implemented for smoothing variable-order context
+models, which can be parameterised over arbitrary types using \verb!C++!
+templates. The distributions predicted by these context models can be combined
+using either a \emph{weighted arithmetic} scheme (as per
+\cite{conklin1995viewpoints}) or \emph{weighted geometric} scheme, the latter
+found to be more effective by both Pearce \cite{pearce2005construction} and
+Whorley \cite{whorley2013phd}.
 
 Abstractions were made such that, using these primitives, \emph{primitive},
 \emph{derived}, \emph{linked}, and \emph{triply-linked} viewpoints can be
@@ -337,7 +338,7 @@ systems to model four-part harmony in Bach chorales.
 
 \chapter{Preparation}
 
-\todo mention \textbf{starting point}: not sure where this should go right now.
+\todo mention \textbf{starting point} here.
 
 \section{Deliverables}
 
