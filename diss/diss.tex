@@ -413,7 +413,7 @@ notation which will be used throughout this section.
 \subsection{Context Models}
 
 The central primitive underlying a multiple viewpoint system is the
-\emph{context model}. In general, a context model modelling some type $\tau$ is
+\emph{context model}. In general, a context model over some type $\tau$ is
 a data structure storing sequences in $[\tau]^*$, together with an inference
 procedure predicting distributions over $[\tau]$.
 
@@ -473,7 +473,7 @@ Figure~\ref{fig:hgram-extract} for an input sequence $e_1^5$.
 
 The subroutine \Call{add-or-increment}{$e_i^j$} looks up $e_i^j$ in the trie. If
 it is found, then its count is incremented. Otherwise, $e_i^j$ is inserted into
-the trie, the resulting node initialised to have a count of 1. Note that $()$,
+the trie, the resulting node initialised with a count of unity. Note that $()$,
 the empty sequence, corresponds to the root node in the trie.
 
 Once we have constructed the trie for a context model, we need an algorithm to
@@ -498,8 +498,8 @@ models to be \emph{non-exclusive}; that is, $\forall e' \in [\tau].\
 \mathbb{P}(e' | e_1^k) > 0$. An \emph{exclusive} model would limit the scope for
 creativity in the system, and moreover, from a practical standpoint, evaluation
 metrics such as \emph{cross-entropy} require calculating log-probabilities: we
-therefore want to avoid zero probabilities. This model, however, may be
-exclusive.
+therefore want to avoid zero probabilities. This model, however, fails to
+guarantee non-exclusivity.
 
 The second problem with this solution is that it does not deal with \emph{novel
 contexts}. In particular, suppose we have not seen the context $e_1^k$. Then,
@@ -541,30 +541,32 @@ that (\ref{eq:ppm-general}) gives rise to properly normalised probability
 distributions.  This is in fact not the case. Consider performing PPM with
 $\hbar = 2$ over an alphabet $\Sigma = \set{\alpha,\beta,\gamma}$, and suppose
 we learn the sequence $(\alpha,\beta,\gamma,\alpha,\alpha,\beta)$.
-Figure~\ref{fig:bad-ppm-trie} illustrates the situation.
+Figure~\ref{fig:bad-ppm-trie} illustrates the situation, and includes virtual
+$\epsilon$-nodes to represent the escape mass.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=400pt]{figs/problematic_trie_tmp.jpg}
-\caption{Trie demonstrating lack of normalisation in standard PPM}
+\caption{Trie demonstrating lack of normalisation in standard PPM.}
 \label{fig:bad-ppm-trie}
 \end{figure}
 
-The first problem is the ecsape node labelled $\epsilon$. According to
+The first problem is the escape node at layer $h = 1$. According to
 (\ref{eq:ppm-escape}) it should have an effective count of $1$. However, this
 yields:
 $$ \sum_{e \in \Sigma} \mathbb{P}(e) = \frac{3}{7} + \frac{2}{7} + \frac{1}{7} =
 \frac{6}{7} \neq 1. $$
-The observation to make here is that if \emph{all} the symbols in our alphabet
-have a non-zero count for any given context, then the escape probability is
+The observation to make here is that if \emph{all} symbols in our alphabet have
+a non-zero count for any given context, then the escape probability is
 redundant. Suppose, then, we set the effective count of this $\epsilon$-node to
 zero. Consider the distribution $\mathbb{P}(e|\alpha)$. We can trivially compute
-$\mathbb{P}(\alpha|\alpha) = 1/4$ and $\mathbb{P}(\beta|\alpha) = 1/2$. By
-(\ref{eq:ppm-general}) we find $\mathbb{P}(\gamma|\alpha) = 1/4 \cdot
-\mathbb{P}(\gamma)$, but as we have already calculated, $\mathbb{P}(\gamma) <
-1$, so this is not normalised. The problem here is that the escape mass for the
-node labelled $\alpha\epsilon$ is distributed among all the symbols at layer $h
-= 1$ in the trie, when really it should be distributed just over $\gamma$.
+$\mathbb{P}(\alpha|\alpha) = 1/4$ and $\mathbb{P}(\beta|\alpha) = 1/2$, and for
+$\gamma$ we escape to find $\mathbb{P}(\gamma|\alpha) = 1/4 \cdot
+\mathbb{P}(\gamma)$. However, $\mathbb{P}(\gamma) < 1$, so
+$\mathbb{P}(e|\alpha)$ is not normalised. The problem here is that the escape
+mass for the node labelled $\alpha\epsilon$ is distributed among all the symbols
+at layer $h = 1$ in the trie, when in reality we can only ever escape to
+$\gamma$.
 
 There are two typical solutions for this lack of normalisation in PPM: in
 earlier work, authors often simply compute an improper distribution and later
@@ -573,7 +575,7 @@ wasteful solution which reasons about the possible $h$-grams that can be escaped
 to is known as PPM with \emph{exclusion} \cite{pearce2004improved}, detailed in
 Algorithm~\ref{alg:ppm-a}.
 
-The key to \emph{exclusion} in this algorithm is the \textit{Dead} set that is
+The key to exclusion in this algorithm is the \textit{Dead} set that is
 maintained throughout the recursion. This set should be initialised to
 $\varnothing$ and later populated with those events that we \emph{could} have
 already matched at a higher-order model and therefore no longer need to consider
@@ -641,11 +643,10 @@ Modelling the regularity in such abstract domains and transforming the
 predictions back into predictions over the concrete $\tau_i$ might therefore
 further allow the system to generalise.  
 
-\emph{Viewpoints} allow us to model
-music from these different points of view: namely, we can
-model the individual $\tau_i$, as well as abstract interpretations and
-combinations thereof. We now proceed to set up the formalism around viewpoints
-as per Conklin and Witten \cite{conklin1995viewpoints}.
+\emph{Viewpoints} allow us to model music from these different points of view:
+namely, we can model the individual $\tau_i$, as well as abstract
+interpretations and combinations thereof. We now proceed to set up the formalism
+of multiple viewpoints.
 
 First, allow $\tau$ to range over types other than just the \emph{basic types}
 that make up the component types of $\zeta$. We call these non-surface types
@@ -661,9 +662,11 @@ $\tau_i$.
 
 The function $\Psi_\tau$ for a type $\tau$ is known as the \emph{projection}
 function for $\tau$: it projects out the last element of type $\tau$ from some
-surface event stream $e_1^k \in \zeta^*$, if such an element exists.
+surface event stream $e_1^k \in \zeta^*$, if such an element exists. Note that,
+for convenience, we shall frequently refer to viewpoints simply by the type they
+model. 
 
-Viewpoints as we have defined them can clearly model individual surface and
+Viewpoints, as we have defined them, can clearly model individual surface and
 derived types. While this is useful, we also want to be able to capture the
 correlation between attributes.
 
@@ -681,7 +684,11 @@ $$ \Psi_\tau(e_1^k) \triangleq
 \end{cases}
 $$
 
-Viewpoints over product types are known as \emph{linked viewpoints}.
+Viewpoints over product types are known as \emph{linked viewpoints}. 
+
+Note that one can also make use of \emph{threaded viewpoints}: those defined
+only at certain fixed intervals in a sequence. However, these are considered out
+of scope for this work.
 
 In order to train a viewpoint over type $\tau$, we need to provide the
 underlying context model with sequences in $[\tau]^*$. To obtain such sequences
@@ -709,14 +716,90 @@ concrete is given a limited treatment in the literature. Whorley
 \cite{whorley2013phd} notes that this is effectively ``using the partial
 function $\Psi_\tau$ in reverse on each of the viewpoint elements''. We argue
 that the surface context is also needed to perform this task, and shall refer to
-this process as \emph{reification}, specified by a partial function $\Phi^{-1} :
+this process as \emph{reification}, specified by a partial function $\rho :
 \zeta^* \times \mathrm{dist}(\tau) \rightharpoonup \mathrm{dist}(\tau')$, where
 $\mathrm{dist}(\tau)$ denotes the set of probability distributions over a type
 $\tau$. This shall be discussed further in Chapter~\ref{chap:impl}.
 
-\subsection{Combining Viewpoints}
+\subsection{Combining Viewpoint Predictions}
 
-\todo MVS architecture diagram
+Recall that, given some musical context $e_1^k \in \zeta^*$, the goal is to
+predict the next event $e_{k+1} \in \zeta$ where $\zeta = [\tau_1] \times \cdots
+\times [\tau_n]$.  A collection of viewpoints that performs this task is known
+as a \emph{multiple viewpoint system} (MVS). 
+
+A MVS decomposes this task by predicting $e_{k+1}$ componentwise. Out of all the
+viewpoints in the system, consider just those viewpoints capable of predicting
+some $\tau_i$. At each timestep, given the context $e_1^k$, $N$ of these
+viewpoints will \emph{activate}, meaning they predict a distribution for
+$\tau_i$. This section concerns techniques for the combination of $N$ such
+distributions to form an overall prediction. In particular, we consider
+\emph{weighted} schemes as these are widely used in the literature and known to
+perform better than unweighted schemes \cite{pearce2004combining}.
+
+The premise of weighted schemes for viewpoint combination is that viewpoints
+that are more `confident' in their predictions should be given higher weights.
+Since the Shannon entropy of a viewpoint's distribution is a metric of overall
+uncertainty, we use weights that are monotonically non-increasing as a function
+of distribution entropy.
+
+Suppose we have $N$ distributions over a type $\tau$. Suppose further that
+there is some canonical ordering of $[\tau]$, such that we can pick out the
+$j$\textsuperscript{th} member. Now, let $p_i(j)$ denote the probability
+assigned to $j$ by the $i$\textsuperscript{th} of the $N$ distributions. We want
+to combine these predictions to produce some overall distribution with
+probabilities $p(j)$.
+
+A general weighted arithmetic scheme combines the predictions as follows:
+$$
+  p(j) = \frac{ \sum_{i = 1}^N w_i p_i(j) }{ \sum_{i = 1}^N w_i }.
+$$
+
+The Shannon entropy of the $i$\textsuperscript{th} distribution is given by:
+$$ H(i) = - \sum_{j = 1}^{|[\tau]|} p_i(j) \log_2 p_i(j) $$
+with maximum value $H_{\mathrm{max}} = \log_2{ |[\tau]| }$. Now define the
+\emph{normalised entropy} $\hat{H}(i)$ as:
+$$ \hat{H}(i) \triangleq \begin{cases}
+  H(i)/H_{\mathrm{max}} & H_{\mathrm{max}} > 0 \\
+  1 & \text{otherwise.}
+\end{cases} $$
+
+In previous work this quantity has been called the \emph{relative entropy};
+here, we use \emph{normalised entropy} so as to avoid confusion with the
+Kullback-Leibler distance, which is also known by this name.
+
+Finally, so that we can favour distributions with lower $\hat{H}$, we introduce
+an exponential bias $b \in \mathbb{R}$ with $b \geq 0$:
+$$ w_i = \hat{H}(i)^{-b}. $$
+
+Note that we do not restrict $b$ to integer values, as is commonly done in the
+literature \cite{whorley2013phd}. Pearce \cite{pearce2004improved} introduces a
+new method for combining viewpoint predictions: namely, a \emph{weighted
+geometric mean}:
+$$ p(j) = \frac{1}{Z} \left( \prod_{i = 1}^N p_i(j)^{w_i} \right)^{ \frac{1}{
+\sum_{i = 1}^N w_i }} $$
+
+where $Z$ is a normalisation constant, and the $w_i$ are calculated as before.
+
+Figure~\ref{fig:dist-comb-plot} shows the effect of using these two schemes on
+some example distributions. It can be seen that a very low probability
+prediction from one distribution has considerably more bearing with the
+geometric scheme. Note also that when combining distributions $C$ and $D$, since
+$D$ has much lower entropy, it has considerbaly more effect on the overall
+result under both schemes.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=400pt]{figs/dist_comb.pdf}
+\caption{Plots illustrating effect of distribution combination schemes ($b = 2$)}
+\label{fig:dist-comb-plot}
+\end{figure}
+
+\subsection{MVS Architecture}
+
+\todo Explain long- and short-term model briefly, perhaps mention symmetry with
+LSTM, include figure of \textbf{typical} MVS architecture, maybe briefly touch
+on hyperparams and constraints, done.
 
 \section{Recurrent Neural Networks}
 
@@ -758,6 +841,11 @@ discuss the \emph{specific} viewpoints implemented.
 \todo Explain use of
 \texttt{C++} templates illustrating correspondence between formalism and
 implementation.
+
+\subsection{Unit Tests}
+
+\todo Get lots of points and stickers for demonstrating good software
+engineering practice by testing thoroughly.
 
 \section{Recurrent Neural Network}
 
