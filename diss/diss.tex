@@ -163,33 +163,34 @@ development of more sophisticated models, known as \emph{multiple viewpoint
 systems} \cite{conklin1995viewpoints}.  A multiple viewpoint system exploits the
 rich underlying event structure of complex languages by combining the
 predictions of an ensemble of context models, each modelling a different
-attribute of an event space.
+attribute of the event space.
 
 Recurrent neural networks (RNNs), the natural topology of neural network for
 modelling sequential data, have been widely applied to tasks such as language
-modelling, image captioning, time-series modelling and forecasting,
-and indeed to the modelling of music (\todo cite). A RNN is an end-to-end
-sequence learning tool which relies on very little domain knowledge aside from
-the chosen input representation. This means that a system designed for
-character-level language modelling can equally be trained to model melody
-without changing the network architecture. In practice, however, we shall see
-that slight architectural modifications can be of use.
+modelling \cite{graves2013generating}, machine translation
+\cite{sutskever2014sequence}, and indeed to the modelling of music
+\cite{liang2016bachbot}. A RNN is an end-to-end sequence learning tool which
+relies on very little domain knowledge aside from the chosen input
+representation. This means that a system designed for character-level language
+modelling can equally be trained to model melody without changing the network
+architecture. In practice, however, we shall see that slight architectural
+modifications can be beneficial.
 
-The aim of this work is to compare the performance of multiple viewpoint systems
-with that of recurrent neural networks on a task of stylistically-constrained
-melody generation. In particular, we assess the predictive performance of the
-models on a corpus of melodies used in the chorale harmonisations of J.S.\ Bach.
-Furthermore, we compare the sampled outputs from each model by means of a
-listening survey involving human participants.
+In this work, we compare the performance of multiple viewpoint systems with that
+of recurrent neural networks on a task of stylistically-constrained melody
+generation. In particular, we assess predictive performance, in terms of a
+\emph{cross-entropy} loss function, on a corpus of melodies used in the chorale
+harmonisations of J.S.\ Bach. Furthermore, we compare the sampled outputs from
+each model by means of a listening survey involving human participants.
 
 A high-level goal of this work which motivates the choice of models involved is
 understanding to what extent \emph{feature engineering} impacts the
 effectiveness of musical models. A recurrent neural network, at one extreme, is
 a domain-independent, end-to-end learning system, capable of learning to extract
-high-level features from sequential data (\todo cite?). A system of viewpoints,
-however, relies on its creator to use domain knowledge to determine a set of
-salient features, encoded in the form of the \emph{pool} of viewpoints made
-available to the system.
+high-level features from sequential data \cite{Goodfellow-et-al-2016}. A system
+of viewpoints, however, relies on its creator to use domain knowledge to
+determine a set of salient features, encoded in the form of the \emph{pool} of
+viewpoints made available to the system.
 
 \section{Background}
 
@@ -239,7 +240,8 @@ In the MIDI tuning standard, $\mathrm{A}_4$ corresponds to pitch number $69$.
 
 \subsection{Melody Generation}
 
-\todo Reference literature to explain why this is difficult task.
+\todo Reference literature to explain why this is difficult task. Background in
+Pearce's thesis?
 
 \section{Work Accomplished}
 
@@ -282,6 +284,8 @@ Finally, a website for human evaluation was developed. This will be discussed in
 detail in Chapter~\ref{chap:eval}.
 
 \section{Related Work}
+
+\subsection{Multiple Viewpoints}
 
 The general method of multiple viewpoints was first applied to music in 1986 by
 Ebcioğlu in a rule-based system for chorale harmonisation
@@ -331,6 +335,10 @@ viewpoint systems. The work concerns the modelling of melody.
 More recent work by Whorley~\cite{whorley2013phd} uses multiple viewpoint
 systems to model four-part harmony in Bach chorales.
 
+\subsection{Recurrent Neural Networks}
+
+\todo Pre-LSTM applications to music, invention of LSTM, then post-LSTM
+applications to music.
 
 \section{Structure}
 
@@ -722,7 +730,7 @@ this process as \emph{reification}, specified by a partial function $\rho :
 $\mathrm{dist}(\tau)$ denotes the set of probability distributions over a type
 $\tau$. This shall be discussed further in Chapter~\ref{chap:impl}.
 
-\subsection{Combining Viewpoint Predictions}
+\subsection{Combining Viewpoint Predictions}\label{sec:vp-comb}
 
 Recall that, given some musical context $e_1^k \in \zeta^*$, the goal is to
 predict the next event $e_{k+1} \in \zeta$ where $\zeta = [\tau_1] \times \cdots
@@ -756,6 +764,13 @@ $$
   p(j) = \frac{ \sum_{i = 1}^N w_i p_i(j) }{ \sum_{i = 1}^N w_i }.
 $$
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=400pt]{figs/dist_comb.pdf}
+\caption{Plots illustrating effect of distribution combination schemes ($b = 2$)}
+\label{fig:dist-comb-plot}
+\end{figure}
+
 The Shannon entropy of the $i$\textsuperscript{th} distribution is given by:
 $$ H(i) = - \sum_{j = 1}^{|[\tau]|} p_i(j) \log_2 p_i(j) $$
 with maximum value $H_{\mathrm{max}} = \log_2{ |[\tau]| }$. Now define the
@@ -770,7 +785,7 @@ here, we use \emph{normalised entropy} so as to avoid confusion with the
 Kullback-Leibler distance, which is also known by this name.
 
 Finally, so that we can favour distributions with lower $\hat{H}$, we introduce
-an exponential bias $b \in \mathbb{R}$ with $b \geq 0$:
+an exponential bias $b \in \mathbb{R}_0^+$:
 $$ w_i = \hat{H}(i)^{-b}. $$
 
 Note that we do not restrict $b$ to integer values, as is commonly done in the
@@ -789,18 +804,42 @@ geometric scheme. Note also that when combining distributions $C$ and $D$, since
 $D$ has much lower entropy, it has considerably more effect on the overall
 result under both schemes.
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=400pt]{figs/dist_comb.pdf}
-\caption{Plots illustrating effect of distribution combination schemes ($b = 2$)}
-\label{fig:dist-comb-plot}
-\end{figure}
-
 \subsection{MVS Architecture}
 
-\todo Explain long- and short-term model briefly, perhaps mention symmetry with
-LSTM, include figure of \textbf{typical} MVS architecture, maybe briefly touch
-on hyperparams and constraints, done.
+\begin{figure}[H]
+\centering
+\includegraphics[width=250pt]{figs/mvs_arch_tmp.jpg}
+\caption{Typical MVS architecture}
+\label{fig:mvs-arch}
+\end{figure}
+
+For successful sequence prediction, it is necessary to capture both
+intra-sequence and inter-sequence regularity: that is, the \emph{short-term}
+effects \emph{local} to a particular sequence, and the \emph{long-term} effects
+common through the entire corpus.  This is especially true of music, and the
+chorales in particular, where entire melodic fragments are often re-used within
+a given chorale melody.
+
+In a conventional MVS architecture, this is achieved explicitly by using
+entirely separate \emph{long-term} and \emph{short-term} models. The long-term
+model is trained on the entire corpus, and the short-term model just on the
+sequence being predicted or generated. Figure~\ref{fig:mvs-arch} illustrates
+this architecture: viewpoint combination is indicated by $\oplus$, and is
+performed as per Section~\ref{sec:vp-comb}.
+
+In order to keep the number of hyperparameters under control, the following
+architectural constraints are often enforced (and indeed, will be in this work):
+\begin{itemize}
+  \item The same set of viewpoints $\set{\tau_1, \ldots, \tau_N}$ is used in both
+    the long-term and short-term model. 
+  \item The viewpoints in the long-term model all have the same order bound
+    $h_l$. Similarly, those in the short-term model all have a (possibly
+    distinct) order bound $h_s$.
+  \item The viewpoint combination within each of these two models is performed
+    using the same bias parameter $b_{\mathrm{int}}$ and the combination of the
+    short-term and long-term predictions using a separate bias parameter
+    $b_{\mathrm{ext}}$.
+\end{itemize}
 
 \section{Recurrent Neural Networks}
 
