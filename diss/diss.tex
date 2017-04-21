@@ -10,20 +10,25 @@
 \usepackage{enumitem}
 \usepackage{longtable}
 \usepackage{microtype}
-\usepackage{stmaryrd}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{lilyglyphs}
 \usepackage{fontspec}
 \usepackage{csquotes}
+\usepackage{mathtools}
 \usepackage{float} % figure positioning
+\usepackage{bm} % bold symbols in mathmode
 
 % pseudocode typesetting
 \usepackage{algorithmicx}
 \usepackage[noend]{algpseudocode}
 \usepackage{algorithm}
 
+% math macros
 \newcommand{\set}[1]{ \left\{ #1 \right\} }
+\newcommand{\vect}[1]{\boldsymbol{\mathbf{#1}}}
+
+% music notation
 \newcommand{\insharp}[0]{\sharp[raise=0.1,scale=0.8]}
 \newcommand{\inflat}[0]{\flat[raise=0.1,scale=0.8]}
 
@@ -169,7 +174,7 @@ Recurrent neural networks (RNNs), the natural topology of neural network for
 modelling sequential data, have been widely applied to tasks such as language
 modelling \cite{graves2013generating}, machine translation
 \cite{sutskever2014sequence}, and indeed to the modelling of music
-\cite{liang2016bachbot}. A RNN is an end-to-end sequence learning tool which
+\todo cite bengio paper. A RNN is an end-to-end sequence learning tool which
 relies on very little domain knowledge aside from the chosen input
 representation. This means that a system designed for character-level language
 modelling can equally be trained to model melody without changing the network
@@ -759,17 +764,17 @@ assigned to $j$ by the $i$\textsuperscript{th} of the $N$ distributions. We want
 to combine these predictions to produce some overall distribution with
 probabilities $p(j)$.
 
-A general weighted arithmetic scheme combines the predictions as follows:
-$$
-  p(j) = \frac{ \sum_{i = 1}^N w_i p_i(j) }{ \sum_{i = 1}^N w_i }.
-$$
-
 \begin{figure}[H]
 \centering
 \includegraphics[width=400pt]{figs/dist_comb.pdf}
 \caption{Plots illustrating effect of distribution combination schemes ($b = 2$)}
 \label{fig:dist-comb-plot}
 \end{figure}
+
+A general weighted arithmetic scheme combines the predictions as follows:
+$$
+  p(j) = \frac{ \sum_{i = 1}^N w_i p_i(j) }{ \sum_{i = 1}^N w_i }.
+$$
 
 The Shannon entropy of the $i$\textsuperscript{th} distribution is given by:
 $$ H(i) = - \sum_{j = 1}^{|[\tau]|} p_i(j) \log_2 p_i(j) $$
@@ -841,17 +846,313 @@ architectural constraints are often enforced (and indeed, will be in this work):
     $b_{\mathrm{ext}}$.
 \end{itemize}
 
-\section{Recurrent Neural Networks}
+\section{Neural Networks}
 
-\subsection{Basic RNN}
+Early connectionist approaches to modelling sequential data adapt conventional
+feedforward networks to the task by using a finite \emph{windowed} context of
+size $N$ and training the network to predict the $N$ events that follow
+\cite{todd1989connectionist}. Figure~\ref{fig:windowed-nn} illustrates this
+approach.
 
-\todo RNN explanation with diagram as per Goodfellow DL book.
+\begin{figure}[H]
+\centering
+\includegraphics[width=140pt]{figs/windowed_nn_tmp.jpg}
+\caption{Windowed feedforward neural network}
+\label{fig:windowed-nn}
+\end{figure}
 
-\subsection{LSTM}
+Observe that, in such an architecture, any common effects between e.g.\ $e_1$
+and $e_2$ must be learnt entirely separately from the effects between $e_2$ and
+$e_3$, even though there may be a considerable amount of time-invariant
+regularity between consecutive events in the sequences of interest. Similarly,
+when predicting the output $e_{N+1}^{2N}$, the network will have to learn how to
+predict each of these events independently from each other (that is, without
+time invariance).  
 
-\todo Explain exploding/vanishing gradients.
+It can be seen therefore that such networks are very \emph{inefficient} sequence
+learners: with a large $N$, vast amounts of training data will be needed and
+many parameters to successfully capture any time-invariant effects. Moreover,
+with a small $N$ the network will clearly fail to capture any long-term effects.
 
-\todo LSTM explanation, citing papers on constant gradient flow.
+One solution to this problem is \emph{parameter sharing}, and is central to the
+sequence-learning ability of \emph{recurrent neural networks} (RNNs). To quote
+the recent text of Goodfellow et al.\ \cite{Goodfellow-et-al-2016}:
+\begin{displayquote}
+  ``If we had separate parameters for each value of the time index, we could not
+  generalize to sequence lengths not seen during training, nor share statistical
+  strength across different sequence lengths and across diﬀerent positions in
+  time.''
+\end{displayquote}
+
+\subsection{Recurrent Neural Networks}\label{sec:rnn-intro}
+
+Recurrent neural networks can be formulated as a dynamical system with a state
+evolving over time. Given an initial state $\vect{h}_0$ and input data
+$\vect{x}_t \in \mathbb{R}^m$, the hidden state $\vect{h}_t \in \mathbb{R}^n$ of
+a RNN evolves as per (\ref{eq:dyn-sys}) for $t \in \mathbb{N}$.
+\begin{equation}
+  \bm{h}_t = f(\vect{h}_{t-1}, \vect{x}_t; \vect{\theta})
+  \label{eq:dyn-sys}
+\end{equation} 
+
+The output
+$\vect{o}_t$ may then be a function of the hidden state $\vect{h}_t$, or indeed
+a function of both the state $\vect{h}_t$ and input vector $\vect{x}_t$. The key
+observation to make from (\ref{eq:dyn-sys}) is that the same parameters
+$\vect{\theta}$ are used at each iteration of $f$. 
+
+We can usefully represent such a network as a \emph{computational graph}. Figure
+\todo uses this representation, and illustrates the operation of
+\emph{unfolding} a recurrence in a computational graph.
+
+\todo Graph unfolding figure here.
+
+In a basic RNN, the choice of $f$ is a simple neural network unit: a
+nonlinearity (such as the hyperbolic tangent or logistic sigmoid function)
+applied to an affine transformation \cite{zaremba2014recurrent}. Using
+$[\vect{u},\vect{v}] \in \mathbb{R}^{m+n}$ to denote the concatenation of
+vectors $\vect{u} \in \mathbb{R}^m$ and $\vect{v} \in \mathbb{R}^n$: 
+$$f(\vect{h}_{t-1}, \vect{x}_t) = \sigma(\vect{W}[\vect{h}_{t-1}, 
+\vect{x}_t] + \vect{b})$$ 
+where $\vect{W} \in \mathbb{R}^{(m+n) \times n}$, and $\vect{b} \in
+\mathbb{R}^n$. 
+
+The next section explains how we can train recurrent networks in general, and
+then proceeds to explore some of the problems due to this simple choice of $f$.
+
+\subsection{Training Recurrent Networks}
+
+The algorithm typically used for training a RNN, known as \emph{backpropagation
+through time} (BPTT), appplies the standard backpropagation algorithm to the
+unfolded computational graph for our RNN. That is, we calculate the derivative
+of the cost function with repsect to the weights in our network \emph{at each
+timestep}. Since the parameters are shared across time, we then sum the gradient
+contributions from each timestep and update the weights accordingly by gradient
+descent.
+
+Note that training such a network is expensive: supposing we unfold the graph up
+to $T$ timesteps, we have to compute the entire forward pass through the network
+in $\Theta(T)$ time before gradients can be calculated. Moreover, this cannot be
+parallellised, since the computation at timestep $t$ depends on
+$\vect{h}_{t-1}$, the result of the computation at the previous timestep.
+
+Even in a recurrent network that is \emph{spatially} shallow (i.e.\ with a
+single layer at each timestep), unfolding the computational graph results in a
+graph that is very deep: the network itself is \emph{temporally deep}. With the
+choice of $f$ in a basic RNN, the repeated composition of an affine
+transformation and nonlinearity can exhibit highly nonlinear behaviour. While
+this can be desirable, granting the network much expressivity, training such
+networks can be problematic. 
+
+\todo Figure illustrating exploding gradients: generate this with a quick numpy
+script.
+
+One such problem in deep networks is that the high-dimensional surface of our
+loss function with respect to the weights can exhibit sharp ``cliffs'' where the
+gradient is very large \cite{Goodfellow-et-al-2016}: this is known as the
+\emph{exploding gradient problem}. The negative effects of this problem on
+training can, however, largely be mitigated by \emph{clipping} the norm of the
+gradient to some maximum value during training.
+
+\subsubsection{Long-term dependenices}
+
+A more insidious problem with basic recurrent networks is the \emph{vanishing
+gradient problem}. This is caused not only by the network being very deep, but
+in particular by the repeated application of $f$ with the same parameters at
+each timestep.
+
+Here, we follow the illustrative treatment of Goodfellow et al.\
+\cite{Goodfellow-et-al-2016} and refer to Hochreiter and Schmidhuber
+\cite{hochreiter1997long} for a deeper treatment. This argument makes several
+simplifying assumptions, but clearly illustrates how the problem might arise in
+a simpler setting.
+
+Suppose we simplify the function composition in a neural network to simply apply
+matrix multiplication (with no inputs, biases, or nonlinearities). The
+recurrence relation: 
+$$ \vect{h}_t = \vect{W}^\top \vect{h}_{t-1} $$ 
+describes the evolution of such a network. A straightforward induction shows:
+$$ \vect{h}_t = (\vect{W}^t)^\top\vect{h}_0 $$
+and, supposing that $W$ has an eigendecomposition of the form:
+$$ \vect{W} = \vect{Q}\vect{\Lambda}\vect{Q}^\top $$
+with orthogonal $\vect{Q}$ (i.e.\ $\vect{Q}\vect{Q}^\top = \vect{Q}^\top\vect{Q}
+= \vect{I}$), the recurrence can be further simplified to:
+$$ \vect{h}_t = (\vect{Q}^\top \vect{\Lambda}^t \vect{Q}) \vect{h}_0. $$
+As $t \rightarrow \infty$, any eigenvalues with magnitude less than $1$ will
+vanish, and those with magnitude greater than $1$ will explode. The problem of
+vanishing and exploding gradients comes from the fact that gradients through the
+graph of a such a (simplified) network are \emph{also} scaled according to
+$\vect{\Lambda}^t$ \cite{Goodfellow-et-al-2016}.
+
+Complex languages such as music require a good predictor to learn long-term
+dependencies in sequences. However, if the gradient vanishes in this manner as
+we calculate gradients further back in time, then gradient descent will
+experience an exponential slowup in learning such dependencies. Eventually,
+we will also encounter numerical problems with gradients of sufficiently small
+magnitude. For this reason, learning long-term dependencies with basic RNNs is
+considered intractable.
+
+\subsection{Long Short-Term Memory}
+
+In 1997, Hochreiter and Schmidhuber discovered a radically different RNN
+architecture known as \emph{long short-term memory} (LSTM)
+\cite{hochreiter1997long}. Despite the superifical complexity of this
+architecture, it is based on a simple fundamental idea which is used to achieve
+constant gradient flow through time, thereby enabling LSTM networks to learn
+long-term dependencies over many timesteps. The idea is to maintain additional
+state known as the \emph{cell state} which flows through the network with only
+minor \emph{linear}, \emph{pointwise} interactions, protected by strucutres
+known as gates. 
+
+There are in fact many variants of LSTM: we largely follow Zaremba et al.\
+\cite{zaremba2014recurrent} in both notational conventions and LSTM design.
+Before introducing LSTMs in detail, we shall first define some notation and
+introduce the notion of deep recurrent networks in general.
+
+In a deep recurrent network, information is not only processed horizontally
+through time, but also vertically through $L$ hidden layers ($L > 1$). We use a
+homogeneous state representation with all states in $\mathbb{R}^n$, including
+all input and output vectors. 
+
+Let subscripts denote timesteps and superscripts denote layers so that $h_t^l
+\in \mathbb{R}^n$ denotes the state at time $t$ in layer $l$. In order to
+represent input events $x_t$ drawn from an alphabet $\Sigma$ as vectors in
+$\mathbb{R}^n$, we use an embedding $E : \Sigma \rightarrow \mathbb{R}^n$ which
+is either learned through pre-training or learned together with the weights for
+the network. Let $h_t^0 = E(x_t)$ denote the input vector at time $t$ and take
+$h_t^L$ as the output vector at time $t$.
+
+We can now specify a RNN with a deterministic transition function from previous
+to current states:
+$$ \delta : \vect{h}_t^{l-1}, \vect{h}_{t-1}^l \rightarrow \vect{h}_t^l $$
+so a basic RNN as described in Section~\ref{sec:rnn-intro} can be specified as:
+$$ \delta(\vect{h}_{t-1}^l, \vect{h}_t^{l-1}) = f(\vect{W}^l_x [\vect{h}_{t-1}^l,
+\vect{h}_t^{l-1}] + \vect{b}^l_x) $$
+where $\vect{W}^l_x \in \mathbb{R}^{2n \times n}$, $\vect{b}^l_x \in
+\mathbb{R}^n$, and $f \in \set{ \sigma, \mathrm{tanh} }$ is a nonlinearity.
+
+Typically, in sequence prediction, the output state $\vect{h}_t^L$ at time $t$
+is fed into a densely connected layer to obtain an output vector $\vect{o}_t \in
+\mathbb{R}^{|\Sigma|}$:
+$$ \vect{o_t} = \vect{W}_y \vect{h}_t^L + \vect{b}_y $$
+where $\vect{W}_y \in \mathbb{R}^{n \times |\Sigma|}$ and $\vect{b}_y \in
+\mathbb{R}^{|\Sigma|}$. 
+
+Treating $\vect{o}_t$ as log-probabilities, we can obtain a probability
+distribution over output symbols $y_t \in \Sigma$ with a softmax activation on
+this layer:
+$$ p(y_t) = \mathrm{softmax}(\vect{o}_t) $$
+where for a vector $\vect{z} \in \mathbb{R}^n$, $\mathrm{softmax}(\vect{z})$ is
+given by:
+$$ \mathrm{softmax}(\vect{z})_i = \frac{ e^{z_i} }{ \sum_{j = 1}^n e^{z_j} }. $$
+
+Figure~\ref{fig:deep-rnn-arch} illustrates the general architecture of a deep
+RNN. The merging of arrows denotes \emph{vector concatenation}. We refer to the
+units $A_t^l$ as \emph{cells}, specified by the transition function $\delta$.
+Note that weight sharing occurs across time, but each layer has its own
+parameters. This makes sense since each layer processes data of a (semantically)
+different type. The initial state $\vect{h}_{\mathrm{init}}^l$ for the cells in
+the $l$\textsuperscript{th} layer is typically set to $\vect{0}$ or initialised
+randomly. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=350pt]{figs/deep_rnn_tmp.jpg}
+\caption{Flow of information in deep RNN}
+\label{fig:deep-rnn-arch}
+\end{figure}
+
+We now have the necessary machinery to introduce long short-term memory cells in
+the context of deep recurrent networks. LSTM cells replace the $A_t^l$ in the
+network with a complex structure centered around carefully protecting the
+\emph{cell state}: an additional state vector $\vect{c}_t^l$ that allows data to
+flow through many timesteps without undergoing complex non-linear information
+morphing as in the case of $\vect{h}_t^l$.
+
+Therefore, our $\delta$ function for LSTMs needs to specify the temporal
+transformation of $\vect{c}_t^l$ in addition to the hidden state
+transformations:
+$$ \delta_{\mathrm{LSTM}} : \vect{h}_{t-1}^l, \vect{h}_t^{l-1}, \vect{c}_{t-1}^l
+\rightarrow \vect{h}_t^l, \vect{c}_t^l. $$
+
+The flow of information through an LSTM network is shown in
+Figure~\ref{fig:deep-lstm-arch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=400pt]{figs/lstm_net_tmp.jpg}
+\caption{Flow of information in deep LSTM network}
+\label{fig:deep-lstm-arch}
+\end{figure}
+
+Let $\ast$ denote pointwise vector multiplication. Given input
+$\vect{h}_t^{l-1}$, recurrent state $\vect{h}_{t-1}^l$, cell state
+$\vect{c}_{t-1}^l$, and writing $\vect{x} = [\vect{h}_{t-1}^l,
+\vect{h}_t^{l-1}]$, an LSTM first computes intermediates as per equations
+(\ref{eq:lstm-f}) through (\ref{eq:lstm-d}).
+\begin{align}
+  \vect{f} &= \sigma(\vect{W}_f \vect{x} + \vect{b}_f) \label{eq:lstm-f} \\
+  \vect{i} &= \sigma(\vect{W}_i \vect{x} + \vect{b}_i) \\
+  \vect{o} &= \sigma(\vect{W}_o \vect{x} + \vect{b}_o) \\
+  \vect{d} &= \tanh(\vect{W}_d \vect{x} + \vect{b}_d) \label{eq:lstm-d}
+\end{align}
+The new states $\vect{c}_t^l$ and $\vect{h}_t^l$ are then computed with
+equations (\ref{eq:lstm-c}) and (\ref{eq:lstm-h}). 
+\begin{align}
+  \vect{c}_t^l &= \vect{f} \ast \vect{c}_{t-1}^l + \vect{i} \ast \vect{d}
+  \label{eq:lstm-c} \\
+  \vect{h}_t^l &= \vect{o} \ast \tanh(\vect{c}_t^l) \label{eq:lstm-h}
+\end{align}
+
+Note that, as before, the parameters are shared across timesteps but not between
+layers: layer superscripts are excluded from the parameters in the LSTM
+equations for clarity. Figure~\ref{fig:lstm-cell} shows the structure of this
+LSTM cell and interprets the LSTM equations graphically.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=300pt]{figs/lstm_detail_tmp.png}
+\caption{LSTM Cell Structure}
+\label{fig:lstm-cell}
+\end{figure}
+
+The purpose of the cell state $\vect{c}_t^l$ is to act as a long-term memory.
+The LSTM can be understood intuitively as protecting and using this cell state
+by following three principles of selectivity:
+\begin{enumerate}[label=\arabic*., itemsep=0mm]
+  \item \textbf{Write} selectively: only a summary of the information entering
+    the cell should be written to the protected memory.
+  \item \textbf{Read} selectively: only a summary of the information stored in
+    the cell's memory should be included in the output state vector.
+  \item \textbf{Forget} selectively: occassionaly, previously-useful memories
+    will no longer be relevant, and the cell should forget them.
+\end{enumerate}
+
+The sigmoidal units $\vect{f}, \vect{i}$, and $\vect{o}$ are known as the
+\emph{gates} of the LSTM cell: they are used to scale the activations of other
+units componentwise and regulate the flow of information through the cell. The
+function of each of the LSTM units can be understood in terms of these
+principles as follows:
+
+\begin{itemize}
+  \item $\vect{f}$ is known as the \emph{forget gate}: it selectively removes
+    information from the previous cell state.
+  \item The tanh layer $\vect{d}$ is known as the \emph{input feature}. It
+    computes data that we may wish to store in the protected cell state.
+\item $\vect{i}$ is known as the \emph{input gate}: it controls which data from
+  the input feature gets written into the cell state.
+\item Finally, $\vect{o}$ is the \emph{output gate}: it regulates which data
+  gets output based on the cell state.
+\end{itemize}
+
+Note that, since the introduction of LSTM, many other variants have appeared.
+For example, an LSTM that also considers the previous cell state
+$\vect{c}_{t-1}^l$ when evaluating the gate units (equations (\ref{eq:lstm-f})
+through (\ref{eq:lstm-d})) is known as an LSTM with \emph{peephole} connections.
+In addition, there are significant variations such as the \emph{gated recurrent
+unit} (GRU). Generally, LSTM variants have only been shown to achive marginal
+performance improvements from the standard LSTM architecture (\todo cite!). We
+shall only consider the architecture described thus far.
 
 \subsection{Regularisation}
 
@@ -888,6 +1189,10 @@ implementation.
 engineering practice by testing thoroughly.
 
 \section{Recurrent Neural Network}
+
+\todo Obviously work out where this should go, but remember that the TF LSTM
+implementation adds a \texttt{forget\_bias} of 1 to the biases of the forget gate
+because it helps towards the beginning of training.
 
 \subsection{Early Experiments}
 
