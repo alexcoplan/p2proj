@@ -19,6 +19,10 @@
 \usepackage{float} % figure positioning
 \usepackage{bm} % bold symbols in mathmode
 
+% tikz for drawing
+\usepackage{tikz}
+\usepackage{tikz-uml}
+
 % pseudocode typesetting
 \usepackage{algorithmicx}
 \usepackage[noend]{algpseudocode}
@@ -629,7 +633,7 @@ at lower-order models. To compute $\mathbb{P}(e' | e_1^k)$ we call
   \end{algorithmic}
 \end{algorithm}
 
-\subsection{Viewpoints}
+\subsection{Viewpoints}\label{sec:mvs-formalism}
 
 One possible approach to modelling music would be to form a context model over
 the entire event space $\zeta$.  Recall that $\zeta = [\tau_1] \times [\tau_2]
@@ -1156,7 +1160,27 @@ shall only consider the architecture described thus far.
 
 \subsection{Regularisation}
 
-\todo Explain dropout applied to RNN.
+\emph{Dropout} \cite{srivastava2014dropout} is a powerful technique for
+preventing overfitting in deep feedforward networks which works by randomly
+shutting off some fraction of the units in some or all of the layers at train
+time. This prevents excessive co-adaption among units in the network.
+
+A recent paper by Zaremba et al.\ \cite{zaremba2014recurrent} made a major
+contribution by showing how to apply dropout successfully to recurrent networks.
+Although attempts had been made to apply dropout to RNNs prior to this work,
+they were largely unsuccessful. In particular, applying dropout to the
+\emph{recurrent} connections in a RNN leads to poor performance.
+
+The authors found that applying dropout only to the non-recurrent connections
+successfully prevents overfitting in a recurrent network and lead to improved
+performance on a number of tasks. In the context of the LSTM formulation of the
+previous section, we replace:
+$$ \vect{x} = [\vect{h}_{t-1}^l, \vect{h}_t^{l-1}] $$
+with
+$$ \vect{x} = [\vect{h}_{t-1}^l, \mathrm{D}_p(\vect{h}_t^{l-1})] $$
+for equations (\ref{eq:lstm-f}) through (\ref{eq:lstm-d}), where $\mathrm{D}_p$
+is the \emph{dropout operator} which randomly sets each component in its result
+vector to zero with probability $p$, but otherwise returns its input. 
 
 \subsection{Tooling}
 
@@ -1172,21 +1196,81 @@ graph, etc.
 
 \section{Multiple Viewpoint System}
 
-\todo Using the framework of multiple viewpoints outlined in the preparation,
-discuss the \emph{specific} viewpoints implemented.
+\subsection{Overview}
 
-\subsection{Software Architecture}
+\begin{figure}[H]
+\centering
+  \trimbox{0cm 2.5cm 0cm 0cm}{ 
+  \begin{tikzpicture}
+  \umlclass[type=interface, template={$\zeta$,
+    $T_{\text{predict}}$}]{Predictor}{}{
+    +predict(context : $\zeta^*$) : dist$\langle T_{\text{predict}}
+    \rangle$  \\
+    +learn(sequence : $\zeta^*$)
+  }
+  \umlsimpleclass[y=-4, template={$\zeta$, $T_{\text{viewpoint}}$}]{GeneralViewpoint}
+  \umlsimpleclass[x=9, template={$\zeta$, $T_l$, $T_r$}]{GeneralLinkedVP}
 
-\todo Diagram illustrating the (code) architecture of the MVS. 
+  \umlsimpleclass[x=9,y=-4, alias=seqspeclink]{SequenceModel}
+  \umlsimpleclass[y=-7, alias=seqspec]{SequenceModel}
+  \umlsimpleclass[y=-7,x=9, template={$T$}, alias=seqgen]{SequenceModel}
+  \umlsimpleclass[y=-10,x=9, alias=ctxspec]{ContextModel}
+  \umlsimpleclass[y=-10, alias=ctxgen, template={$b$}]{ContextModel}
+  \umlsimpleclass[y=-13]{TrieNode}
+  
+  \umlimpl{GeneralViewpoint}{Predictor}
+  \umlimpl{GeneralLinkedVP}{Predictor}
 
-\todo Explain use of
-\texttt{C++} templates illustrating correspondence between formalism and
-implementation.
+  \umlunicompo[arg=model, mult=1]{GeneralViewpoint}{seqspec}
+  \umlunicompo[arg=model, mult=1]{GeneralLinkedVP}{seqspeclink}
+  \umlreal[stereo={$T \rightarrow T_{\text{viewpoint}}$}]{seqspec}{seqgen}
+  \umlreal[stereo={$T \rightarrow \text{Pair}\langle T_l, T_r
+  \rangle$}]{seqspeclink}{seqgen}
+  
+  \umlunicompo[arg=model, mult=1]{seqgen}{ctxspec}
+  \umlreal[stereo={$b \rightarrow T::\text{cardinality}$}]{ctxspec}{ctxgen}
 
-\subsection{Unit Tests}
+  \umlunicompo[arg=trie root, mult=1]{ctxgen}{TrieNode}
+  \umlunicompo[arg=children, mult=0..b, recursive=-90|2|3cm]{TrieNode}{TrieNode}
+\end{tikzpicture}
+}
+\hspace{-10mm}
+\caption{UML Class Diagram of Prediction Stack}
+\label{fig:uml-prediction}
+\end{figure}
 
-\todo Get lots of points and stickers for demonstrating good software
-engineering practice by testing thoroughly.
+A multiple viewpoint system was implemented in \texttt{C++} in the form of a
+generic framework for multiple viewpoints and specific code to represent
+chorales and viewpoints for the chorale dataset. 
+
+The implementation achieves much generality by extensive use of \texttt{C++}
+\emph{templates}. This is illustrated in Figure~\ref{fig:uml-prediction}: a UML
+class diagram outlining the ``prediction stack'': the generic viewpoint
+implementation. A design goal of the implementation was to achieve a symmetry
+and tight correspondence between the \texttt{C++} type system and the formalism
+of multiple viewpoints detailed in Section~\ref{sec:mvs-formalism}.
+
+\todo Give high-level overview of the implementation including UML class diagram
+of all classes implemented.
+
+\todo Then give bullet-point description of the function of each component.
+
+\todo Then we can really dive into the chronological-ish (primarily, bottom-up)
+section-by-section appraoch that follows.
+
+\subsection{Context Models}
+
+\subsection{Event Representation}
+
+\subsection{Sequence Models}
+
+\subsection{Distribution Combination}
+
+\subsection{Early Viewpoints}
+
+\subsection{Linked Viewpoints}
+
+\subsection{Generalised Viewpoints}
 
 \section{Recurrent Neural Network}
 
@@ -1206,6 +1290,12 @@ learn the key as an emergent property of each composition.
 \subsection{Domain-specific Features}
 
 \todo Explain ``clock'' inputs. Discuss symmetry with multiple viewpoints.
+
+\subsection{Unit Tests}
+
+\todo Get lots of points and stickers for demonstrating good software
+engineering practice by testing thoroughly.
+
 
 \chapter{Evaluation}\label{chap:eval}
 
