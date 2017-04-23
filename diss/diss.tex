@@ -1296,19 +1296,16 @@ hierarchy}
 \end{figure}
 
 Figure~\ref{fig:chorale-uml} shows how the general viewpoint framework is
-specialised to implement the components specific to our chosen corpus. In
-particular, it outlines \texttt{ChoraleMVS}: a high-level class which manages
-all the components of a multiple viewpoint system over chorales and provides a
-unified interface for tasks such as \emph{prediction} and \emph{generation}.
+specialised to implement the components specific to our chosen corpus. 
 
-We shall now give a brief overview of the components mentioned so far and their
-function to gain an appreciation of the intention behind each component and how
-the overall system fits together before taking a closer look at various parts of
-the implementation.
+We shall now give a brief overview of the main components implemented to gain an
+appreciation of the intention behind each component and how the overall system
+fits together before taking a closer look at various parts of the
+implementation.
 
 \begin{itemize}
-  \item \texttt{TrieNode<b>} is a trie implementation with branching factor
-    \texttt{b}.
+  \item \texttt{TrieNode<b>} is an implementation of the trie data structure
+    with branching factor \texttt{b}.
   \item Using this trie implementation, \texttt{ContextModel<b>} implements a
     context model over an alphabet of size \texttt{b}, as per
     Section~\ref{sec:ctx-model-prep}. The inference algorithm is PPM A with
@@ -1318,17 +1315,32 @@ the implementation.
     classes. Examples include basic types such as \texttt{ChoralePitch} and
     \texttt{ChoraleDuration}, derived types such as \texttt{ChoraleInterval} and
     abstract meta-types such as \texttt{EventPair<T1,T2>}.
-    
   \item \texttt{SequenceModel<T>} further abstracts \texttt{ContextModel} by
     implementing a higher-level interface to context models in terms of these
     domain-specific types.
   \item \texttt{EventDistribution<T>} represents a probability distribution over
-    a type \texttt{T}. It supports multiple methods of distribution combination
-    as per Section~\ref{sec:vp-comb}.
+    a type \texttt{T}. It supports random sampling as well as multiple
+    distribution combination schemes as per Section~\ref{sec:vp-comb}. Objects
+    of this type are returned by \texttt{SequenceModel} objects when predicting
+    the next event in a sequence.
+  \item All viewpoint implementations derive from the
+    \texttt{Predictor<EventSpace,T>} template interface. These are outlined in
+    Figure~\ref{fig:uml-prediction} but also include a triply-linked viewpoint
+    implementation. All viewpoint objects contain an underlying
+    \texttt{SequenceModel} object and support the operations of \emph{lifting}
+    and \emph{reification} as per Section~\ref{sec:mvs-formalism}.
+  \item \texttt{ChoraleVPLayer} is a container for multiple viewpoints over
+    the chorale-specific types, used to
+    implement both the \emph{long-term} and \emph{short-term} model.
+  \item Finally, \texttt{ChoraleMVS} is a high-level class which manages all the
+    components of a multiple viewpoint system over chorales and provides a
+    unified interface for tasks such as \emph{prediction} and \emph{generation}.
+    Figure~\ref{fig:chorale-uml} illustrates how these components relate to each
+    other.
+
+
 \end{itemize}
 
-\todo Then we can really dive into the chronological-ish (primarily, bottom-up)
-section-by-section approach that follows.
 
 \subsection{Context Models}
 
