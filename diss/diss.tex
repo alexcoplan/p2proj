@@ -178,7 +178,7 @@ Recurrent neural networks (RNNs), the natural topology of neural network for
 modelling sequential data, have been widely applied to tasks such as language
 modelling \cite{graves2013generating}, machine translation
 \cite{sutskever2014sequence}, and indeed to the modelling of music
-\todo cite bengio paper. A RNN is an end-to-end sequence learning tool which
+\cite{boulanger2012modeling}. A RNN is an end-to-end sequence learning tool which
 relies on very little domain knowledge aside from the chosen input
 representation. This means that a system designed for character-level language
 modelling can equally be trained to model melody without changing the network
@@ -428,7 +428,7 @@ notation which will be used throughout this section.
     $$ [\mathrm{pitch}] \times [\mathrm{duration}] \times [\mathrm{onset}]. $$
 \end{itemize}
 
-\subsection{Context Models}
+\subsection{Context Models}\label{sec:ctx-model-prep}
 
 The central primitive underlying a multiple viewpoint system is the
 \emph{context model}. In general, a context model over some type $\tau$ is
@@ -883,7 +883,7 @@ sequence-learning ability of \emph{recurrent neural networks} (RNNs). To quote
 the recent text of Goodfellow et al.\ \cite{Goodfellow-et-al-2016}:
 \begin{displayquote}
   ``If we had separate parameters for each value of the time index, we could not
-  generalize to sequence lengths not seen during training, nor share statistical
+  generalise to sequence lengths not seen during training, nor share statistical
   strength across different sequence lengths and across diﬀerent positions in
   time.''
 \end{displayquote}
@@ -927,9 +927,9 @@ then proceeds to explore some of the problems due to this simple choice of $f$.
 \subsection{Training Recurrent Networks}
 
 The algorithm typically used for training a RNN, known as \emph{backpropagation
-through time} (BPTT), appplies the standard backpropagation algorithm to the
+through time} (BPTT), applies the standard backpropagation algorithm to the
 unfolded computational graph for our RNN. That is, we calculate the derivative
-of the cost function with repsect to the weights in our network \emph{at each
+of the cost function with respect to the weights in our network \emph{at each
 timestep}. Since the parameters are shared across time, we then sum the gradient
 contributions from each timestep and update the weights accordingly by gradient
 descent.
@@ -937,7 +937,7 @@ descent.
 Note that training such a network is expensive: supposing we unfold the graph up
 to $T$ timesteps, we have to compute the entire forward pass through the network
 in $\Theta(T)$ time before gradients can be calculated. Moreover, this cannot be
-parallellised, since the computation at timestep $t$ depends on
+parallelised, since the computation at timestep $t$ depends on
 $\vect{h}_{t-1}$, the result of the computation at the previous timestep.
 
 Even in a recurrent network that is \emph{spatially} shallow (i.e.\ with a
@@ -945,7 +945,7 @@ single layer at each timestep), unfolding the computational graph results in a
 graph that is very deep: the network itself is \emph{temporally deep}. With the
 choice of $f$ in a basic RNN, the repeated composition of an affine
 transformation and nonlinearity can exhibit highly nonlinear behaviour. While
-this can be desirable, granting the network much expressivity, training such
+this can be desirable, granting the network much expressive power, training such
 networks can be problematic. 
 
 \todo Figure illustrating exploding gradients: generate this with a quick numpy
@@ -958,7 +958,7 @@ gradient is very large \cite{Goodfellow-et-al-2016}: this is known as the
 training can, however, largely be mitigated by \emph{clipping} the norm of the
 gradient to some maximum value during training.
 
-\subsubsection{Long-term dependenices}
+\subsubsection{Long-term dependencies}
 
 A more insidious problem with basic recurrent networks is the \emph{vanishing
 gradient problem}. This is caused not only by the network being very deep, but
@@ -977,7 +977,7 @@ recurrence relation:
 $$ \vect{h}_t = \vect{W}^\top \vect{h}_{t-1} $$ 
 describes the evolution of such a network. A straightforward induction shows:
 $$ \vect{h}_t = (\vect{W}^t)^\top\vect{h}_0 $$
-and, supposing that $W$ has an eigendecomposition of the form:
+and, supposing that $\vect{W}$ has an eigendecomposition of the form:
 $$ \vect{W} = \vect{Q}\vect{\Lambda}\vect{Q}^\top $$
 with orthogonal $\vect{Q}$ (i.e.\ $\vect{Q}\vect{Q}^\top = \vect{Q}^\top\vect{Q}
 = \vect{I}$), the recurrence can be further simplified to:
@@ -991,7 +991,7 @@ $\vect{\Lambda}^t$ \cite{Goodfellow-et-al-2016}.
 Complex languages such as music require a good predictor to learn long-term
 dependencies in sequences. However, if the gradient vanishes in this manner as
 we calculate gradients further back in time, then gradient descent will
-experience an exponential slowup in learning such dependencies. Eventually,
+experience an exponential slow-up in learning such dependencies. Eventually,
 we will also encounter numerical problems with gradients of sufficiently small
 magnitude. For this reason, learning long-term dependencies with basic RNNs is
 considered intractable.
@@ -1000,12 +1000,12 @@ considered intractable.
 
 In 1997, Hochreiter and Schmidhuber discovered a radically different RNN
 architecture known as \emph{long short-term memory} (LSTM)
-\cite{hochreiter1997long}. Despite the superifical complexity of this
+\cite{hochreiter1997long}. Despite the superficial complexity of this
 architecture, it is based on a simple fundamental idea which is used to achieve
 constant gradient flow through time, thereby enabling LSTM networks to learn
 long-term dependencies over many timesteps. The idea is to maintain additional
 state known as the \emph{cell state} which flows through the network with only
-minor \emph{linear}, \emph{pointwise} interactions, protected by strucutres
+minor \emph{linear}, \emph{pointwise} interactions, protected by structures
 known as gates. 
 
 There are in fact many variants of LSTM: we largely follow Zaremba et al.\
@@ -1018,13 +1018,13 @@ through time, but also vertically through $L$ hidden layers ($L > 1$). We use a
 homogeneous state representation with all states in $\mathbb{R}^n$, including
 all input and output vectors. 
 
-Let subscripts denote timesteps and superscripts denote layers so that $h_t^l
-\in \mathbb{R}^n$ denotes the state at time $t$ in layer $l$. In order to
-represent input events $x_t$ drawn from an alphabet $\Sigma$ as vectors in
-$\mathbb{R}^n$, we use an embedding $E : \Sigma \rightarrow \mathbb{R}^n$ which
-is either learned through pre-training or learned together with the weights for
-the network. Let $h_t^0 = E(x_t)$ denote the input vector at time $t$ and take
-$h_t^L$ as the output vector at time $t$.
+Let subscripts denote timesteps and superscripts denote layers so that
+$\vect{h}_t^l \in \mathbb{R}^n$ denotes the state at time $t$ in layer $l$. In
+order to represent input events $x_t$ drawn from an alphabet $\Sigma$ as vectors
+in $\mathbb{R}^n$, we use an embedding $E : \Sigma \rightarrow \mathbb{R}^n$
+which is either learned through pre-training or learned together with the
+weights for the network. Let $\vect{h}_t^0 = E(x_t)$ denote the input vector at
+time $t$ and take $\vect{h}_t^L$ as the output vector at time $t$.
 
 We can now specify a RNN with a deterministic transition function from previous
 to current states:
@@ -1128,7 +1128,7 @@ by following three principles of selectivity:
     the cell should be written to the protected memory.
   \item \textbf{Read} selectively: only a summary of the information stored in
     the cell's memory should be included in the output state vector.
-  \item \textbf{Forget} selectively: occassionaly, previously-useful memories
+  \item \textbf{Forget} selectively: occasionally, previously-useful memories
     will no longer be relevant, and the cell should forget them.
 \end{enumerate}
 
@@ -1154,7 +1154,7 @@ For example, an LSTM that also considers the previous cell state
 $\vect{c}_{t-1}^l$ when evaluating the gate units (equations (\ref{eq:lstm-f})
 through (\ref{eq:lstm-d})) is known as an LSTM with \emph{peephole} connections.
 In addition, there are significant variations such as the \emph{gated recurrent
-unit} (GRU). Generally, LSTM variants have only been shown to achive marginal
+unit} (GRU). Generally, LSTM variants have only been shown to achieve marginal
 performance improvements from the standard LSTM architecture (\todo cite!). We
 shall only consider the architecture described thus far.
 
@@ -1241,22 +1241,94 @@ graph, etc.
 
 A multiple viewpoint system was implemented in \texttt{C++} in the form of a
 generic framework for multiple viewpoints and specific code to represent
-chorales and viewpoints for the chorale dataset. 
+chorales and viewpoints for the chorale dataset. A design goal of the
+implementation was to achieve a symmetry and tight correspondence between the
+\texttt{C++} type system and the formalism of multiple viewpoints detailed in
+Section~\ref{sec:mvs-formalism}.
 
 The implementation achieves much generality by extensive use of \texttt{C++}
 \emph{templates}. This is illustrated in Figure~\ref{fig:uml-prediction}: a UML
-class diagram outlining the ``prediction stack'': the generic viewpoint
-implementation. A design goal of the implementation was to achieve a symmetry
-and tight correspondence between the \texttt{C++} type system and the formalism
-of multiple viewpoints detailed in Section~\ref{sec:mvs-formalism}.
+class diagram outlining the ``prediction stack'': the generic portion of the
+viewpoint implementation. As we shall see, specific viewpoints can be
+implemented by specialising the template classes \texttt{GeneralViewpoint} and
+\texttt{GeneralLinkedVP}. 
 
-\todo Give high-level overview of the implementation including UML class diagram
-of all classes implemented.
+\begin{figure}[H]
+\centering
+  \trimbox{0cm 0.0cm 0cm 0cm}{ 
+  \begin{tikzpicture}
+  
+  \umlclass{ChoraleMVS}{
+    - short\_term\_layer : ChoraleVPLayer \\
+    - long\_term\_layer : ChoraleVPLayer
+  }{
+    + add\_viewpoint$\langle T \rangle$(vp : ChoralePredictor$\langle T\rangle$ *) \\
+    + predict$\langle T\rangle$(context : vec$\langle$ChoraleEvent$\rangle$) :
+    dist$\langle T \rangle$ \\
+    + cross\_entropy(seq : vec$\langle$ChoraleEvent$\rangle$) : double \\
+    + generate(length : int, ts : TimeSig) : vec$\langle$ChoraleEvent$\rangle$
+    \\
+    + learn(example : vec$\langle$ChoraleEvent$\rangle$)
+  }
+  \umlsimpleclass[y=-5]{ChoraleVPLayer}
+  \umlsimpleclass[x=-5, y = -9, alias=pitchpred]{Predictor}
+  \umlsimpleclass[x=0, y = -9, alias=durpred]{Predictor}
+  \umlsimpleclass[x=5, y = -9, alias=restpred]{Predictor}
+  \umlsimpleclass[y = -13, type=interface, template={$T$}, alias=cpred]{Predictor}
+  \umlsimpleclass[y = -17, type=interface, template={$\zeta$, $T$},
+alias=predbase]{Predictor}
+  
+  \umlunicompo[arg=short-term, mult=1, anchors=-115 and 160]{ChoraleMVS}{ChoraleVPLayer} 
+  \umlunicompo[arg=long-term, mult=1, anchors=-65 and 20]{ChoraleMVS}{ChoraleVPLayer}
+  \umluniaggreg[arg=pitch\_vps, mult=1..*]{ChoraleVPLayer}{pitchpred}
+  \umluniaggreg[arg=duration\_vps, mult=1..*]{ChoraleVPLayer}{durpred}
+  \umluniaggreg[arg=rest\_vps, mult=1..*]{ChoraleVPLayer}{restpred}
+  \umlreal[stereo={$T \rightarrow$ ChoralePitch}, pos stereo=0.3]{pitchpred}{cpred}
+  \umlreal[stereo={$T \rightarrow$ ChoraleDuration}, pos stereo=0.55]{durpred}{cpred}
+  \umlreal[stereo={$T \rightarrow$ ChoraleRest}, pos stereo=0.3]{restpred}{cpred}
+  \umlreal[stereo={$\zeta \rightarrow$ ChoraleEvent}]{cpred}{predbase}
+\end{tikzpicture}
+}
+\hspace{-10mm}
+\caption{UML Class Diagram relating viewpoint framework with Chorale
+hierarchy}
+\label{fig:chorale-uml}
+\end{figure}
 
-\todo Then give bullet-point description of the function of each component.
+Figure~\ref{fig:chorale-uml} shows how the general viewpoint framework is
+specialised to implement the components specific to our chosen corpus. In
+particular, it outlines \texttt{ChoraleMVS}: a high-level class which manages
+all the components of a multiple viewpoint system over chorales and provides a
+unified interface for tasks such as \emph{prediction} and \emph{generation}.
+
+We shall now give a brief overview of the components mentioned so far and their
+function to gain an appreciation of the intention behind each component and how
+the overall system fits together before taking a closer look at various parts of
+the implementation.
+
+\begin{itemize}
+  \item \texttt{TrieNode<b>} is a trie implementation with branching factor
+    \texttt{b}.
+  \item Using this trie implementation, \texttt{ContextModel<b>} implements a
+    context model over an alphabet of size \texttt{b}, as per
+    Section~\ref{sec:ctx-model-prep}. The inference algorithm is PPM A with
+    exclusion.
+  \item A simple, unified representation for domain-specific types is used
+    throughout.  These are passed as template parameters to many different
+    classes. Examples include basic types such as \texttt{ChoralePitch} and
+    \texttt{ChoraleDuration}, derived types such as \texttt{ChoraleInterval} and
+    abstract meta-types such as \texttt{EventPair<T1,T2>}.
+    
+  \item \texttt{SequenceModel<T>} further abstracts \texttt{ContextModel} by
+    implementing a higher-level interface to context models in terms of these
+    domain-specific types.
+  \item \texttt{EventDistribution<T>} represents a probability distribution over
+    a type \texttt{T}. It supports multiple methods of distribution combination
+    as per Section~\ref{sec:vp-comb}.
+\end{itemize}
 
 \todo Then we can really dive into the chronological-ish (primarily, bottom-up)
-section-by-section appraoch that follows.
+section-by-section approach that follows.
 
 \subsection{Context Models}
 
@@ -1275,8 +1347,9 @@ section-by-section appraoch that follows.
 \section{Recurrent Neural Network}
 
 \todo Obviously work out where this should go, but remember that the TF LSTM
-implementation adds a \texttt{forget\_bias} of 1 to the biases of the forget gate
-because it helps towards the beginning of training.
+implementation adds a \texttt{forget\_bias} of 1 to the biases of the forget
+gate because it helps towards the beginning of training. This should be the only
+difference with the LSTM architecture presented in the preparation.
 
 \subsection{Early Experiments}
 
@@ -1291,11 +1364,10 @@ learn the key as an emergent property of each composition.
 
 \todo Explain ``clock'' inputs. Discuss symmetry with multiple viewpoints.
 
-\subsection{Unit Tests}
+\section{Testing and Debugging}
 
 \todo Get lots of points and stickers for demonstrating good software
 engineering practice by testing thoroughly.
-
 
 \chapter{Evaluation}\label{chap:eval}
 
