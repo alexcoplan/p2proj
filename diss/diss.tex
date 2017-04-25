@@ -14,10 +14,11 @@
 \usepackage{amssymb}
 \usepackage{lilyglyphs}
 \usepackage{fontspec}
-\usepackage{csquotes}
 \usepackage{mathtools}
 \usepackage{float} % figure positioning
 \usepackage{bm} % bold symbols in mathmode
+\usepackage{minted} % syntax highlighting
+\usepackage{csquotes}
 
 % tikz for drawing
 \usepackage{tikz}
@@ -496,7 +497,7 @@ a discussion of the research and decisions made prior to implementation.
 Chapter~\ref{chap:eval} will discuss the design and implementation of the
 human evaluation survey in detail, as well as quantitative evaluation.
 
-\section{Choice of Corpus and Representation}
+\section{Choice of Corpus and Representation}\label{sec:corp-rep}
 
 The chosen corpus was a set of chorale melodies used in the harmonisations of
 J.S.\ Bach. The Bach Chorales are a corpus of great interest in the
@@ -1220,12 +1221,7 @@ to successful regularisation.
 
 \section{Choice of Libraries}
 
-\todo Explain TensorFlow, \textbf{why it was chosen}, notion of computational
-graph, etc.
-
-\chapter{Implementation}\label{chap:impl}
-
-\section{Corpus Preparation}
+\todo Justify choice of \texttt{music21}, TF, and C++ libraries (JSON/catch)
 
 Initial inspection of relevant corpora and their formats indicated that writing
 a parser for an established music notation format such as MusicXML would take a
@@ -1247,6 +1243,69 @@ Code for corpus preparation and analysis was written in Python using the
 \texttt{music21} package. This code was used by both the MVS and RNN
 implementations.
 
+\chapter{Implementation}\label{chap:impl}
+
+\section{Corpus Preparation and Analysis}
+
+Before beginning the implementation of either model, the corpus needed to be
+processed and exported to a common format. The high-level description of the
+chosen corpus representation in Section~\ref{sec:corp-rep} was made concrete by
+using a JSON format to encode the chorales. JSON was chosen due to the
+readily-available library support in both Python and \texttt{C++}, as well as
+the human-readable nature of the format, so as to simplifying the debugging
+process. This JSON format was later used not only for the corpus, but also for
+musical I/O of both models.
+
+\vspace{4mm}
+\begin{minted}[frame=single, linenos=true, fontsize=\footnotesize]{js}
+{
+  "title": "Aus meines Herzens Grunde (Excerpt)",
+  "bwv": "269",
+  "time_sig_amt": 12,
+  "key_sig_sharps": 1,
+  "notes": [
+    [67, 8,  4], [67, 12, 8], [74, 20, 4], [71, 24, 6], 
+    [69, 30, 2], [67, 32, 4], [67, 36, 6], [69, 42, 2], 
+    [71, 44, 4], [69, 48, 8], [71, 56, 4], [74, 60, 8], 
+    [72, 68, 4], [71, 72, 4], [69, 76, 8], [67, 84, 8]
+  ]
+}
+\end{minted}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=450pt]{figs/aus_meines_excerpt.pdf}
+\caption{JSON Chorale excerpt with corresponding score}
+\label{fig:chorale-excerpt}
+\end{figure}
+
+An example encoding of a chorale melody using this JSON representation is given
+in Figure~\ref{fig:chorale-excerpt}. 
+
+Key signatures are represented as integers in $[-7,7]$ where a positive number
+indicates the number of sharps, and a negative number the number of flats.
+Time signatures are represented as the number of semiquavers in a bar, which
+suffices to distinguish \lilyTimeSignature{3}{4} and \lilyTimeSignature{4}{4},
+the two time signatures used in the chorales.
+
+In addition to extracting the melodies from the \texttt{music21} choarle corpus
+and encoding them in our JSON format, the corpus preparation script performs
+some analysis on the corpus to determine the syntactic domains of the various
+types of interest in our corpus. That is, the script computes the set of
+pitches, durations, intervals, etc.\ that occur in the chorales, and stores
+these as metadata along with the corpus. This informed the construction and
+representation of musical types in \texttt{C++} classes.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=350pt]{figs/key_dist.pdf}
+\caption{Graph showing distribution of key signatures in corpus}
+\label{fig:key-dist}
+\end{figure}
+
+Figure~\ref{fig:key-dist} exemplifies this analysis, in this case considering the
+distribution of key signatures in the melodies of our corpus. 
+
 \section{Multiple Viewpoint System}
 
 \subsection{Overview}
@@ -1255,42 +1314,18 @@ A complete framework for implementing Multiple Viewpoint Systems in \verb!C++!
 has been implemented. The formalism detailed in Section~\ref{sec:mvs-formalism}
 has been fully implemented.  At the core of the framework, the \emph{prediction
 by partial match} (PPM) algorithm was implemented for smoothing variable-order
-context models, which can be parameterised over arbitrary types using \verb!C++!
-templates. The distributions predicted by these context models can be combined
-using the entropy-weighted schemes described in Section~\ref{sec:vp-comb}.
+context models. The distributions predicted by these context models can be
+combined using the entropy-weighted schemes described in
+Section~\ref{sec:vp-comb}.
 
-Abstractions were made such that, using these primitives, \emph{primitive},
+Abstractions were made such that, using these primitives, \emph{basic},
 \emph{derived}, \emph{linked}, and \emph{triply-linked} viewpoints can be
 instantiated over arbitrary combinations of types. Both a \emph{long-term}
 model, for capturing regularity throughout the corpus, and a \emph{short-term}
 model, for capturing the regularity within a composition, were implemented.
-Sampling by random walk was implemented for melody generation.  Finally, an
-automatic viewpoint selection algorithm in the form of \emph{forward step-wise
-selection} \cite{whorley2013phd} was implemented.
-
-The principal design strategy of the implementation was to achieve a symmetry
-and tight correspondence between the \texttt{C++} type system and the formalism
-of multiple viewpoints detailed in Section~\ref{sec:mvs-formalism}. This was
-considered desirable for a number of reasons:
-\begin{itemize}
-  \item Making full use of the type system in a statically-typed language can
-    ensure that many more potential programmer errors are caught at compile time
-    than otherwise would be.
-  \item A correspondence between the \texttt{C++} type system and the MVS
-    formalism provides the basis for a clean API that should be easily
-    understood by both \texttt{C++} programmers and those familiar with the
-    formalism.
-\end{itemize}
-
-\texttt{C++} templates were considered the ideal tool to achieve this. Templates
-are \emph{flexible}, allow for considerable \emph{generality}, and are evaluated
-at compile-time, achieving better safety guarantees: in particular, they can
-eliminate much of the need for dynamic memory allocation, a cause of many
-memory-related issues.
-
-Although inheritance polymorphism is used for one class hierarchy (see Figure\
-\ref{fig:uml-prediction}), templates are preferred and used widely through the
-implementation.
+Sampling by iterative random walk was implemented for melody generation.
+Finally, an automatic viewpoint selection algorithm in the form of \emph{forward
+step-wise selection} \cite{pearce2005construction} was implemented.
 
 \begin{figure}[H]
 \centering
@@ -1340,6 +1375,69 @@ viewpoint implementation. As we shall see, specific viewpoints can be
 implemented by specialising the template classes \texttt{GeneralViewpoint} and
 \texttt{GeneralLinkedVP}. 
 
+The principal design strategy of the implementation was to achieve a symmetry
+and tight correspondence between the \texttt{C++} type system and the formalism
+of multiple viewpoints detailed in Section~\ref{sec:mvs-formalism}. This was
+considered desirable for a number of reasons:
+\begin{itemize}
+  \item Making full use of the type system in a statically-typed language can
+    ensure that many more potential programmer errors are caught at compile time
+    than otherwise would be.
+  \item A correspondence between the \texttt{C++} type system and the MVS
+    formalism provides the basis for a clean API that should be easily
+    understood by both \texttt{C++} programmers and those familiar with the
+    formalism.
+\end{itemize}
+
+\texttt{C++} templates were considered the ideal tool to achieve this. Templates
+are \emph{flexible}, allow for considerable \emph{generality}, and are evaluated
+at compile-time, achieving better safety guarantees: in particular, they can
+eliminate much of the need for dynamic memory allocation, a cause of many common
+runtime issues. Although inheritance polymorphism is used to implement an
+abstract base class for viewpoints (see Figure~\ref{fig:uml-prediction}),
+templates are used as the primary means of achieving polymoprhism.
+
+We shall now give a brief overview of the main components implemented to gain an
+appreciation of the intention behind each component and how the overall system
+fits together before taking a closer look at various parts of the
+implementation.
+
+\begin{itemize}
+  \item \texttt{TrieNode<b>} is a generic implementation of the trie data
+    structure with branching factor \texttt{b}.
+  \item Using this trie implementation, \texttt{ContextModel<b>} implements a
+    context model over an alphabet of size \texttt{b}, as per
+    Section~\ref{sec:ctx-model-prep}. The inference algorithm is PPM A with
+    exclusion.
+  \item A simple, unified representation for domain-specific types is used
+    throughout.  These are passed as template parameters to many different
+    classes. Examples include basic types such as \texttt{ChoralePitch} and
+    \texttt{ChoraleDuration}, derived types such as \texttt{ChoraleInterval} and
+    abstract meta-types such as \texttt{EventPair<T1,T2>}.
+  \item \texttt{SequenceModel<T>} further abstracts \texttt{ContextModel} by
+    implementing a higher-level interface to context models in terms of these
+    domain-specific types.
+  \item \texttt{EventDistribution<T>} represents a probability distribution over
+    a type \texttt{T}. It supports random sampling as well as multiple
+    distribution combination schemes as per Section~\ref{sec:vp-comb}. Objects
+    of this type are returned by \texttt{SequenceModel} objects when predicting
+    the next event in a sequence.
+  \item All viewpoint implementations derive from the
+    \texttt{Predictor<EventSpace,T>} template interface. These are outlined in
+    Figure~\ref{fig:uml-prediction} but also include a triply-linked viewpoint
+    implementation. All viewpoint objects contain an underlying
+    \texttt{SequenceModel} object and support the operations of \emph{lifting}
+    and \emph{reification} as per Section~\ref{sec:mvs-formalism}.
+  \item \texttt{ChoraleVPLayer} is a container for multiple viewpoints over
+    the chorale-specific types, used to
+    implement both the \emph{long-term} and \emph{short-term} model.
+  \item Finally, \texttt{ChoraleMVS} is a high-level class which manages all the
+    components of a multiple viewpoint system over chorales and provides a
+    unified interface for tasks such as \emph{prediction} and \emph{generation}.
+    Figure~\ref{fig:chorale-uml} illustrates how these components relate to each
+    other.
+\end{itemize}
+
 \begin{figure}[H]
 \centering
   \trimbox{0cm 0.0cm 0cm 0cm}{ 
@@ -1382,54 +1480,11 @@ hierarchy}
 \label{fig:chorale-uml}
 \end{figure}
 
-Figure~\ref{fig:chorale-uml} shows how the general viewpoint framework is
-specialised to implement the components specific to our chosen corpus. 
-
-We shall now give a brief overview of the main components implemented to gain an
-appreciation of the intention behind each component and how the overall system
-fits together before taking a closer look at various parts of the
-implementation.
-
-\begin{itemize}
-  \item \texttt{TrieNode<b>} is an implementation of the trie data structure
-    with branching factor \texttt{b}.
-  \item Using this trie implementation, \texttt{ContextModel<b>} implements a
-    context model over an alphabet of size \texttt{b}, as per
-    Section~\ref{sec:ctx-model-prep}. The inference algorithm is PPM A with
-    exclusion.
-  \item A simple, unified representation for domain-specific types is used
-    throughout.  These are passed as template parameters to many different
-    classes. Examples include basic types such as \texttt{ChoralePitch} and
-    \texttt{ChoraleDuration}, derived types such as \texttt{ChoraleInterval} and
-    abstract meta-types such as \texttt{EventPair<T1,T2>}.
-  \item \texttt{SequenceModel<T>} further abstracts \texttt{ContextModel} by
-    implementing a higher-level interface to context models in terms of these
-    domain-specific types.
-  \item \texttt{EventDistribution<T>} represents a probability distribution over
-    a type \texttt{T}. It supports random sampling as well as multiple
-    distribution combination schemes as per Section~\ref{sec:vp-comb}. Objects
-    of this type are returned by \texttt{SequenceModel} objects when predicting
-    the next event in a sequence.
-  \item All viewpoint implementations derive from the
-    \texttt{Predictor<EventSpace,T>} template interface. These are outlined in
-    Figure~\ref{fig:uml-prediction} but also include a triply-linked viewpoint
-    implementation. All viewpoint objects contain an underlying
-    \texttt{SequenceModel} object and support the operations of \emph{lifting}
-    and \emph{reification} as per Section~\ref{sec:mvs-formalism}.
-  \item \texttt{ChoraleVPLayer} is a container for multiple viewpoints over
-    the chorale-specific types, used to
-    implement both the \emph{long-term} and \emph{short-term} model.
-  \item Finally, \texttt{ChoraleMVS} is a high-level class which manages all the
-    components of a multiple viewpoint system over chorales and provides a
-    unified interface for tasks such as \emph{prediction} and \emph{generation}.
-    Figure~\ref{fig:chorale-uml} illustrates how these components relate to each
-    other.
-
-
-\end{itemize}
-
-
 \subsection{Context Models}
+
+Recall from Section~\ref{sec:ctx-model-prep} that a context model populates a
+database of examples and then uses an inference procedure to perform contextual
+prediction.
 
 The algorithm for extracting $h$-grams for a training sequence $e_1^k$ works by
 passing a sliding window of size $\hbar$ across the input sequence and
@@ -1453,7 +1508,7 @@ Figure~\ref{fig:hgram-extract} for an input sequence $e_1^5$.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=300pt]{figs/sliding_window_tmp.jpg}
+\includegraphics[width=250pt]{figs/sliding_window_tmp.jpg}
 \caption{Illustration of the $h$-gram extraction algorithm with $\hbar = 3$}
 \label{fig:hgram-extract}
 \end{figure}
