@@ -52,6 +52,18 @@
 \renewcommand{\baselinestretch}{1.1}    % adjust line spacing to make
                                         % more readable
 
+% The `minted` package for sytnax highlighting introduces a `listing`
+% environment (and associated counter) which can be used to wrap code snippets
+% in a float with a caption.
+%
+% However, these are not set up to use chapter-numbering, so we set this up
+% here.
+\usepackage{chngcntr}
+\counterwithin{listing}{chapter}
+
+% quick macro for inline C++
+\newcommand{\cppi}[1]{{\small \mintinline{cpp}{#1}}}
+
 \begin{document}
 
 \cleanlookdateon
@@ -1252,7 +1264,7 @@ processed and exported to a common format. The high-level description of the
 chosen corpus representation in Section~\ref{sec:corp-rep} was made concrete by
 using a JSON format to encode the chorales. JSON was chosen due to the
 readily-available library support in both Python and \texttt{C++}, as well as
-the human-readable nature of the format, so as to simplifying the debugging
+the human-readable nature of the format, so as to simplify the debugging
 process. This JSON format was later used not only for the corpus, but also for
 musical I/O of both models.
 
@@ -1483,14 +1495,19 @@ hierarchy}
 \subsection{Context Models}
 
 Recall from Section~\ref{sec:ctx-model-prep} that a context model populates a
-database of examples and then uses an inference procedure to perform contextual
-prediction.
+database of examples during training and subsequently uses an inference
+procedure to perform contextual prediction by matching the context against the
+database. We first tackle the task of constructing the underlying data
+structure, and then turn to the implementation of PPM.
 
-The algorithm for extracting $h$-grams for a training sequence $e_1^k$ works by
-passing a sliding window of size $\hbar$ across the input sequence and
-generating subsequences. This sliding window procedure is detailed in
+Given an example sequence $e_1^k$, we need to extract all $h$-grams from this
+sequence in order to populate the trie data structure. The procedure for this
+can be thought of as passing a sliding window over the input sequence and
+generating subsequences. This procedure is detailed in
 Algorithm~\ref{alg:sliding-window} and illustrated in
 Figure~\ref{fig:hgram-extract} for an input sequence $e_1^5$.
+
+\vspace{4mm}
 
 \begin{algorithm}[H]
   \caption{Sliding window algorithm for $h$-gram extraction}
@@ -1518,8 +1535,23 @@ it is found, then its count is incremented. Otherwise, $e_i^j$ is inserted into
 the trie, the resulting node initialised with a count of unity. Note that $()$,
 the empty sequence, corresponds to the root node in the trie.
 
-The key to exclusion in this algorithm is the \textit{Dead} set that is
-maintained throughout the recursion. This set should be initialised to
+While this algorithm can be used to construct a long-term model, a short-term
+model requires a context model that can be updated online during sequence
+prediction. Context models therefore also need to implement a method which just
+extracts those $h$-grams at the tail of the sequence (with the window at the far
+right).
+
+\subsubsection{Implementing PPM}
+
+Recall from the discussion in Section~\ref{sec:ctx-model-prep} that considerable
+care must be taken to ensure the normalisation of the distributions predcited by
+PPM. The technique of \emph{exclusion} maintains state during the trie traversal
+in order to reason about the possible context matches at each stage of
+execution. Algorithm~\ref{alg:ppm-a} details the PPM A algorithm using this
+technique to achieve normalisation.
+
+The key to exclusion in this algorithm is the \textit{Dead} set that
+is maintained throughout the recursion. This set should be initialised to
 $\varnothing$ and later populated with those events that we \emph{could} have
 already matched at a higher-order model and therefore no longer need to consider
 at lower-order models. To compute $\mathbb{P}(e' | e_1^k)$ we call
@@ -1558,11 +1590,144 @@ at lower-order models. To compute $\mathbb{P}(e' | e_1^k)$ we call
   \end{algorithmic}
 \end{algorithm}
 
-\subsection{Event Representation}
+To realise this pseudocode in \texttt{C++}, the PPM implementation in a
+\texttt{ContextModel<b>} instance (with alphabet size \texttt{b}) utilises
+bitvectors implemented using \texttt{std::bitset<b>} to efficeintly represent
+sets of nodes. In addition, each \texttt{TrieNode<b>} maintains a bitmask
+storing which of its children have non-zero counts.
+ 
+\subsection{Event Representation}\label{sec:cpp-event-rep}
+
+In order to abstract the low-level \texttt{ContextModel} implementation and
+generally to represent viewpoint types as first-class citizens in \texttt{C++},
+a simple scheme was devised to represent viewpoint types as classes.
+
+To interface with the context model implementation, it suffices for each
+viewpoint type $\tau$ to specify a well-known enumeration of $[\tau]$. The class
+outlined in Listing~\ref{lst:event-rep} is a minimal example of how a class can
+conform to this type representation convention.
+
+\begin{listing}[H]
+  \begin{minted}[frame=single, linenos=true, fontsize=\footnotesize, mathescape]{cpp}
+class T {
+  const static cardinality; // set to $|[\tau]|$
+  unsigned int encode(); // specifies the enumeration
+
+  T(unsigned int c); // construct using code $0 \leq c < |[\tau]|$
+  T(const Other &o); // construct using data 
+};
+  \end{minted}
+  \caption{Prototypical viewpoint type representation}
+  \label{lst:event-rep}
+\end{listing}
+
+Note that this is nothing more than a convention. Conformance to this convention
+is not enforced \emph{explicitly} by any particular language feature. However,
+if a class that does not conform to this conveniton is passed to a template
+expecting a viewpoint type, this can still be caught at compile time due to
+template substitution failure, e.g.\ when a template class attempts to access
+\cppi{T::cardinality}.
+
+Many templates in the implementation accept viewpoint types represented in this
+way. I also chose to implement an iterator \texttt{EventEnumerator<T>} to
+conveniently iterate over the members of a type in the style of the iterators in
+the \texttt{C++11} standard template library, enabling clean loops such as~
+\cppi{for (auto event : EventEnumerator<T>())}.
 
 \subsection{Sequence Models}
 
+Now that we have established a scheme for representing viewpoint types, we can
+abstract context models by providing an interface to them in terms of viewpoint
+types. This is the job of a \texttt{SequenceModel}. In particular,
+\texttt{SequenceModel<T>} instantiates a \texttt{ContextModel<T::cardinality>}
+for \texttt{T} a viewpoint type represented as per
+Section~\ref{sec:cpp-event-rep}.
+
+Additionally, given some context, a \texttt{SequenceModel<T>} object can
+generate probability distributions over the subsequent event by iterating the
+PPM implementaiton of the underlying context model for each member of
+\texttt{T}. The object returned from this operation is an instance of
+\texttt{EventDistribution<T>}, the functionality of which is discussed
+in the following two sections.
+
 \subsection{Distribution Combination}
+
+As mentioned in Section~\ref{sec:vp-comb}, there are various techniques for
+combining probability distributions in a mutliple viewpoint system. I initially
+implemented an entropy-weighted arithmetic combination scheme, and later, on the
+basis of its superior performance \cite{pearce2004combining}, a geometric
+scheme.  
+
+In order to cleanly express distribution combination with a standard interface,
+yet allow the choice of a different underlying implementation, I utilised the
+\emph{Strategy} pattern of object-oriented design
+(Figure~\ref{fig:dist-strategy-uml}).
+
+\begin{figure}[H]
+\centering
+  \trimbox{0cm 0.0cm 0cm 0cm}{ 
+  \begin{tikzpicture}
+  
+  \umlclass[type=interface, template={$T$}, alias=strat]{DistCombStrategy}{}{
+  + combine(list$\langle$EventDistribution$\langle T \rangle\rangle$) :
+  EventDistribution$\langle T \rangle$
+  }
+  \umlsimpleclass[y = -4, x=-5, template={$T$}, alias=arith]{ArithmeticComb}
+  \umlsimpleclass[y = -4, x=0, template={$T$}, alias=geo]{GeometricComb}
+  \umlsimpleclass[y = -4, x=5, template={$T$}, alias=loggeo]{LogGeoComb}
+  
+  \umlimpl{arith}{strat}
+  \umlimpl{geo}{strat}
+  \umlimpl{loggeo}{strat}
+\end{tikzpicture}
+}
+\caption{UML Class Diagram illustrating use of Strategy design pattern}
+\label{fig:dist-strategy-uml}
+\end{figure}
+
+\texttt{ArithmeticComb} is a direct implementation of the weighted arithmetic
+formula given in Section~\ref{sec:vp-comb}. \texttt{GeometricComb} is also a
+direct implementation of Perace's weighted geometric formula
+(\ref{eq:pearce-geometric}) , but this was found to suffer from numerical
+instability. 
+
+\begin{equation}
+p(j) = \frac{1}{Z} \left( \prod_{i = 1}^N p_i(j)^{w_i} \right)^{ \frac{1}{
+\sum_{i = 1}^N w_i }} \label{eq:pearce-geometric}
+\end{equation}
+
+Letting $\widetilde{p}(j)$ denote the unnormalised probability for the
+$j$\textsuperscript{th} event, we find:
+\begin{align*}
+  \widetilde{p}(j) &= \left( \prod_{i=1}^N p_i(j)^{w_i}
+  \right)^{\frac{1}{\sum_{i=1}^N w_i}} \\[3mm]
+  \implies \ln{\widetilde{p}(j)} &= \frac{1}{\sum_{i = 1}^N w_i} \left( \sum_{i
+  = 1}^N w_i \ln{p_i(j)} \right) \\[3mm]
+  \implies p(j) &= \frac{1}{Z} \exp \left( \frac{\sum_{i = 1}^N w_i \ln{ p_i(j)
+  }}{ \sum_{i = 1}^N w_i } \right).
+\end{align*}
+
+\texttt{LogGeoComb} implements a geometric combination using this new
+expression: the probabilities are first added in log space and then
+exponentiated and normalised. This was found to remedy the issues with numerical
+stability enitrely.
+
+\subsection{Sampling from Distributions}
+
+In addition to combination, sampling is a central feature of
+\texttt{EventDistribution<T>} objects. A high-quality pseudo-random number
+generator (PRNG) by the name of \texttt{xoroshiro128+}, the successor to the
+well-known \texttt{xorshift128+} PRNG \cite{vigna2017further}, was implemented
+in the form of a \texttt{C++11} \texttt{UniformRandomBitGenerator}. This meant
+that the algorithm could be used as a random number engine compatible with the
+\texttt{C++11} \texttt{<random>} library. As of this writing,
+\texttt{xoroshiro128+} has been found to pass more statistical tests than any
+other PRNG, including those available in the \texttt{C++11} standard library.
+
+Sampling is performed using the \texttt{xoroshiro128+} implementation by
+default, but an alternative random source can easily be configured. The PRNG is
+seeded using the system's source of randomness, falling back to the
+high-resolution time since boot when this is not available.
 
 \subsection{Early Viewpoints}
 
