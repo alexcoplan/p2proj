@@ -914,7 +914,7 @@ geometric scheme. Note also that when combining distributions $C$ and $D$, since
 $D$ has much lower entropy, it has considerably more effect on the overall
 result under both schemes.
 
-\subsection{MVS Architecture}
+\subsection{MVS Architecture}\label{sec:mvs-arch}
 
 \begin{figure}[H]
 \centering
@@ -1410,9 +1410,8 @@ abstract base class for viewpoints (see Figure~\ref{fig:uml-prediction}),
 templates are used as the primary means of achieving polymorphism.
 
 We shall now give a brief overview of the main components implemented to gain an
-appreciation of the intention behind each component and how the overall system
-fits together before taking a closer look at various parts of the
-implementation.
+appreciation of the intent behind each component and how the overall system fits
+together before taking a closer look at various parts of the implementation.
 
 \begin{itemize}
   \item \texttt{TrieNode<b>} is a generic implementation of the trie data
@@ -1745,7 +1744,7 @@ likely to capture any useful regularity since it is a global property of each
 composition.
 
 Instead, define the type \emph{rest} as follows:
-$$ \Psi_{\mathrm{rest}}(e_1^k) = \begin{cases} 
+$$ \Psi_{\mathrm{rest}}(e_1^k) \triangleq \begin{cases} 
   \Psi_{\mathrm{offset}}(e_1^k) -
   \Psi_{\mathrm{offset}}(e_1^{k-1}) - \Psi_{\mathrm{duration}}(e_1^{k-1}) & k > 1 \\
   \Psi_{\mathrm{offset}}(e_1^1) & \text{otherwise}
@@ -1753,11 +1752,217 @@ $$ \Psi_{\mathrm{rest}}(e_1^k) = \begin{cases}
 and use the representation:
 $$ \zeta = [\mathrm{pitch}] \times [\mathrm{duration}] \times [\mathrm{rest}]
 \times [\mathrm{keysig}] \times [\mathrm{timesig}]. $$
-The conversion can be performed while the corpus is loaded into the MVS.
+The conversion can be performed when the corpus is loaded into the MVS. 
+
+As suggested by our chosen corpus representation, we make the assumption that
+types \emph{keysig} and \emph{timesig} remain constant throughout a single
+sequence. Therefore, our task is to predict \emph{pitch}, \emph{duration}, and
+\emph{rest} at each timestep. This gives rise to the first viewpoints that were
+implemented: the \emph{basic viewpoints}. These viewpoints simply model
+these basic types individaully.
+
+\texttt{BasicViewpoint<T>} is then just a simple wrapper around
+\texttt{ContextModel<T>} that conforms to \texttt{Predictor<ChoraleEvent, T>}.
+Such viewpoints can be used to set a baseline for the performance of a multiple
+viewpoint system: a MVS $\set{\mathrm{pitch}, \mathrm{duration}, \mathrm{rest}}$
+simply implements a naïve independent $n$-gram approach.
+
+\subsubsection{Derived Types}
+
+We make use of two abstract interpreations of the pitch surface to improve
+predictive performance. The difference in pitch between two consecutive notes,
+known as the \emph{sequential interval}, which we abbreviate to \emph{seqint},
+captures regularity that is invariant to the absolute pitch of notes. Define:
+$$ \Psi_{\mathrm{seqint}}(e_1^k) \triangleq \begin{cases}
+  \Psi_{\mathrm{pitch}}(e_1^k) - \Psi_{\mathrm{pitch}}(e_1^{k-1}) & k > 1 \\
+  \bot & \text{otherwise} 
+\end{cases}
+$$
+to specify the viewpoint \emph{seqint}. The process of lifting a sequence in
+$[\mathrm{seqint}]^*$ from a sequence $e_1^k \in \zeta^*$ follows immediately
+from this definition. However, the process of reifying a distribution over
+\emph{seqint} to give a distribution over \emph{pitch} is less clear.
+Algorithm~\ref{alg:reify-seqint} details this process. Note that we need a
+context of at least one event so that the absolute pitch of the previous event
+is known.
+
+\begin{algorithm}[H]
+  \caption{Reification algorithm for \emph{seqint}}
+  \label{alg:reify-seqint}
+  \begin{algorithmic}[1]
+    \Function{reify}{$e_1^k \in \zeta^*$, $p_{\mathrm{seqint}} :
+    \mathrm{dist}\langle\mathrm{seqint}\rangle$}
+      \State \textbf{assert} $e_1^k \neq ()$
+      \State $p_0 \gets \Psi_{\mathrm{pitch}}(e_1^k)$
+      \State $p_{\mathrm{pitch}} \gets \textbf{new}\
+      \mathrm{dist}\langle\mathrm{pitch}\rangle$
+      \For{$\delta p \in [\mathrm{seqint}]$}
+        \State $p' \gets p_0 + \delta p$
+        \Comment compute corresponding pitch
+        \If{$p' \in [\mathrm{pitch}]$}
+          \Comment ensure $p'$ valid pitch
+          \State $p_{\mathrm{pitch}}(p') \gets p_{\mathrm{seqint}}(\delta p)$
+        \EndIf
+      \EndFor
+      \State renormalise $p_{\mathrm{pitch}}$ if necessary
+      \State \Return $p_{\mathrm{pitch}}$
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+
+It is necessary to check the normalisation of the new distribution, since we may
+lose some probability mass from $p_{\mathrm{seqint}}$ in the case that it
+predicts an invalid (out-of-range) pitch.
+
+While the interval between two consecutive notes is a salient feature of melody,
+another important feature in \emph{tonal} music is where a pitch lies with
+respect to the \emph{tonal centre} of a melody. The tonal centre is a property
+of the melody's key, and is really a \emph{pitch class} rather than a specific
+pitch. To take this into account, we specify a minimum pitch in this pitch class
+and work modulo $12$. This reference pitch is known in the MVS literature as the
+\emph{referent} of a key.
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{ r | l | l | l | l | l | l | l | l | l }
+    $\Psi_{\mathrm{keysig}}(e_1^k)$ & -4 & -3 & -2 & -1 & 0 & 1 & 2 & 3 & 4 \\
+    \hline
+    $\Psi_{\mathrm{referent}}(e_1^k)$ & 8 & 3 & 10 & 5 & 0 & 7 & 2 & 9 & 4 
+  \end{tabular}
+  \caption{Table showing the derivation of \emph{referent} from basic type \emph{keysig}}
+  \label{tab:keysig-to-ref}
+\end{table}
+
+Using the definition of the \emph{referent} type given by
+Table~\ref{tab:keysig-to-ref}, we define the \emph{intref} type to be the
+interval with the referent modulo 12:
+
+$$ \Psi_{\mathrm{intref}}(e_1^k) \triangleq 
+  (\Psi_{\mathrm{pitch}}(e_1^k) - \Psi_{\mathrm{referent}}(e_1^k))\
+  \mathrm{mod}\ 12.
+$$
+
+Similarly, we can reify a distribution over \emph{intref} as follows:
+
+\begin{algorithm}[H]
+  \caption{Reification algorithm for \emph{intref}}
+  \label{alg:reify-intref}
+  \begin{algorithmic}[1]
+    \Function{reify}{$e_1^k \in \zeta^*$, $p_{\mathrm{intref}} :
+    \mathrm{dist}\langle\mathrm{seqint}\rangle$}
+      \State \textbf{assert} $e_1^k \neq ()$
+      \State $r \gets \Psi_{\mathrm{ref}}(e_1^k)$
+      \State $p_{\mathrm{pitch}} \gets \textbf{new}\
+      \mathrm{dist}\langle\mathrm{pitch}\rangle$ 
+      \Comment initialise to all zeros
+      \For{$i \in [\mathrm{intref}]$}
+        \For{$p_0 \in \set{48,60,72}$}
+          \State $p' \gets p_0 + r + i$
+          \If{$p' \in [\mathrm{pitch}]$}
+            \State $p_{\mathrm{pitch}}(p') \gets p_{\mathrm{pitch}}(p') +
+            p_{\mathrm{intref}}(i)$
+          \EndIf
+        \EndFor
+      \EndFor
+      \State renormalise $p_{\mathrm{pitch}}$ 
+      \State \Return $p_{\mathrm{pitch}}$
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+
+Both of these viewpoints were initially implemented as specialised viewpoint
+implementations; that is, there were separate classes \texttt{IntervalViewpoint}
+and \texttt{IntrefViewpoint}, both implementing the
+\texttt{Predictor<ChoraleEvent, ChoralePitch>} interface.
 
 \subsection{Linked Viewpoints}
 
+As discussed previously, pitch and duration are almost never independent in
+music. This motivates the use of linked viewpoints in a multiple viewpoint
+system. I first implemented a generic \texttt{BasicLinkedViewpoint} class which
+implements a linked viewpoint over arbitrary \emph{basic types}, in particular
+enabling a viewpoint linking pitch and duration.
+
+There are a few points to note about the implementation. Firstly, observe that
+the formalism introduced in Section~\ref{sec:mvs-formalism} treats linked
+viewpoints as inherently symmetric objects; that is, $\tau_1 \otimes \tau_2$
+predicts both $\tau_1$ and $\tau_2$. However, in the implementation, I chose to
+decouple these to allow the asymmetric use of linked viewpoints. Use the
+notation $\tau_1 \rightarrow \tau_2$ to denote the linked viewpoint $\tau_1
+\otimes \tau_2$ which predicts $\tau_2$.
+
+The meta-type \texttt{EventPair<P,Q>} takes viewpoint types $P,Q$ and implements
+a viewpoint type $T$ with $[T] = [P] \times [Q]$ which follows the convention of
+Section~\ref{sec:cpp-event-rep} for representing viewpoint types in
+\texttt{C++}. The underlying context model for a linked viewpoint over types $P$
+and $Q$ is then an instance of \texttt{SequenceModel<EventPair<P,Q>>}.
+
+To predcit a distribution over either of the constitutent types of a linked
+viewpoint, one simply sums out the joint distribution over the other type: a
+viewpoint $\tau_1 \rightarrow \tau_2$ predicts a distribtuion over $[\tau_1]
+\times [\tau_2]$ and then sums over $[\tau_1]$ to obtain a distribtuion over
+$[\tau_2]$.
+
+While the ability to link basic types is useful, it would be better to be able
+to link arbitrary combinations of basic and \emph{derived} types. However, the
+derived types implemented thus far rely on a specialised viewpoint
+implemetnation. To implement $\emph{seqint} \rightarrow \emph{duration}$, we
+would need to implement a specific linked viewpoint for this combination of
+types that performs the lifintg and reification for \emph{seqint}.
+
 \subsection{Generalised Viewpoints}
+
+The insight that led to the development of a fully general viewpoint
+implementation was to make the code for \emph{lifting} and \emph{reification} of
+each type a property of the type itself. In addition, each derived type $\tau$
+declares a \texttt{derived\_from} property, which gives the name of the type
+from which $\tau$ is derived. 
+
+Template metaprogramming was then utilised to compute the surface type of any
+type \texttt{T} at compile time. The surface type of a type \texttt{T} is
+\texttt{T::derived\_from} if \texttt{T} is derived, and \texttt{T} otherwise.
+
+These changes allowed the implementation of \texttt{GeneralViewpoint},
+\texttt{GeneralLinkedVP}, and \texttt{TriplyLinkedVP}, the linked viewpoints
+allowing linking of completely arbitrary types. These template classes perform
+the appropriate lifting and reification depending on their inputs.
+
+\subsection{Hyperparameter Optimisation}
+
+Following the architectural constraints of Section~\ref{sec:mvs-arch}, the
+free hyperparameters in our model are:
+\begin{enumerate}[label=(\arabic*), itemsep=0mm]
+  \item The set of viewpoints used. \label{itm:set-vps}
+  \item The value of $\hbar$ (the order) for both the long- and short-term
+    model. \label{itm:hbar}
+  \item The inter- and intra-layer bias paramters for distribution combination.
+    \label{itm:bias-params}
+\end{enumerate}
+
+We can deal with \ref{itm:set-vps} by using an automatic viewpoint selection
+algorithm. In particular, we implement a simple forward stepwise selection
+algorithm to achieve this. For \ref{itm:hbar} and \ref{itm:bias-params} we use a
+grid search, illustrated in Figure~\ref{fig:grid-search}. 
+
+Empirically, the resulting surface for \ref{itm:bias-params} is convex at many
+different settings of \ref{itm:hbar}. This supports the argument than we can
+first optimise \ref{itm:hbar} and then optimise \ref{itm:bias-params}. However,
+an important subtlety is that the setting of \ref{itm:hbar} and
+\ref{itm:bias-params} can both potentially affect the set of viewpoints that
+result from the selection algorithm.
+
+A heuristic approach to choosing the hyperparameters, would therefore be to run
+the selection algorithm for \ref{itm:set-vps}, optimise \ref{itm:hbar}, then
+\ref{itm:bias-params}, and repeat until convergence. While this techique cannot
+possibly hope to converge on a global optimum, it seems to work well in
+practice.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=350pt]{figs/bias_plot.pdf}
+\caption{Grid search over bias parameters}
+\label{fig:grid-search}
+\end{figure}
 
 \section{Recurrent Neural Network}
 

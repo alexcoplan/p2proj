@@ -27,4 +27,6 @@ with open(args.input_file) as json_data:
   ax.set_ylabel("Inter-layer bias")
   ax.set_zlabel("Test cross-entropy")
 
-plt.show()
+ax.view_init(elev=30.0, azim=210)
+
+plt.savefig('bias_plot.svg')
