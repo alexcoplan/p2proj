@@ -275,12 +275,12 @@ note values (most commonly, the crotchet) occur in one minute.
 \begin{figure}[H]
 \centering
 \includegraphics[width=400pt]{figs/note_values_tmp.jpg}
-\caption{Notation for Duraitons of (a) rests and (b) notes}
+\caption{Notation for Durations of (a) rests and (b) notes}
 \label{fig:note-values}
 \end{figure}
 
 A dot following a note or rest such as \crotchetDotted{} or \quaverRestDotted{}
-indicates that the duraiton is $1.5$ times the length of its non-dotted
+indicates that the duration is $1.5$ times the length of its non-dotted
 counterpart.
 
 Moreover, Western classical music is typically divided into regular units of
@@ -288,7 +288,7 @@ musical time known as \emph{bars}. Both the length of each bar and the regular
 rhythmic stress is specified by the \emph{time signature}. The only two time
 signatures of concern in this work are \lilyTimeSignature{3}{4} and
 \lilyTimeSignature{4}{4}. The numerator indicates the number of \emph{beats} in
-a bar, and the demoninator the \emph{duration} of each beat. It is important to
+a bar, and the denominator the \emph{duration} of each beat. It is important to
 be aware that many musical effects are related to the position of a note in the
 bar. For example, in \lilyTimeSignature{4}{4}, beats $1$ and $3$ are referred to
 as the \emph{strong} beats of the bar and are associated with certain rhythmic
@@ -431,7 +431,7 @@ Recurrent Neural Networks (RNNs), unlike feedforward networks, maintain a
 specifying transitions which are shared over time. Rumelhart and Hinton et al.\
 first showed how to train such networks with backpropagation in 1985
 \cite{rumelhart1985learning}. RNNs are clearly a natural tool to apply to
-sequnece learning. However, basic RNNs are known to suffer from the problem of
+sequence learning. However, basic RNNs are known to suffer from the problem of
 \emph{vanishing and exploding gradients}. This problem severely hinders the
 ability of basic RNNs to learn long-term dependencies: a capacity which is
 crucial in our problem domain.
@@ -489,7 +489,7 @@ project that may be of use to researchers for further work can be released.
 
 Prior to starting this work, I had given a talk on basic $n$-gram approaches to
 melody generation using first-order Markov models of melody. This was
-accompanied by some code for demonstration puprposes. Other than this, I have
+accompanied by some code for demonstration purposes. Other than this, I have
 not done previous research or implementation in this area. All of the code
 written for this project, aside from established libraries, was written from
 scratch.
@@ -543,7 +543,7 @@ to be a generative model.
 
 This distribution is commonly approximated by assuming that each event only
 depends on those that come before it, yielding (\ref{eq:cond-indep}).  All the
-models we work with will make this assumption of conditional independnece.
+models we work with will make this assumption of conditional independence.
 \begin{equation}
   p(\vect{x}) = p(x_t | x_{t-1}, \ldots, x_1) p(x_{t-1} | x_{t-2},
   \ldots, x_1) \cdots p(x_1) \label{eq:cond-indep}
@@ -598,7 +598,7 @@ notation which will be used throughout this section.
 The central primitive underlying a multiple viewpoint system is the
 \emph{context model}. In general, a context model over some type $\tau$ is a
 data structure storing sequences in $[\tau]^*$ together with an inference
-procedure predicting distributions over $[\tau]$ given some conext in
+procedure predicting distributions over $[\tau]$ given some context in
 $[\tau]^*$. The inference procedure in such a model relies on the Markov
 assumption, as detailed in Section~\ref{sec:gen-models}.
 
@@ -1228,7 +1228,7 @@ feedforward networks, \emph{dropout} \cite{srivastava2014dropout} has seen
 significant success in preventing overfitting (regularisation). It was not until
 the recent work of Zaremba et al.\ \cite{zaremba2014recurrent} that it was known
 how to successfully apply dropout to recurrent networks. The authors determine
-that applying dropout to only the non-recurrent connecitons in the network leads
+that applying dropout to only the non-recurrent connections in the network leads
 to successful regularisation. 
 
 \section{Choice of Libraries}
@@ -1300,7 +1300,7 @@ Time signatures are represented as the number of semiquavers in a bar, which
 suffices to distinguish \lilyTimeSignature{3}{4} and \lilyTimeSignature{4}{4},
 the two time signatures used in the chorales.
 
-In addition to extracting the melodies from the \texttt{music21} choarle corpus
+In addition to extracting the melodies from the \texttt{music21} chorale corpus
 and encoding them in our JSON format, the corpus preparation script performs
 some analysis on the corpus to determine the syntactic domains of the various
 types of interest in our corpus. That is, the script computes the set of
@@ -1407,7 +1407,7 @@ at compile-time, achieving better safety guarantees: in particular, they can
 eliminate much of the need for dynamic memory allocation, a cause of many common
 runtime issues. Although inheritance polymorphism is used to implement an
 abstract base class for viewpoints (see Figure~\ref{fig:uml-prediction}),
-templates are used as the primary means of achieving polymoprhism.
+templates are used as the primary means of achieving polymorphism.
 
 We shall now give a brief overview of the main components implemented to gain an
 appreciation of the intention behind each component and how the overall system
@@ -1544,7 +1544,7 @@ right).
 \subsubsection{Implementing PPM}
 
 Recall from the discussion in Section~\ref{sec:ctx-model-prep} that considerable
-care must be taken to ensure the normalisation of the distributions predcited by
+care must be taken to ensure the normalisation of the distributions predicted by
 PPM. The technique of \emph{exclusion} maintains state during the trie traversal
 in order to reason about the possible context matches at each stage of
 execution. Algorithm~\ref{alg:ppm-a} details the PPM A algorithm using this
@@ -1592,7 +1592,7 @@ at lower-order models. To compute $\mathbb{P}(e' | e_1^k)$ we call
 
 To realise this pseudocode in \texttt{C++}, the PPM implementation in a
 \texttt{ContextModel<b>} instance (with alphabet size \texttt{b}) utilises
-bitvectors implemented using \texttt{std::bitset<b>} to efficeintly represent
+bitvectors implemented using \texttt{std::bitset<b>} to efficiently represent
 sets of nodes. In addition, each \texttt{TrieNode<b>} maintains a bitmask
 storing which of its children have non-zero counts.
  
@@ -1623,7 +1623,7 @@ class T {
 
 Note that this is nothing more than a convention. Conformance to this convention
 is not enforced \emph{explicitly} by any particular language feature. However,
-if a class that does not conform to this conveniton is passed to a template
+if a class that does not conform to this convention is passed to a template
 expecting a viewpoint type, this can still be caught at compile time due to
 template substitution failure, e.g.\ when a template class attempts to access
 \cppi{T::cardinality}.
@@ -1645,7 +1645,7 @@ Section~\ref{sec:cpp-event-rep}.
 
 Additionally, given some context, a \texttt{SequenceModel<T>} object can
 generate probability distributions over the subsequent event by iterating the
-PPM implementaiton of the underlying context model for each member of
+PPM implementation of the underlying context model for each member of
 \texttt{T}. The object returned from this operation is an instance of
 \texttt{EventDistribution<T>}, the functionality of which is discussed
 in the following two sections.
@@ -1653,7 +1653,7 @@ in the following two sections.
 \subsection{Distribution Combination}
 
 As mentioned in Section~\ref{sec:vp-comb}, there are various techniques for
-combining probability distributions in a mutliple viewpoint system. I initially
+combining probability distributions in a multiple viewpoint system. I initially
 implemented an entropy-weighted arithmetic combination scheme, and later, on the
 basis of its superior performance \cite{pearce2004combining}, a geometric
 scheme.  
@@ -1687,7 +1687,7 @@ yet allow the choice of a different underlying implementation, I utilised the
 
 \texttt{ArithmeticComb} is a direct implementation of the weighted arithmetic
 formula given in Section~\ref{sec:vp-comb}. \texttt{GeometricComb} is also a
-direct implementation of Perace's weighted geometric formula
+direct implementation of Pearce's weighted geometric formula
 (\ref{eq:pearce-geometric}) , but this was found to suffer from numerical
 instability. 
 
@@ -1710,7 +1710,7 @@ $j$\textsuperscript{th} event, we find:
 \texttt{LogGeoComb} implements a geometric combination using this new
 expression: the probabilities are first added in log space and then
 exponentiated and normalised. This was found to remedy the issues with numerical
-stability enitrely.
+stability entirely.
 
 \subsection{Sampling from Distributions}
 
@@ -1730,6 +1730,30 @@ seeded using the system's source of randomness, falling back to the
 high-resolution time since boot when this is not available.
 
 \subsection{Early Viewpoints}
+
+The event space used for the chorales is:
+$$ \zeta = [\mathrm{pitch}] \times [\mathrm{onset}] \times [\mathrm{duration}]
+\times [\mathrm{keysig}] \times [\mathrm{timesig}]. $$
+
+Recall that the type \emph{onset} denotes the quantised starting time of each
+event within a piece.  A problem with using this event space directly when
+modelling the chorales with multiple viewpoints is that $[\mathrm{onset}]$ is
+not a finite set. In practice, one could ensure its finiteness by setting a
+maximum possible length of piece. However, this solution is unsatisfactory, and
+moreover, modelling this type directly or in combination with other types is not
+likely to capture any useful regularity since it is a global property of each
+composition.
+
+Instead, define the type \emph{rest} as follows:
+$$ \Psi_{\mathrm{rest}}(e_1^k) = \begin{cases} 
+  \Psi_{\mathrm{offset}}(e_1^k) -
+  \Psi_{\mathrm{offset}}(e_1^{k-1}) - \Psi_{\mathrm{duration}}(e_1^{k-1}) & k > 1 \\
+  \Psi_{\mathrm{offset}}(e_1^1) & \text{otherwise}
+\end{cases} $$
+and use the representation:
+$$ \zeta = [\mathrm{pitch}] \times [\mathrm{duration}] \times [\mathrm{rest}]
+\times [\mathrm{keysig}] \times [\mathrm{timesig}]. $$
+The conversion can be performed while the corpus is loaded into the MVS.
 
 \subsection{Linked Viewpoints}
 
