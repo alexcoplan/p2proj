@@ -112,23 +112,25 @@ print("max sharps:", max_sharps,
 
 print("time sig used:", timesig_strs)
 
-#plt.figure(1)
-#plt.title("Min/max pitches in chorale corpus")
-#plt.plot(rs_numbers, min_pitches)
-#plt.plot(rs_numbers, max_pitches)
-#plt.plot(rs_numbers, pitch_ranges)
-#plt.xlabel('Riemenschneider number')
-#plt.ylabel('Pitch')
+plt.figure(1)
+plt.title("Range of Chorales")
+plt.hist(pitch_ranges, bins=range(min(pitch_ranges), max(pitch_ranges)+2),
+    rwidth=0.9, align='left', color='g')
+plt.xticks(range(min(pitch_ranges), max(pitch_ranges)+1))
+plt.xlabel('Pitch Range')
+plt.ylabel('Frequency')
+#plt.show()
+plt.savefig('range_dist.svg')
 
 #plt.figure(2)
-plt.title("Distribution of keys in Chorales")
-plt.hist(num_sharps, bins=range(min(num_sharps), max(num_sharps)+2), rwidth=0.9,
-  align='left')
-plt.xticks(range(-4,5))
-plt.xlabel('Number of sharps')
-plt.ylabel('Frequency')
-
-plt.savefig('key_dist.svg')
+#plt.title("Distribution of keys in Chorales")
+#plt.hist(num_sharps, bins=range(min(num_sharps), max(num_sharps)+2), rwidth=0.9,
+#  align='left')
+#plt.xticks(range(-4,5))
+#plt.xlabel('Number of sharps')
+#plt.ylabel('Frequency')
+#
+#plt.savefig('key_dist.svg')
 
 # plt.figure(3)
 # plt.title("Distribution of time signatures in chorales")

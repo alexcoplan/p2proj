@@ -37,6 +37,11 @@
 \newcommand{\insharp}[0]{\sharp[raise=0.1,scale=0.8]}
 \newcommand{\inflat}[0]{\flat[raise=0.1,scale=0.8]}
 
+% check and cross
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+
 \usepackage[style=numeric,backend=biber]{biblatex}
 \addbibresource{refs.bib}
 
@@ -462,7 +467,7 @@ novel comparison between two sophisticated yet contrasting approaches.
 
 \chapter{Preparation}
 
-\section{Choice of Models}
+\section{Choice of Techniques}
 
 Despite the strong performance of multiple viewpoint systems when applied to
 music, as discussed in Section~\ref{sec:context-of-work}, multiple viewpoint
@@ -494,6 +499,11 @@ not done previous research or implementation in this area. All of the code
 written for this project, aside from established libraries, was written from
 scratch.
 
+Several tripos courses provided background for the project. The most relevant
+among these were Information Theory, Machine Learning, and, supporting the
+design of the evaluation survey, Human Computer Interaction. However, I had
+limited prior knowledge of the specific techniques implemented in this work.
+
 \section{Deliverables}
 
 The success criteria for the project comprise the following deliverables:
@@ -516,10 +526,18 @@ J.S.\ Bach. The Bach Chorales are a corpus of great interest in the
 computational modelling of music: the style is unified, yet with significant
 inter-opus variance; it is not too complex, yet not overly simplistic.
 
+Various other musical styles were considered. For example, folk melodies are
+often used in this kind of work. These were discarded, since the corpora I
+investigated were considered too simplistic to be of interest. Hymn tunes were
+also considered; however, aside from there being no readily-available corpora
+for this genre, the possiblity of bias in the evaluation survey from users being
+familiar with the samples was of concern.
+
 An internal format for melody based on a representation used commonly in the
 multiple viewpoint system literature (e.g.\ \cite{conklin1995viewpoints}) was
 decided on. It was decided that musical time should be quantised with a quantum
-of $1/16$\textsuperscript{th} notes (semiquavers). 
+of $1/16$\textsuperscript{th} notes (semiquavers), since this is the smallest
+note duration encountered in the chosen corpus.
 
 This representation was to be used internally for both the MVS and
 RNN implementations. A note $n$ is represented as a tuple $(p,o,d) \in
@@ -535,15 +553,23 @@ without modelling a probability distribution over the output space. Following
 the reasoning of the previous chapter, however, we shall exclusively consider
 probabilistic models. 
 
-Any system which models (either implicitly or explicitly)
-a probability distribution over sequences of interest is said to be a
-\emph{generative model}. Let $\vect{x} = x_1, \ldots, x_t$ range over sequences
-of interest. Then a model which calculates or approximates $p(\vect{x})$ is said
-to be a generative model.
+\begin{figure}[H]
+\centering
+\includegraphics[width=400pt]{figs/high_level_tmp.jpg}
+\caption{Overview of probabilistic sequence generation}
+\label{fig:seq-gen-overview}
+\end{figure}
+
+Any system which models a probability distribution over sequences of interest is
+said to be a \emph{generative model}. Let $\vect{x} = x_1, \ldots, x_t$ range
+over sequences of interest. Then a model which calculates or approximates
+$p(\vect{x})$ is said to be a generative model.
 
 This distribution is commonly approximated by assuming that each event only
-depends on those that come before it, yielding (\ref{eq:cond-indep}).  All the
-models we work with will make this assumption of conditional independence.
+depends on those that come before it, yielding (\ref{eq:cond-indep}). All the
+models we work with will make this assumption of conditional independence. A
+high-level overview of the generation process using such models is given in
+Figure~\ref{fig:seq-gen-overview}.
 \begin{equation}
   p(\vect{x}) = p(x_t | x_{t-1}, \ldots, x_1) p(x_{t-1} | x_{t-2},
   \ldots, x_1) \cdots p(x_1) \label{eq:cond-indep}
@@ -555,23 +581,27 @@ future, i.e.
 $$ p(x_k | x_{k-1}, \ldots, x_1) \approx p(x_k | x_{k-1}, \ldots, x_{k-n}). $$
 
 In any case, given some generative model approximating $p(\vect{x})$, we can
-\emph{sample} from this distribution to obtain an output from the model. In the
-case of models that make the assumption of (\ref{eq:cond-indep}), we can use
-sampling by \emph{random walk}. At time $t$, for $t = 1$ to $T$, we sample from:
+\emph{sample} from this distribution to obtain an output sequence from the
+model. In the case of models that make the assumption of (\ref{eq:cond-indep}),
+we can sample by \emph{random walk}, since the probability of the next event
+depends only on those that have been generated thus far. At time $t$, for $t =
+1$ to $T$, we sample from:
 $$ p(x_t | x_{t-1} \cdots x_1) $$
 and immediately accept the resulting event $x_t$, appending it to our sample.
 
 While random walk sampling is very efficient, running in $\Theta(T)$ time to
-generate a sample of length $T$, it can sometimes generate solutions $\vect{x}'$
-with low $p(\vect{x}')$. Typically, we want to draw samples that our model
-assigns high probabilities. To mitigate this, one can simply repeatedly draw
-samples $\vect{x}'$ by random walk until $p(\vect{x}') > \alpha$ for some
-threshold $\alpha$: this algorithm is known as \emph{iterative random walk}.
+generate a sequence of length $T$, it can sometimes generate solutions
+$\vect{x}'$ with low $p(\vect{x}')$. Typically, we want to sample sequences that
+our model assigns high probabilities. To mitigate this, one can simply
+repeatedly draw samples $\vect{x}'$ by random walk until $p(\vect{x}') > \alpha$
+for some threshold $\alpha$: this algorithm is known as \emph{iterative random
+walk}.
 
-Both of the models we shall consider are generative models that approximate
-$p(\vect{x})$ using the assumption of (\ref{eq:cond-indep}). To generate
-candidate $\vect{x}'$ from these models, we sample from their distributions by
-means of (iterative) random walk.
+This project investigates two generative models that approximate $p(\vect{x})$
+using the assumption of (\ref{eq:cond-indep}). To generate candidate $\vect{x}'$
+from these models, we sample from their distributions by means of (iterative)
+random walk. The next two sections introduce these models, with a focus on the
+underlying theory and decisions made prior to implementation.
 
 \section{Multiple Viewpoint Systems}
 
@@ -640,8 +670,8 @@ perform \emph{inference}. In particular, we want to compute $\mathbb{P}(e' |
 e_1^k)$ for some next event $e' \in [\tau]$ and input context $e_1^k \in
 [\tau]^*$.
 
-The maximum likelihood solution to this problem is simply to use the relative
-frequency of the $h$-gram of interest:
+An initial attempt might simply use the maximum likelihood solution to this
+problem, which computes the relative frequency of the $h$-gram of interest:
 \begin{equation}
   \mathbb{P}(e'|e_1^k) = \frac{ C(e_1^k::e') }{ \sum_{e''} C(e_1^k::e'') }
   \label{eq:ctx-max-like}
@@ -652,26 +682,29 @@ contexts longer than $\hbar-1$) are implicitly ignored, so $\forall j \in
 \mathbb{N}.\ C(e_{k-\hbar-j}^k) = C(e_{k-\hbar+1}^k)$ and
 $\mathbb{P}(e'|e_{k-\hbar+1-j}^k) = \mathbb{P}(e'|e_{k-\hbar+2}^k)$.
 
-There are two main problems with this solution. The first is that we want our
-models to be \emph{non-exclusive}; that is, $\forall e' \in [\tau].\
-\mathbb{P}(e' | e_1^k) > 0$. An \emph{exclusive} model would limit the scope for
-creativity in the system, and moreover, from a practical standpoint, evaluation
-metrics such as \emph{cross-entropy} require calculating log-probabilities: we
-therefore want to avoid zero probabilities. This model, however, fails to
-guarantee non-exclusivity.
+There are two main problems with this naïve solution. The first is that we want
+our models to be \emph{non-exclusive}: all events should be possible, however
+improbable. Formally, we require $\forall e' \in [\tau].\ \mathbb{P}(e' | e_1^k)
+> 0$. An \emph{exclusive} model would limit the scope for creativity in the
+system, and moreover, from a practical standpoint, evaluation metrics such as
+\emph{cross-entropy} require calculating log-probabilities: we therefore want to
+avoid zero probabilities. This approach, however, fails to guarantee
+non-exclusivity.
 
 The second problem with this solution is that it does not deal with \emph{novel
 contexts}. In particular, suppose we have not seen the context $e_1^k$. Then,
 clearly, the denominator of (\ref{eq:ctx-max-like}) will be zero, which is
 equally problematic.
 
-An algorithm which attends to both of these issues is \emph{prediction by
-partial match} (PPM) \cite{cleary1984ppm}. The central idea behind PPM is that,
-instead of distributing the probability mass entirely among the exact context
-matches, as per (\ref{eq:ctx-max-like}), we instead reserve some amount of the
-probability mass known as the \emph{escape probability}. The escape probability
-is then distributed recursively among a lower-order model. In this sense, PPM
-is a form of \emph{backoff smoothing}.
+I chose to implement an algorithm which attends to both of these issues:
+\emph{prediction by partial match} (PPM) \cite{cleary1984ppm}. The central idea
+behind PPM is that, instead of distributing the probability mass entirely among
+the exact context matches, as per (\ref{eq:ctx-max-like}), we instead reserve
+some amount of the probability mass for as-yet unseen symbols. This reserved
+probability mass is known as the \emph{escape probability}. The escape
+probability is then distributed recursively among a lower-order model. In this
+sense, PPM belongs to the more general class of \emph{backoff smoothing}
+algorithms.
 
 Backoff smoothing algorithms are typically formulated recursively, as per
 (\ref{eq:ppm-general}).
@@ -682,26 +715,31 @@ Backoff smoothing algorithms are typically formulated recursively, as per
 \end{cases} 
 \end{equation} 
 
-If no match is found for any model, the recursion bottoms out with a uniform
-distribution. The choice of \emph{escape probability} $\gamma(\cdot)$ is known
+The choice of escape probability $\gamma(\cdot)$ is known
 as the \emph{escape method}: established methods include A, B, C, D, and AX
 \cite{pearce2004improved}. PPM A, the method implemented in this work, uses the
 following $\alpha$ and $\gamma$ functions:
 \begin{align}
-  \label{eq:ppm-a}
+  \label{eq:ppm-a-alpha}
   \alpha(e' | e_1^k) &= \frac{ C(e' | e_1^k) }{ 1 + \sum_{e''} C(e'' | e_1^k) }
   \\
   \gamma(e_1^k) &= \frac{ 1 }{ 1 + \sum_{e'} C(e' | e_1^k) }
-  \label{eq:ppm-escape}
+  \label{eq:ppm-a-gamma}
 \end{align}
+
+It is clear from this formulation that all events are assigned some non-zero
+probability, meaning that PPM gives rise to non-exclusive models. To see how the
+problem of novel contexts is dealt with, consider calculating $\mathbb{P}(e' |
+e_1^k)$ for some unseen context $e_1^k$. Since $e_1^k$ is unseen, we have
+$\forall e' \in [\tau].\ C(e' | e_1^k) = 0$. Therefore, evaluating
+(\ref{eq:ppm-a-alpha}) and (\ref{eq:ppm-a-gamma}), we find $\alpha(e'|e_1^k) =
+0$ and $\gamma(e_1^k) = 1$. Thus, for any unseen context, PPM determinstically
+backs off to the next lowest-order model. If no match is found for any model,
+the recursion bottoms out with a uniform distribution. 
 
 This recursive formulation can be somewhat misleading, as the notation implies
 that (\ref{eq:ppm-general}) gives rise to properly normalised probability
-distributions.  This is in fact not the case. Consider performing PPM with
-$\hbar = 2$ over an alphabet $\Sigma = \set{\alpha,\beta,\gamma}$, and suppose
-we learn the sequence $(\alpha,\beta,\gamma,\alpha,\alpha,\beta)$.
-Figure~\ref{fig:bad-ppm-trie} illustrates the situation, and includes virtual
-$\epsilon$-nodes to represent the escape mass.
+distributions. This is in fact not the case. 
 
 \begin{figure}[H]
 \centering
@@ -710,11 +748,19 @@ $\epsilon$-nodes to represent the escape mass.
 \label{fig:bad-ppm-trie}
 \end{figure}
 
+To see this, consider performing PPM with $\hbar = 2$ over an alphabet $\Sigma =
+\set{\alpha,\beta,\gamma}$, and suppose we have seen the training sequence
+$(\alpha,\beta,\gamma,\alpha,\alpha,\beta)$.  Figure~\ref{fig:bad-ppm-trie}
+illustrates the situation, and includes virtual $\epsilon$-nodes to represent
+the escape mass.
+
 The first problem is the escape node at layer $h = 1$. According to
-(\ref{eq:ppm-escape}) it should have an effective count of $1$. However, this
+(\ref{eq:ppm-a-gamma}) it should have an effective count of $1$. However, this
 yields:
-$$ \sum_{e \in \Sigma} \mathbb{P}(e) = \frac{3}{7} + \frac{2}{7} + \frac{1}{7} =
-\frac{6}{7} \neq 1. $$
+\begin{align}
+  \sum_{e \in \Sigma} \mathbb{P}(e) = \frac{3}{7} + \frac{2}{7} + \frac{1}{7} =
+\frac{6}{7} \neq 1. 
+\end{align} 
 The observation to make here is that if \emph{all} symbols in our alphabet have
 a non-zero count for any given context, then the escape probability is
 redundant. Suppose, then, we set the effective count of this $\epsilon$-node to
@@ -731,8 +777,8 @@ There are two typical solutions for this lack of normalisation in PPM: in
 earlier work, authors often simply compute an improper distribution and later
 normalise it (e.g.\ \cite{conklin1990prediction}). A more sophisticated and less
 wasteful solution which reasons about the possible $h$-grams that can be escaped
-to is known as PPM with \emph{exclusion} \cite{pearce2004improved}. I implement
-exclusion for the context models in this work.
+to is known as PPM with \emph{exclusion} \cite{pearce2004improved}. I chose to
+implement exclusion for the context models in this work.
 
 \subsection{Viewpoints}\label{sec:mvs-formalism}
 
@@ -752,15 +798,15 @@ of the pitch of the notes: thus, it is likely to be fruitful to model duration
 independently of any of the other musical attributes.
 
 Further, complex languages such as music can be viewed from many abstract
-interpretations. One such abstract domain is the \emph{melodic
-interval}: it is clear (\todo is it?) that intervalic patterns in music capture
-regularity that is \emph{invariant} to the absolute pitch. To take this
-abstraction to an extreme, we can consider the melodic \emph{contour}, which we
-might represent with the domain $\set{-1,0,1}$, where the elements indicate a
-decrease in pitch, stationary pitch, and increase in pitch respectively.
-Modelling the regularity in such abstract domains and transforming the
-predictions back into predictions over the concrete $\tau_i$ might therefore
-further allow the system to generalise.  
+interpretations. One such abstract domain is the \emph{melodic interval}: it is
+clear that intervalic patterns in music capture regularity that is
+\emph{invariant} to the absolute pitch. To take this abstraction to an extreme,
+we can consider the melodic \emph{contour}, which we might represent with the
+domain $\set{-1,0,1}$, where the elements indicate a decrease in pitch,
+stationary pitch, and increase in pitch respectively.  Modelling the regularity
+in such abstract domains and transforming the predictions back into predictions
+over the concrete $\tau_i$ might therefore further allow the system to
+generalise.  
 
 \emph{Viewpoints} allow us to model music from these different points of view:
 namely, we can model the individual $\tau_i$, as well as abstract
@@ -862,19 +908,13 @@ Since the Shannon entropy of a viewpoint's distribution is a metric of overall
 uncertainty, we use weights that are monotonically non-increasing as a function
 of distribution entropy.
 
-Suppose we have $N$ distributions over a type $\tau$. Suppose further that
-there is some canonical ordering of $[\tau]$, such that we can pick out the
+Suppose we have $N$ distributions over a type $\tau$. Suppose further that there
+is some canonical ordering of $[\tau]$, such that we can pick out the
 $j$\textsuperscript{th} member. Now, let $p_i(j)$ denote the probability
-assigned to $j$ by the $i$\textsuperscript{th} of the $N$ distributions. We want
-to combine these predictions to produce some overall distribution with
+assigned to $j$\textsuperscript{th} element by the $i$\textsuperscript{th} of the
+$N$ distributions. We want to combine these predictions to produce some overall
+distribution with
 probabilities $p(j)$.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=400pt]{figs/dist_comb.pdf}
-\caption{Plots illustrating effect of distribution combination schemes ($b = 2$)}
-\label{fig:dist-comb-plot}
-\end{figure}
 
 A general weighted arithmetic scheme combines the predictions as follows:
 $$
@@ -906,6 +946,13 @@ $$ p(j) = \frac{1}{Z} \left( \prod_{i = 1}^N p_i(j)^{w_i} \right)^{ \frac{1}{
 \sum_{i = 1}^N w_i }} $$
 
 where $Z$ is a normalisation constant, and the $w_i$ are calculated as before.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=400pt]{figs/dist_comb.pdf}
+\caption{Plots illustrating effect of distribution combination schemes ($b = 2$)}
+\label{fig:dist-comb-plot}
+\end{figure}
 
 Figure~\ref{fig:dist-comb-plot} shows the effect of using these two schemes on
 some example distributions. It can be seen that a very low probability
@@ -1183,6 +1230,7 @@ LSTM cell and interprets the LSTM equations graphically.
 \label{fig:lstm-cell}
 \end{figure}
 
+\vspace{-2mm}
 The purpose of the cell state $\vect{c}_t^l$ is to act as a long-term memory.
 The LSTM can be understood intuitively as protecting and using this cell state
 by following three principles of selectivity:
@@ -1216,10 +1264,9 @@ Note that, since the introduction of LSTM, many other variants have appeared.
 For example, an LSTM that also considers the previous cell state
 $\vect{c}_{t-1}^l$ when evaluating the gate units (equations (\ref{eq:lstm-f})
 through (\ref{eq:lstm-d})) is known as an LSTM with \emph{peephole} connections.
-In addition, there are significant variations such as the \emph{gated recurrent
-unit} (GRU). Generally, LSTM variants have only been shown to achieve marginal
-performance improvements from the standard LSTM architecture (\todo cite!). We
-shall only consider the architecture described thus far.
+Generally, LSTM variants have only been shown to achieve marginal performance
+improvements from the standard LSTM architecture (\todo cite!). We shall only
+consider the architecture described thus far.
 
 \subsection{Regularisation}
 
@@ -1233,27 +1280,40 @@ to successful regularisation.
 
 \section{Choice of Libraries}
 
-\todo Justify choice of \texttt{music21}, TF, and C++ libraries (JSON/catch)
-
-Initial inspection of relevant corpora and their formats indicated that writing
-a parser for an established music notation format such as MusicXML would take a
-considerable amount of time and offer limited flexibility. After further
-research, it was decided that the Python package \texttt{music21} would be
+The first significant choice to be made was that of a suitable library to assist
+in corpus preparation and musical I/O. Initial inspection of relevant corpora
+and their formats indicated that writing a parser for an established music
+notation format such as MusicXML would take a considerable amount of time and
+offer limited flexibility. After further research, it was decided that the
+Python package \texttt{music21}\footnote{http://web.mit.edu/music21/} would be
 utilised. \texttt{music21} is an open-source toolkit for computational
-musicology. This package was especially useful for the task of corpus
-preparation due to the following features:
+musicology. This package was considered ideal for the task of corpus preparation
+due to the following features:
 \begin{itemize}
   \item Built-in corpora including the Bach chorales in MusicXML format.
-  \item Parser for various music notation formats, including MusicXML.
+  \item Included parser for various music notation formats, including MusicXML.
   \item High-level features for manipulating musical data.
 \end{itemize}
 
-The flexibility offered by \texttt{music21} became of great use later in the
-project as the requirements in corpus preparation and analysis changed.
+The other major choice of library was that of a neural network library to assist
+in the implementation of the RNN. I was specifically looking for a library where
+the level of abstraction is such that there is considerable flexibility provided
+to the user, but mundane tasks such as calculating the gradients to perform the
+backwards pass through the network during training were handled by the library.
 
-Code for corpus preparation and analysis was written in Python using the
-\texttt{music21} package. This code was used by both the MVS and RNN
-implementations.
+Google's TensorFlow \cite{abadi2016tensorflow}, with its primary abstraction
+being the \emph{computational graph}, was considered the ideal tool for this
+purpose.  Furthermore, TensorFlow was considered advantageous due to
+its very large user base, and therefore increased availability of information
+and support concerning the library.
+
+\section{Software Engineering Methodology}
+
+I decided to adopt an \emph{agile} development methodology when undertaking the
+implementaiton. Agile was chosen primarily for the flexibility offered in the
+face of changing timescales and requirements.
+
+\todo Timeline/Gantt chart.
 
 \chapter{Implementation}\label{chap:impl}
 
@@ -1294,43 +1354,78 @@ musical I/O of both models.
 An example encoding of a chorale melody using this JSON representation is given
 in Figure~\ref{fig:chorale-excerpt}. 
 
-Key signatures are represented as integers in $[-7,7]$ where a positive number
-indicates the number of sharps, and a negative number the number of flats.
-Time signatures are represented as the number of semiquavers in a bar, which
-suffices to distinguish \lilyTimeSignature{3}{4} and \lilyTimeSignature{4}{4},
-the two time signatures used in the chorales.
+Tonality metadata was extracted in the form of key signatures represented as
+integers in $[-7,7]$, where a positive number indicates the number of sharps,
+and a negative number the number of flats.  Time signatures are represented as
+the number of semiquavers in a bar, which suffices to distinguish
+\lilyTimeSignature{3}{4} and \lilyTimeSignature{4}{4}, the two time signatures
+used in the chorales.
+
+Alternative representations such as a list of accidentals to represent a key
+signature, or an exact representation of the time signature were considered.
+However, these representations are relatively wasteful in space, and are
+\emph{sparse} with respect to the corpus. Dense representations such as those
+chosen are preferred in the literature, and are more suitable in conjunction
+with our representation of musical types in \texttt{C++} (see
+Section~\ref{sec:cpp-event-rep}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=300pt]{figs/key_dist.pdf}
+\caption{Histogram showing distribution of key signatures in corpus}
+\label{fig:key-dist}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=300pt]{figs/range_dist.pdf}
+\caption{Histogram showing distribution of pitch range in chorales}
+\label{fig:range-dist}
+\end{figure}
 
 In addition to extracting the melodies from the \texttt{music21} chorale corpus
 and encoding them in our JSON format, the corpus preparation script performs
 some analysis on the corpus to determine the syntactic domains of the various
 types of interest in our corpus. That is, the script computes the set of
 pitches, durations, intervals, etc.\ that occur in the chorales, and stores
-these as metadata along with the corpus. This informed the construction and
-representation of musical types in \texttt{C++} classes.
+these as metadata along with the corpus. This informed the construction of
+\texttt{C++} classes to represent these musical types (see
+Section~\ref{sec:cpp-event-rep}). Figures~\ref{fig:key-dist} and
+\ref{fig:range-dist} exemplify the analysis performed on the corpus.
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=350pt]{figs/key_dist.pdf}
-\caption{Graph showing distribution of key signatures in corpus}
-\label{fig:key-dist}
-\end{figure}
-
-Figure~\ref{fig:key-dist} exemplifies this analysis, in this case considering the
-distribution of key signatures in the melodies of our corpus. 
+The source corpus, packaged in \texttt{music21}, consists of MusicXML files
+describing notation for Bach's four-part chorale harmonisations. During the
+corpus preparation process, I use \texttt{music21} to parse these XML files,
+extract the soprano part, and output the data in the established JSON format, as
+well as performing additional processing such as \emph{anacrusis} (pick-up)
+detection. By preprocessing the corpus, we factor out this process from the
+point at which data is ingested into each model.
 
 \section{Multiple Viewpoint System}
 
 \subsection{Overview}
 
-A complete framework for implementing Multiple Viewpoint Systems in \verb!C++!
-has been implemented. The formalism detailed in Section~\ref{sec:mvs-formalism}
-has been fully implemented.  At the core of the framework, the \emph{prediction
-by partial match} (PPM) algorithm was implemented for smoothing variable-order
-context models. The distributions predicted by these context models can be
-combined using the entropy-weighted schemes described in
-Section~\ref{sec:vp-comb}.
+\begin{figure}[H]
+\centering
+\includegraphics[width=400pt]{figs/high_level_mvs_tmp.jpg}
+\caption{Overview of music generation using MVS}
+\label{fig:mvs-gen-overview}
+\end{figure}
 
-Abstractions were made such that, using these primitives, \emph{basic},
+A complete framework for implementing Multiple Viewpoint Systems in \verb!C++!
+has been implemented and released as an open source project for others to use.
+Since no existing framework was available, this had to be implemented from
+scratch. The framework implements the formalism detailed in
+Section~\ref{sec:mvs-formalism} in full. I chose to make the implementation as
+general as possible so that it may be of use in other contexts in the future. 
+
+This general framework was then specialised to the task of chorale melody
+generation. At the core of the framework, the \emph{prediction by partial match}
+(PPM) algorithm was implemented for smoothing variable-order context models. The
+distributions predicted by these context models are combined using the
+entropy-weighted schemes described in Section~\ref{sec:vp-comb}.
+
+Template-based abstractions were made such that, using these primitives, \emph{basic},
 \emph{derived}, \emph{linked}, and \emph{triply-linked} viewpoints can be
 instantiated over arbitrary combinations of types. Both a \emph{long-term}
 model, for capturing regularity throughout the corpus, and a \emph{short-term}
@@ -1380,34 +1475,35 @@ step-wise selection} \cite{pearce2005construction} was implemented.
 \label{fig:uml-prediction}
 \end{figure}
 
-The implementation achieves much generality by extensive use of \texttt{C++}
-\emph{templates}. This is illustrated in Figure~\ref{fig:uml-prediction}: a UML
-class diagram outlining the ``prediction stack'': the generic portion of the
-viewpoint implementation. As we shall see, specific viewpoints can be
-implemented by specialising the template classes \texttt{GeneralViewpoint} and
-\texttt{GeneralLinkedVP}. 
-
 The principal design strategy of the implementation was to achieve a symmetry
 and tight correspondence between the \texttt{C++} type system and the formalism
 of multiple viewpoints detailed in Section~\ref{sec:mvs-formalism}. This was
 considered desirable for a number of reasons:
 \begin{itemize}
-  \item Making full use of the type system in a statically-typed language can
-    ensure that many more potential programmer errors are caught at compile time
-    than otherwise would be.
   \item A correspondence between the \texttt{C++} type system and the MVS
     formalism provides the basis for a clean API that should be easily
     understood by both \texttt{C++} programmers and those familiar with the
     formalism.
+  \item Making full use of the type system in a statically-typed language can
+    ensure that many more potential programmer errors are caught at compile time
+    than otherwise would be.
 \end{itemize}
 
 \texttt{C++} templates were considered the ideal tool to achieve this. Templates
 are \emph{flexible}, allow for considerable \emph{generality}, and are evaluated
-at compile-time, achieving better safety guarantees: in particular, they can
+at compile time, achieving better safety guarantees: in particular, they can
 eliminate much of the need for dynamic memory allocation, a cause of many common
-runtime issues. Although inheritance polymorphism is used to implement an
-abstract base class for viewpoints (see Figure~\ref{fig:uml-prediction}),
-templates are used as the primary means of achieving polymorphism.
+runtime issues. As we shall see, specific viewpoints can be implemented by
+specialising the template classes \texttt{GeneralViewpoint} and
+\texttt{GeneralLinkedVP}. 
+
+Despite templates being the primary means of achieving polymorphism, inheritance
+polymorphism is used to implement an abstract base class for viewpoints (see
+Figure~\ref{fig:uml-prediction}). This was done in order to unify the
+otherwise-heterogeneous viewpoint types predicting a particular basic type. For
+example, viewpoints $\emph{duration} \otimes \emph{pitch}$, \emph{seqint}, and
+\emph{pitch} have different corresponding types, but are all predictors of
+pitch: we want to refer to them polymorphically as such.
 
 We shall now give a brief overview of the main components implemented to gain an
 appreciation of the intent behind each component and how the overall system fits
@@ -1415,7 +1511,9 @@ together before taking a closer look at various parts of the implementation.
 
 \begin{itemize}
   \item \texttt{TrieNode<b>} is a generic implementation of the trie data
-    structure with branching factor \texttt{b}.
+    structure with branching factor \texttt{b}. Specifying the branching factor
+    at compile time allows the space-efficient implementation of tries over
+    types $\tau$ with varying cardinality $|[\tau]|$.
   \item Using this trie implementation, \texttt{ContextModel<b>} implements a
     context model over an alphabet of size \texttt{b}, as per
     Section~\ref{sec:ctx-model-prep}. The inference algorithm is PPM A with
@@ -1436,9 +1534,9 @@ together before taking a closer look at various parts of the implementation.
   \item All viewpoint implementations derive from the
     \texttt{Predictor<EventSpace,T>} template interface. These are outlined in
     Figure~\ref{fig:uml-prediction} but also include a triply-linked viewpoint
-    implementation. All viewpoint objects contain an underlying
-    \texttt{SequenceModel} object and support the operations of \emph{lifting}
-    and \emph{reification} as per Section~\ref{sec:mvs-formalism}.
+    implementation. Such objects contain an underlying \texttt{SequenceModel}
+    object and support the operations of \emph{lifting} and \emph{reification}
+    as per Section~\ref{sec:mvs-formalism}.
   \item \texttt{ChoraleVPLayer} is a container for multiple viewpoints over
     the chorale-specific types, used to
     implement both the \emph{long-term} and \emph{short-term} model.
@@ -1513,9 +1611,12 @@ Figure~\ref{fig:hgram-extract} for an input sequence $e_1^5$.
   \label{alg:sliding-window}
   \begin{algorithmic}[1]
     \Function{learn-sequence}{$e_1^k \in [\tau]^*$}
-      \For{$i : 1 \rightarrow k$}
+      \For{$j : 1 \rightarrow k$}
+      \Comment $j$: window end position
         \State \Call{add-or-increment}{()}
-        \For{$j : \min(1,i - \hbar) \rightarrow i$} \Call{add-or-increment}{$e_j^i$}
+        \For{$i : \min(1,j - \hbar + 1) \rightarrow j$} 
+        \Comment $i$: window start position
+          \State \Call{add-or-increment}{$e_i^j$}
         \EndFor
       \EndFor
     \EndFunction
@@ -1536,7 +1637,7 @@ the empty sequence, corresponds to the root node in the trie.
 
 While this algorithm can be used to construct a long-term model, a short-term
 model requires a context model that can be updated online during sequence
-prediction. Context models therefore also need to implement a method which just
+prediction. Therefore, context models also need to implement a method which just
 extracts those $h$-grams at the tail of the sequence (with the window at the far
 right).
 
@@ -1546,8 +1647,8 @@ Recall from the discussion in Section~\ref{sec:ctx-model-prep} that considerable
 care must be taken to ensure the normalisation of the distributions predicted by
 PPM. The technique of \emph{exclusion} maintains state during the trie traversal
 in order to reason about the possible context matches at each stage of
-execution. Algorithm~\ref{alg:ppm-a} details the PPM A algorithm using this
-technique to achieve normalisation.
+execution. Algorithm~\ref{alg:ppm-a} details pseudocode for PPM A with exclusion
+which was derived from the high-level descriptions given in the literature.
 
 The key to exclusion in this algorithm is the \textit{Dead} set that
 is maintained throughout the recursion. This set should be initialised to
@@ -1592,33 +1693,46 @@ at lower-order models. To compute $\mathbb{P}(e' | e_1^k)$ we call
 To realise this pseudocode in \texttt{C++}, the PPM implementation in a
 \texttt{ContextModel<b>} instance (with alphabet size \texttt{b}) utilises
 bitvectors implemented using \texttt{std::bitset<b>} to efficiently represent
-sets of nodes. In addition, each \texttt{TrieNode<b>} maintains a bitmask
-storing which of its children have non-zero counts.
- 
+sets of nodes. This achieves better efficiency than alternatives such as
+\texttt{std::array<b, bool>} in both space and time: typical implementations
+pack bits into machine words and implement the bitwise operations driectly.
+
+Figure~\ref{fig:ppm-stepwise} shows the step-by-step execution of this algorithm
+computing $\mathbb{P}(\beta|\alpha\gamma)$ on a context model over the alphabet $\Sigma =
+\set{\alpha,\beta,\gamma,\delta}$ having seen the training sequence
+$(\alpha,\beta,\gamma,\delta,\alpha,\gamma,\alpha,\delta)$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=400pt]{figs/ppm_stepwise_tmp.jpg}
+\caption{Step-by-step execution of PPM with $\hbar = 3$ computing $p(\beta|\alpha\gamma)$}
+\label{fig:ppm-stepwise}
+\end{figure}
+
 \subsection{Event Representation}\label{sec:cpp-event-rep}
 
 In order to abstract the low-level \texttt{ContextModel} implementation and
 generally to represent viewpoint types as first-class citizens in \texttt{C++},
 a simple scheme was devised to represent viewpoint types as classes.
 
-To interface with the context model implementation, it suffices for each
-viewpoint type $\tau$ to specify a well-known enumeration of $[\tau]$. The class
-outlined in Listing~\ref{lst:event-rep} is a minimal example of how a class can
-conform to this type representation convention.
-
 \begin{listing}[H]
   \begin{minted}[frame=single, linenos=true, fontsize=\footnotesize, mathescape]{cpp}
 class T {
   const static cardinality; // set to $|[\tau]|$
-  unsigned int encode(); // specifies the enumeration
+  unsigned int encode();    // specifies the enumeration
 
-  T(unsigned int c); // construct using code $0 \leq c < |[\tau]|$
-  T(const Other &o); // construct using data 
+  T(unsigned int c);        // construct using code $0 \leq c < |[\tau]|$
+  T(const Other &o);        // construct using data 
 };
   \end{minted}
   \caption{Prototypical viewpoint type representation}
   \label{lst:event-rep}
 \end{listing}
+
+To interface with the context model implementation, it suffices for each
+viewpoint type $\tau$ to specify a well-known enumeration of $[\tau]$. The class
+outlined in Listing~\ref{lst:event-rep} is a minimal example of how a class can
+conform to this type representation convention.
 
 Note that this is nothing more than a convention. Conformance to this convention
 is not enforced \emph{explicitly} by any particular language feature. However,
@@ -1633,29 +1747,36 @@ conveniently iterate over the members of a type in the style of the iterators in
 the \texttt{C++11} standard template library, enabling clean loops such as~
 \cppi{for (auto event : EventEnumerator<T>())}.
 
-\subsection{Sequence Models}
+\subsection{Abstracting Context Models}
 
 Now that we have established a scheme for representing viewpoint types, we can
-abstract context models by providing an interface to them in terms of viewpoint
-types. This is the job of a \texttt{SequenceModel}. In particular,
-\texttt{SequenceModel<T>} instantiates a \texttt{ContextModel<T::cardinality>}
-for \texttt{T} a viewpoint type represented as per
-Section~\ref{sec:cpp-event-rep}.
+abstract context models by providing an interface in terms of viewpoint types.
+This is the job of a class which we call \texttt{SequenceModel}.  Specifically,
+\texttt{SequenceModel<T>} is a wrapper class around an instance of
+\texttt{ContextModel<T::cardinality>} for \texttt{T} a viewpoint type
+represented as per Section~\ref{sec:cpp-event-rep}. 
 
 Additionally, given some context, a \texttt{SequenceModel<T>} object can
-generate probability distributions over the subsequent event by iterating the
+generate probability distributions over subsequent events by iterating the
 PPM implementation of the underlying context model for each member of
 \texttt{T}. The object returned from this operation is an instance of
 \texttt{EventDistribution<T>}, the functionality of which is discussed
 in the following two sections.
 
+It is desirable to provide an interface to context models in terms of viewpoint
+types, since all other high-level classes in the implementation are
+parameterised on types. Any viewpoint class modelling an underlying type
+\texttt{T} can therefore simply instantiate a \texttt{SequenceModel<T>} object.
+
 \subsection{Distribution Combination}
 
 As mentioned in Section~\ref{sec:vp-comb}, there are various techniques for
-combining probability distributions in a multiple viewpoint system. I initially
-implemented an entropy-weighted arithmetic combination scheme, and later, on the
-basis of its superior performance \cite{pearce2004combining}, a geometric
-scheme.  
+combining probability distributions in a multiple viewpoint system. In line with
+the agile development methodology, I initially implemented an entropy-weighted
+arithmetic combination scheme in order to get a working result at an early
+stage. Later, on the basis of its superior performance
+(Section~\ref{sec:vp-comb}), I decided to implement a geometric scheme for
+viewpoint combination.  
 
 In order to cleanly express distribution combination with a standard interface,
 yet allow the choice of a different underlying implementation, I utilised the
@@ -1685,8 +1806,8 @@ yet allow the choice of a different underlying implementation, I utilised the
 \end{figure}
 
 \texttt{ArithmeticComb} is a direct implementation of the weighted arithmetic
-formula given in Section~\ref{sec:vp-comb}. \texttt{GeometricComb} is also a
-direct implementation of Pearce's weighted geometric formula
+formula given in Section~\ref{sec:vp-comb}. \texttt{GeometricComb} is a direct
+implementation of Pearce's weighted geometric formula
 (\ref{eq:pearce-geometric}) , but this was found to suffer from numerical
 instability. 
 
@@ -1713,15 +1834,22 @@ stability entirely.
 
 \subsection{Sampling from Distributions}
 
-In addition to combination, sampling is a central feature of
-\texttt{EventDistribution<T>} objects. A high-quality pseudo-random number
-generator (PRNG) by the name of \texttt{xoroshiro128+}, the successor to the
-well-known \texttt{xorshift128+} PRNG \cite{vigna2017further}, was implemented
-in the form of a \texttt{C++11} \texttt{UniformRandomBitGenerator}. This meant
-that the algorithm could be used as a random number engine compatible with the
-\texttt{C++11} \texttt{<random>} library. As of this writing,
-\texttt{xoroshiro128+} has been found to pass more statistical tests than any
-other PRNG, including those available in the \texttt{C++11} standard library.
+In order to sample from probability distributions, a high-quality source of
+randomness is needed. After an initial investigation of the pseudo-random number
+generators (PRNGs) available in the \texttt{C++11} standard library, I found
+several PRNGs that were shown to be superior in both performance and statistical
+quality. Of these, I chose to implement \texttt{xoroshiro128+}, the successor to
+the well-known \texttt{xorshift128+} PRNG \cite{vigna2017further}. As of this
+writing, \texttt{xoroshiro128+} has been found to pass more statistical tests
+than any other PRNG, including those available in the \texttt{C++11} standard
+library\footnote{http://xoroshiro.di.unimi.it}. 
+
+The implementation used the publicly-available reference C
+code\footnote{http://xoroshiro.di.unimi.it/xoroshiro128plus.c} wrapped in a
+\texttt{C++11} \texttt{UniformRandomBitGenerator}, enabling its use as a random
+number engine compatible with the \texttt{C++11} \texttt{<random>} library. The
+implementation was made available for other \texttt{C++} developers in the form
+of an open-source project on GitHub.
 
 Sampling is performed using the \texttt{xoroshiro128+} implementation by
 default, but an alternative random source can easily be configured. The PRNG is
@@ -1759,17 +1887,17 @@ types \emph{keysig} and \emph{timesig} remain constant throughout a single
 sequence. Therefore, our task is to predict \emph{pitch}, \emph{duration}, and
 \emph{rest} at each timestep. This gives rise to the first viewpoints that were
 implemented: the \emph{basic viewpoints}. These viewpoints simply model
-these basic types individaully.
+these basic types individually.
 
 \texttt{BasicViewpoint<T>} is then just a simple wrapper around
-\texttt{ContextModel<T>} that conforms to \texttt{Predictor<ChoraleEvent, T>}.
+\texttt{SequenceModel<T>} that conforms to \texttt{Predictor<ChoraleEvent, T>}.
 Such viewpoints can be used to set a baseline for the performance of a multiple
 viewpoint system: a MVS $\set{\mathrm{pitch}, \mathrm{duration}, \mathrm{rest}}$
 simply implements a naïve independent $n$-gram approach.
 
 \subsubsection{Derived Types}
 
-We make use of two abstract interpreations of the pitch surface to improve
+We make use of two abstract interpretations of the pitch surface to improve
 predictive performance. The difference in pitch between two consecutive notes,
 known as the \emph{sequential interval}, which we abbreviate to \emph{seqint},
 captures regularity that is invariant to the absolute pitch of notes. Define:
@@ -1897,18 +2025,17 @@ Section~\ref{sec:cpp-event-rep} for representing viewpoint types in
 \texttt{C++}. The underlying context model for a linked viewpoint over types $P$
 and $Q$ is then an instance of \texttt{SequenceModel<EventPair<P,Q>>}.
 
-To predcit a distribution over either of the constitutent types of a linked
+To predict a distribution over either of the constituent types of a linked
 viewpoint, one simply sums out the joint distribution over the other type: a
-viewpoint $\tau_1 \rightarrow \tau_2$ predicts a distribtuion over $[\tau_1]
-\times [\tau_2]$ and then sums over $[\tau_1]$ to obtain a distribtuion over
-$[\tau_2]$.
+viewpoint $\tau_1 \rightarrow \tau_2$ predicts a distribution over $[\tau_1]
+\times [\tau_2]$ and then marginalises to obtain a distribution over $[\tau_2]$.
 
 While the ability to link basic types is useful, it would be better to be able
 to link arbitrary combinations of basic and \emph{derived} types. However, the
 derived types implemented thus far rely on a specialised viewpoint
-implemetnation. To implement $\emph{seqint} \rightarrow \emph{duration}$, we
+implementation. To implement $\emph{seqint} \rightarrow \emph{duration}$, we
 would need to implement a specific linked viewpoint for this combination of
-types that performs the lifintg and reification for \emph{seqint}.
+types that performs the lifting and reification for \emph{seqint}.
 
 \subsection{Generalised Viewpoints}
 
@@ -1918,7 +2045,7 @@ each type a property of the type itself. In addition, each derived type $\tau$
 declares a \texttt{derived\_from} property, which gives the name of the type
 from which $\tau$ is derived. 
 
-Template metaprogramming was then utilised to compute the surface type of any
+Template meta-programming was then utilised to compute the surface type of any
 type \texttt{T} at compile time. The surface type of a type \texttt{T} is
 \texttt{T::derived\_from} if \texttt{T} is derived, and \texttt{T} otherwise.
 
@@ -1926,6 +2053,33 @@ These changes allowed the implementation of \texttt{GeneralViewpoint},
 \texttt{GeneralLinkedVP}, and \texttt{TriplyLinkedVP}, the linked viewpoints
 allowing linking of completely arbitrary types. These template classes perform
 the appropriate lifting and reification depending on their inputs.
+
+\begin{table}[H]
+  \begin{tabular}{ r | l | p{4.55cm} | p{6.5cm} }
+    Type $\tau$ & Predicts & Syntactic Domain $[\tau]$ & Interpretation \\ \hline
+    pitch & pitch & $\set{60,\ldots,82}$ & MIDI Pitch of note \\
+    duration & duration & $\{$1, 2, 3, 4, 6, 8, 12, 14, 16, 20, 24, 28, 32, 56,
+    64$\}$ &
+    Duration of note in semiquavers \\
+    rest & rest & $\set{0,4,8,12,16,20}$ & Leading rest length in semiquavers \\
+    keysig & - & $\set{-4,\ldots,4}$ & Number of sharps in key signature \\
+    timesig & - & $\set{12,16}$ & Number of semiquavers in bar \\ \hline
+    seqint & pitch & $\set{-12,-9,-8,\ldots,10,12}$ & Sequential melodic interval \\
+    intref & pitch & $\set{0,\ldots,11}$ & Harmonic interval with referent \\
+    posinbar & - & $\set{0,\ldots,15}$ & Position of event within bar \\
+    fib & - & $\set{\texttt{false}, \texttt{true}}$ & \texttt{true} iff.\ event is first in bar \\
+    fip & - & $\set{\texttt{false}, \texttt{true}}$ & \texttt{true} iff.\ event is first in piece \\
+    ioi & - & $\{$1, 2, 3, 4, 6, 8, 12, 14, 16, 20, 24$\}$ & Consecutive onset
+    difference
+  \end{tabular}
+  \caption{Complete List of Implemented Types}
+  \label{tab:mvs-types}
+\end{table}
+
+Table~\ref{tab:mvs-types} shows all implemented types separated into basic and
+derived types. All derived types other than \emph{seqint} and \emph{intref} are
+non-predictive (they cannot be reified). These types are only useful when linked
+with a predictive type.
 
 \subsection{Hyperparameter Optimisation}
 
@@ -1935,7 +2089,7 @@ free hyperparameters in our model are:
   \item The set of viewpoints used. \label{itm:set-vps}
   \item The value of $\hbar$ (the order) for both the long- and short-term
     model. \label{itm:hbar}
-  \item The inter- and intra-layer bias paramters for distribution combination.
+  \item The inter- and intra-layer bias parameters for distribution combination.
     \label{itm:bias-params}
 \end{enumerate}
 
@@ -1953,7 +2107,7 @@ result from the selection algorithm.
 
 A heuristic approach to choosing the hyperparameters, would therefore be to run
 the selection algorithm for \ref{itm:set-vps}, optimise \ref{itm:hbar}, then
-\ref{itm:bias-params}, and repeat until convergence. While this techique cannot
+\ref{itm:bias-params}, and repeat until convergence. While this technique cannot
 possibly hope to converge on a global optimum, it seems to work well in
 practice.
 
@@ -1966,8 +2120,10 @@ practice.
 
 \section{Recurrent Neural Network}
 
+\subsection{Overview}
+
 A multi-layer LSTM recurrent neural network was implemented in Python using
-TensorFlow \cite{abadi2016tensorflow}. The network includes \emph{dropout} for
+TensorFlow \cite{abadi2016tensorflow}. The network uses \emph{dropout} for
 regularisation as per Zaremba et al.\ \cite{zaremba2014recurrent}. A decoupled
 ``front-end'' to the RNN was implemented which allows the same internal model to
 be used for character-level language modelling and music modelling. Random walk
@@ -1975,6 +2131,23 @@ sampling was implemented for generation. In addition, modifications to the
 conventional sequence-prediction RNN architecture were made by feeding the
 network additional \emph{global} musical information at each timestep, which was
 found to improve performance significantly.
+
+As a precursor to implementing a RNN for music modelling, I decided to implement
+a recurrent network and apply it to the well-studied task of character-level
+language modelling. This decision was made in the hope that the performance of
+the network on a well-studied task would be a good indicator of the correctness
+of the implementation, as well as to gain an appreciation of the effects of
+tuning the hyperparameters on the performance of the model.
+
+\subsection{Input Representation}
+
+\subsection{Network Architecture}
+
+\subsection{Hyperparameters}
+
+\subsection{Language Modelling Experiments}
+
+\subsection{Applying the RNN to Music}
 
 \todo Obviously work out where this should go, but remember that the TF LSTM
 implementation adds a \texttt{forget\_bias} of 1 to the biases of the forget

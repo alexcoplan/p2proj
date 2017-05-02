@@ -26,6 +26,9 @@ with open(args.input_file) as json_data:
   ax.set_xlabel("Intra-layer bias")
   ax.set_ylabel("Inter-layer bias")
   ax.set_zlabel("Test cross-entropy")
+  nominal_ticks = [0.0, 0.05, 0.10, 0.15, 0.20]
+  ax.set_xticks(nominal_ticks)
+  ax.set_yticks(nominal_ticks)
 
 ax.view_init(elev=30.0, azim=210)
 

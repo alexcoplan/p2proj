@@ -692,8 +692,8 @@ int main(void) {
   const QuantizedDuration three_four(12);
   const QuantizedDuration four_four(16);
 
-  const unsigned int hist    = 3;
-  const unsigned int st_hist = 2;
+  const unsigned int hist    = 6;
+  const unsigned int st_hist = 3;
 
   auto lt_config = MVSConfig::long_term_only(1.0);
   ChoraleMVS lt_only(lt_config);
@@ -708,13 +708,14 @@ int main(void) {
 
   VPPool p;
 
+  /*
   MVSOptimizer optimizer(full_config);
   add_vps_to_optimizer(p, optimizer);
 
   double eps_terminate = 0.001;
   optimizer.optimize<ChoralePitch>(eps_terminate, train_corp, test_corp);
+  */
 
-  /*
   ChoraleMVS full_mvs(full_config);
   // pitch predictors
   full_mvs.add_viewpoint(&p.pitch_vp);
@@ -741,13 +742,12 @@ int main(void) {
   train(train_corp, {&lt_only, &full_mvs});
   std::cout << "done." << std::endl;
 
-  double max_intra = 0.1;
-  double max_inter = 0.1;
-  double step = 0.05;
-  //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
+  double max_intra = 0.0;
+  double max_inter = 0.0;
+  double step = 0.02;
+  bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
   
-  generate(full_mvs, 64, three_four, "out/gend.json");
-  */
+ // generate(full_mvs, 64, three_four, "out/gend.json");
 }
 
 

@@ -19,6 +19,7 @@
 
 # Implementation
  - remember to mention interesting challenges as well as successes
+http://www.hexahedria.com/2015/08/03/composing-music-with-recurrent-neural-networks/
 
 # Evaluation:
  - compare with numbers from Pearce/Whorley
