@@ -469,26 +469,31 @@ novel comparison between two sophisticated yet contrasting approaches.
 
 \section{Choice of Techniques}
 
-Despite the strong performance of multiple viewpoint systems when applied to
-music, as discussed in Section~\ref{sec:context-of-work}, multiple viewpoint
-systems are rarely used as a baseline approach or brought into comparison with
-mainstream machine learning techniques such as neural networks. The reasons for
-this, we argue, are three-fold:
+Despite the strong performance of multiple viewpoint systems (MVSs) when applied
+to music, as discussed in Section~\ref{sec:context-of-work}, they are rarely
+used as a baseline approach or brought into comparison with mainstream machine
+learning techniques such as neural networks. The reasons for this, we argue, are
+three-fold:
 \begin{itemize}
-  \item Considerable domain-specific knowledge is required to implement multiple
-    viewpoint systems.
-  \item The implementation of a multiple viewpoint system is reasonably involved
-    for a baseline approach.
+  \item Considerable domain-specific knowledge is required to implement a MVS.
+  \item The implementation of a MVS from scratch is reasonably involved for a
+    baseline approach.
   \item To the best of my knowledge, no open source framework for implementing
-    multiple viewpoint systems exists.
+    MVSs exists.
 \end{itemize}
 
-Recurrent Neural Networks, and LSTM networks in particular, are the most
-successful general sequence-learning models in use at this time. Primarily,
-therefore, it is the lack of comparison between these two models that motivates
-this choice. Secondarily, as a by-product of choosing to implement a general
-framework for multiple viewpoints, it is my intention that an open source
-project that may be of use to researchers for further work can be released.
+Recurrent Neural Networks (RNNs), and LSTM networks in particular, are among the
+most successful general sequence-learning models in use at this time. Primarily,
+therefore, it is the lack of comparison between these two techniques that
+motivates this choice. Secondarily, as a by-product of choosing to implement a
+general framework for multiple viewpoints, it is my intention that an open
+source project that may be of use to researchers for further work can be
+released.
+
+I chose to implement the MVS from scratch due to the lack of available
+libraries, and based the RNN on an existing library which abstracted away parts
+of the implementation that were not of particular interest in this comparison,
+such as computing the gradients in the backwards pass of the network.
 
 \section{Starting Point}
 
@@ -499,10 +504,10 @@ not done previous research or implementation in this area. All of the code
 written for this project, aside from established libraries, was written from
 scratch.
 
-Several tripos courses provided background for the project. The most relevant
-among these were Information Theory, Machine Learning, and, supporting the
-design of the evaluation survey, Human Computer Interaction. However, I had
-limited prior knowledge of the specific techniques implemented in this work.
+Several courses from the Computer Science Tripos provided background for the
+project. The most relevant among these were Information Theory, Artifical
+Intelligence, Machine Learning, and, supporting the design of the
+evaluation survey, Human Computer Interaction. 
 
 \section{Deliverables}
 
@@ -560,13 +565,13 @@ probabilistic models.
 \label{fig:seq-gen-overview}
 \end{figure}
 
-Any system which models a probability distribution over sequences of interest is
+Any system which models a probability distribution over the data of interest is
 said to be a \emph{generative model}. Let $\vect{x} = x_1, \ldots, x_t$ range
 over sequences of interest. Then a model which calculates or approximates
-$p(\vect{x})$ is said to be a generative model.
+$p(\vect{x})$ is a generative model of such sequences.
 
-This distribution is commonly approximated by assuming that each event only
-depends on those that come before it, yielding (\ref{eq:cond-indep}). All the
+This distribution is commonly approximated by assuming that each event 
+depends only on those that come before it, yielding (\ref{eq:cond-indep}). All the
 models we work with will make this assumption of conditional independence. A
 high-level overview of the generation process using such models is given in
 Figure~\ref{fig:seq-gen-overview}.
@@ -578,7 +583,9 @@ Figure~\ref{fig:seq-gen-overview}.
 An even stronger assumption is the \emph{Markov assumption}, which assumes that
 we only need to look at a finite context of length $n$ to be able to predict the
 future, i.e.
-$$ p(x_k | x_{k-1}, \ldots, x_1) \approx p(x_k | x_{k-1}, \ldots, x_{k-n}). $$
+\begin{equation}
+  p(x_k | x_{k-1}, \ldots, x_1) \approx p(x_k | x_{k-1}, \ldots, x_{k-n}). 
+\end{equation} 
 
 In any case, given some generative model approximating $p(\vect{x})$, we can
 \emph{sample} from this distribution to obtain an output sequence from the
@@ -586,7 +593,7 @@ model. In the case of models that make the assumption of (\ref{eq:cond-indep}),
 we can sample by \emph{random walk}, since the probability of the next event
 depends only on those that have been generated thus far. At time $t$, for $t =
 1$ to $T$, we sample from:
-$$ p(x_t | x_{t-1} \cdots x_1) $$
+$$ p(x_t | x_{t-1}, \ldots, x_1) $$
 and immediately accept the resulting event $x_t$, appending it to our sample.
 
 While random walk sampling is very efficient, running in $\Theta(T)$ time to
@@ -598,10 +605,10 @@ for some threshold $\alpha$: this algorithm is known as \emph{iterative random
 walk}.
 
 This project investigates two generative models that approximate $p(\vect{x})$
-using the assumption of (\ref{eq:cond-indep}). To generate candidate $\vect{x}'$
-from these models, we sample from their distributions by means of (iterative)
-random walk. The next two sections introduce these models, with a focus on the
-underlying theory and decisions made prior to implementation.
+using the assumption of (\ref{eq:cond-indep}). To generate a candidate
+$\vect{x}'$ from these models, we sample from their distributions by means of
+(iterative) random walk. The next two sections introduce these models, with a
+focus on the underlying theory and decisions made prior to implementation.
 
 \section{Multiple Viewpoint Systems}
 
@@ -655,7 +662,7 @@ supporting a context model over musical durations.
 \begin{figure}[H]
 \centering
 \includegraphics[width=455pt]{figs/duration_vp.pdf}
-\caption{Trie for a context model over duration with $\hbar = 3$}
+\caption{Trie for a context model over musical duration with $\hbar = 3$}
 \label{fig:dur-trie}
 \end{figure}
 
@@ -1317,7 +1324,7 @@ face of changing timescales and requirements.
 
 \chapter{Implementation}\label{chap:impl}
 
-\section{Corpus Preparation and Analysis}
+\section{Corpus Preparation and Analysis}\label{sec:corpus-prep-analysis}
 
 Before beginning the implementation of either model, the corpus needed to be
 processed and exported to a common format. The high-level description of the
@@ -1809,15 +1816,24 @@ yet allow the choice of a different underlying implementation, I utilised the
 formula given in Section~\ref{sec:vp-comb}. \texttt{GeometricComb} is a direct
 implementation of Pearce's weighted geometric formula
 (\ref{eq:pearce-geometric}) , but this was found to suffer from numerical
-instability. 
+instability. This was detected in the form of extremely high, or in some cases,
+infinite cross-entropy on the test set. 
 
 \begin{equation}
 p(j) = \frac{1}{Z} \left( \prod_{i = 1}^N p_i(j)^{w_i} \right)^{ \frac{1}{
 \sum_{i = 1}^N w_i }} \label{eq:pearce-geometric}
 \end{equation}
 
-Letting $\widetilde{p}(j)$ denote the unnormalised probability for the
-$j$\textsuperscript{th} event, we find:
+The multiplication of many small exponentiated probabilities as per
+(\ref{eq:pearce-geometric}) can yield an intermediate value too small to
+represent in a \texttt{double}. Suppose, however, that we were able to represent
+such an intermediate result. Then, raising it to a sufficiently small power
+could certainly give an output large enough to represent in a \texttt{double}.
+This suggests that the numerical issues might in fact be avoidable.
+
+To mitigate this instability, I derived an alternative formulation of this
+method as follows. Letting $\widetilde{p}(j)$ denote the unnormalised
+probability for the $j$\textsuperscript{th} event, we find:
 \begin{align*}
   \widetilde{p}(j) &= \left( \prod_{i=1}^N p_i(j)^{w_i}
   \right)^{\frac{1}{\sum_{i=1}^N w_i}} \\[3mm]
@@ -1832,17 +1848,36 @@ expression: the probabilities are first added in log space and then
 exponentiated and normalised. This was found to remedy the issues with numerical
 stability entirely.
 
+Figure~\ref{fig:num-instab} demonstrates this instability by plotting the
+following functions in a critical region:
+\begin{align*}
+  f_1(x) &= 10^8 \left( \left( 10^{-8} \right)^x \right)^{1/x} \\
+  f_2(x) &= 10^8 \exp( x \ln{10^{-8}} / x)
+\end{align*}
+where $f_1$ is representative of directly performing a geometric cominbation of
+$x$ small probabilities and $f_2$ the sum-of-logs formulation. Clearly, both
+$f_1$ and $f_2$ should be unity for all $x \in \mathbb{R}^+$. However, as
+Figure~\ref{fig:num-instab} demonstrates, as $(10^{-8})^x$ becomes too small to
+represent, $f_1(x)$ breaks down.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=400pt]{figs/instability.pdf}
+\caption{Example of Numerical Instability in Naïve Geometric Combination}
+\label{fig:num-instab}
+\end{figure}
+
 \subsection{Sampling from Distributions}
 
 In order to sample from probability distributions, a high-quality source of
 randomness is needed. After an initial investigation of the pseudo-random number
 generators (PRNGs) available in the \texttt{C++11} standard library, I found
-several PRNGs that were shown to be superior in both performance and statistical
-quality. Of these, I chose to implement \texttt{xoroshiro128+}, the successor to
-the well-known \texttt{xorshift128+} PRNG \cite{vigna2017further}. As of this
-writing, \texttt{xoroshiro128+} has been found to pass more statistical tests
-than any other PRNG, including those available in the \texttt{C++11} standard
-library\footnote{http://xoroshiro.di.unimi.it}. 
+several other PRNGs that were shown to be superior in both performance and
+statistical quality. Of these, I chose to implement \texttt{xoroshiro128+}, the
+successor to the well-known \texttt{xorshift128+} PRNG \cite{vigna2017further}.
+As of this writing, \texttt{xoroshiro128+} has been found to pass more
+statistical tests than any other PRNG, including those available in the
+\texttt{C++11} standard library\footnote{http://xoroshiro.di.unimi.it}. 
 
 The implementation used the publicly-available reference C
 code\footnote{http://xoroshiro.di.unimi.it/xoroshiro128plus.c} wrapped in a
@@ -1858,29 +1893,32 @@ high-resolution time since boot when this is not available.
 
 \subsection{Early Viewpoints}
 
-The event space used for the chorales is:
+The event space for the chorales, determined by our choice of encoding in
+Section~\ref{sec:corpus-prep-analysis}, is:
 $$ \zeta = [\mathrm{pitch}] \times [\mathrm{onset}] \times [\mathrm{duration}]
 \times [\mathrm{keysig}] \times [\mathrm{timesig}]. $$
 
-Recall that the type \emph{onset} denotes the quantised starting time of each
-event within a piece.  A problem with using this event space directly when
+Recall that the type \emph{onset} specifies the quantised starting time of each
+event within a sequence. A problem with using this event space directly when
 modelling the chorales with multiple viewpoints is that $[\mathrm{onset}]$ is
 not a finite set. In practice, one could ensure its finiteness by setting a
-maximum possible length of piece. However, this solution is unsatisfactory, and
-moreover, modelling this type directly or in combination with other types is not
-likely to capture any useful regularity since it is a global property of each
-composition.
+maximum possible length of piece. However, this solution is unsatisfactory, not
+least because it bounds the length of possible compositions. Moreover, modelling
+this type directly or in combination with other types is not likely to capture
+any useful regularity, since it is a global property of each composition.
 
 Instead, define the type \emph{rest} as follows:
 $$ \Psi_{\mathrm{rest}}(e_1^k) \triangleq \begin{cases} 
-  \Psi_{\mathrm{offset}}(e_1^k) -
-  \Psi_{\mathrm{offset}}(e_1^{k-1}) - \Psi_{\mathrm{duration}}(e_1^{k-1}) & k > 1 \\
-  \Psi_{\mathrm{offset}}(e_1^1) & \text{otherwise}
+  \Psi_{\mathrm{onset}}(e_1^k) -
+  \Psi_{\mathrm{onset}}(e_1^{k-1}) - \Psi_{\mathrm{duration}}(e_1^{k-1}) & k > 1 \\
+  \Psi_{\mathrm{onset}}(e_1^1) & \text{otherwise}
 \end{cases} $$
-and use the representation:
+and use:
 $$ \zeta = [\mathrm{pitch}] \times [\mathrm{duration}] \times [\mathrm{rest}]
-\times [\mathrm{keysig}] \times [\mathrm{timesig}]. $$
-The conversion can be performed when the corpus is loaded into the MVS. 
+\times [\mathrm{keysig}] \times [\mathrm{timesig}] $$
+which gives us an entirely local representaiton, with $[\mathrm{rest}]$ being a
+small finite set. The conversion can be performed when the corpus is loaded into
+the MVS. 
 
 As suggested by our chosen corpus representation, we make the assumption that
 types \emph{keysig} and \emph{timesig} remain constant throughout a single
@@ -1921,6 +1959,7 @@ is known.
     \Function{reify}{$e_1^k \in \zeta^*$, $p_{\mathrm{seqint}} :
     \mathrm{dist}\langle\mathrm{seqint}\rangle$}
       \State \textbf{assert} $e_1^k \neq ()$
+      \Comment might not be able to activate
       \State $p_0 \gets \Psi_{\mathrm{pitch}}(e_1^k)$
       \State $p_{\mathrm{pitch}} \gets \textbf{new}\
       \mathrm{dist}\langle\mathrm{pitch}\rangle$
@@ -1979,6 +2018,7 @@ Similarly, we can reify a distribution over \emph{intref} as follows:
     \Function{reify}{$e_1^k \in \zeta^*$, $p_{\mathrm{intref}} :
     \mathrm{dist}\langle\mathrm{seqint}\rangle$}
       \State \textbf{assert} $e_1^k \neq ()$
+      \Comment might not be able to activate
       \State $r \gets \Psi_{\mathrm{ref}}(e_1^k)$
       \State $p_{\mathrm{pitch}} \gets \textbf{new}\
       \mathrm{dist}\langle\mathrm{pitch}\rangle$ 
@@ -2117,6 +2157,53 @@ practice.
 \caption{Grid search over bias parameters}
 \label{fig:grid-search}
 \end{figure}
+
+\subsubsection{Automatic Viewpoint Selection}
+
+A forward stepwise selection algorithm was implemented for choosing a suitable
+set of viewpoints from some large pool of candidate viewpoints. This procedure
+is detailed in Algorithm~\ref{alg:vp-select}. Along with a pool of viewpoints,
+a test set for evaluating the candidate viewpoint systems is required. A fixed
+parameter $\epsilon \in \mathbb{R}^+$ controls the minimum margin of improvement
+necessary to accept a candidate viewpoint.
+
+\begin{algorithm}[H]
+  \caption{Viewpoint selection algorithm}
+  \label{alg:vp-select}
+  \begin{algorithmic}[1]
+    \Function{optimise$\langle\tau\rangle$}{vp-pool, test-set, $\epsilon \in \mathbb{R}^+$}
+      \State $S \gets$ \textbf{new}
+      stack$\langle$predictor$\langle\tau\rangle\rangle$ 
+      \Comment viewpoint stack
+      \State $S$.push(basic-vp$\langle\tau\rangle$)
+      \State $\mathcal{L}_{\mathrm{prev}} \gets$ evaluate($S$, test-set)
+      \Comment baseline loss
+      \Loop
+        \State $\mathcal{L}_{\mathrm{round}} \gets \infty$
+        \For{$V \in$ vp-pool}
+          \If {$V \in S$} \textbf{continue}
+          \EndIf
+          \State $S$.push($V$)
+          \State $\mathcal{L} \gets$ evaluate($S$, test-set) 
+          \Comment evaluate candidate viewpoint $V$
+          \If{$\mathcal{L} < \mathcal{L}_{\mathrm{round}}$}
+            \State $\mathcal{L}_{\mathrm{round}} \gets \mathcal{L}$
+            \State $V_{\mathrm{round}} \gets V$
+          \EndIf
+          \State $S$.pop()
+        \EndFor
+        \If{$\mathcal{L}_{\mathrm{prev}} - \mathcal{L}_{\mathrm{round}} >
+        \epsilon$}
+          \State $S$.push($V_{\mathrm{round}}$)
+          \Comment accept $V_{\mathrm{round}}$, continue
+        \Else
+          \State \Return $S$
+          \Comment no significant improvement, stop
+        \EndIf
+      \EndLoop
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
 
 \section{Recurrent Neural Network}
 
