@@ -22,10 +22,14 @@
 http://www.hexahedria.com/2015/08/03/composing-music-with-recurrent-neural-networks/
 
 # Evaluation:
- - compare with numbers from Pearce/Whorley
+ - compare with numbers from C&W/Pearce/Whorley
+
+Consider: why do we only just get as good numbers (1.87 bits/pitch) as C&W 1995?
+ - PPM implementation: which escape method did they use?
+ - We don't implement _fermata_ which the authors do. This is {y,h}uge.
 
 ## ideas
- - pathalogical examples
+ - pathalogical examples!
  - cross entropy
  - human evaluation
  - subjective evaluation (annotated score + cross entropy/time)
