@@ -2060,7 +2060,7 @@ implementations; that is, there were separate classes \texttt{IntervalViewpoint}
 and \texttt{IntrefViewpoint}, both implementing the
 \texttt{Predictor<ChoraleEvent, ChoralePitch>} interface.
 
-\subsection{Linked Viewpoints}
+\subsection{Linked Viewpoints}\label{sec:impl-linked-vps}
 
 As discussed previously, pitch and duration are almost never independent in
 music. This motivates the use of linked viewpoints in a multiple viewpoint
@@ -2138,7 +2138,7 @@ derived types. All derived types other than \emph{seqint} and \emph{intref} are
 non-predictive (they cannot be reified). These types are only useful when linked
 with a predictive type.
 
-\subsection{Hyperparameter Optimisation}
+\subsection{Hyperparameter Optimisation}\label{sec:mvs-hyperparams}
 
 Following the architectural constraints of Section~\ref{sec:mvs-arch}, the
 free hyperparameters in our model are:
@@ -2300,9 +2300,9 @@ as introduced in Section~\ref{sec:lstm-prep}.
 \begin{listing}
   \begin{minted}[frame=single, linenos=true, fontsize=\footnotesize,
   mathescape]{python}
-  lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_units, state_is_tuple=True)
-  cells = [lstm_cell] * config.num_layers
-  self.cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
+lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_units, state_is_tuple=True)
+cells = [lstm_cell] * config.num_layers
+self.cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
   \end{minted}
   \caption{LSTM Definition in \texttt{Model} Class}
 \end{listing}
@@ -2411,18 +2411,41 @@ multi-layer RNNs were outperformed by single-layer RNNs.
 
 \subsection{Applying the RNN to Music}
 
+Unlike the MVS implementation which predicts each event componentwise, the RNN
+uses an event representation where each possible event in the musical event
+space is encoded opaquely as a natural number: we do not present the structure
+of events to the network.
 
+Since the inputs are first embedded into the RNN's state space using a learned
+embedding, the RNN can learn an event representaiton automatically.
 
-\subsection{Early Experiments}
+Initial experiments on the chorale corpus showed that a single-layer RNN
+achieved reasonable performance. 
 
-\todo Mention language modelling precursor: maybe include snippet of output?
+Following the initial difficulty in training deep LSTMs, it was found that a
+much less agressive learning-rate decay (between $0.95$ and $0.99$) and training
+for many more epochs enabled two-layer LSTM networks to fit to the data better
+than their single-layer counterparts. In fact, a 256-wide two-layer LSTM network
+fit to the training set with almost zero loss: clearly, there was some
+overfitting at play.
 
-\subsection{Corpus Preprocessing}
+The presence of overfitting was immediately apparent from inspection of the
+generated samples of such models: the network would quote entire fragments of
+melody from the corpus.
 
-\todo Describe the method of \emph{tonal inflation} in order for the RNN to
-learn the key as an emergent property of each composition.
+\subsection{Tonality}
 
-\subsection{Domain-specific Features}
+By inspecting the samples produced by RNNs trained on the base chorale corpus,
+an immediate problem found was that the output was \emph{tonally unstable}. That
+is, compositions will start in a particular key and wander into an unrelated
+key: an effect that is both jarring to the listener and uncharacteristic of the
+target genre.
+
+This stemmed from the fact that the corpus contains compositions in many
+different keys. The typical approach taken here is to normalise all of the
+compositions by trasposing them into a common key.
+
+\subsection{Metrical Coherence}
 
 \todo Explain ``clock'' inputs. Discuss symmetry with multiple viewpoints.
 
@@ -2432,6 +2455,144 @@ learn the key as an emergent property of each composition.
 engineering practice by testing thoroughly.
 
 \chapter{Evaluation}\label{chap:eval}
+
+The primary goal of the evaluation of this work is to compare the performance of
+the two implemented techniques on the task of generating chorale-like melodies.
+
+The first important issue to address in undertaking this is specifying what is
+meant by \emph{performance} with respect to melody generation. As with any art
+form, the success of a music generation system in the abstract sense is not
+something that can be specified objectively. However, one \emph{can} objectively
+investigate:
+\begin{itemize}
+  \item The responses of many human participants to subjective evaluation
+    criteria in an effort to generalise and draw conclusions about the opinions
+    of many more people with respect to such criteria.  
+  \item In the case of probabilistic models, such as those implemented, one can
+    use objective metrics such as a \emph{cross-entropy} loss function to
+    compare the predictive performance of models on unseen data. 
+
+    Under the assumption that the predictive performance of a generative model
+    is related to the quality of sampled outputs from the model with respect to
+    the chosen subjective evaluation criteria, one can use such metrics as an
+    indicator of generative performance. 
+    
+    There are good reasons to believe in the validity of this assumption.
+    However, these will be scrutinised throughout the course of this chapter.
+\end{itemize}
+
+We start by objectively evaluating the \emph{predictive} performance of the two
+techniques. Then, after introducing and justifying subjective evaluation
+criteria for generated outputs, we present and discuss the human evaluation
+survey, and conclude by summarising the results of the evaluation.
+
+\section{Predictive Performance}
+
+Recall from Section~\ref{sec:gen-models} that both techniques implemented in
+this work approximate the joint distribution $p(\vect{x})$ over sequences
+$\vect{x} = x_1,\ldots,x_t$ as follows:
+$$ p(\vect{x}) = p(x_t | x_{t-1}, \ldots, x_1) p(x_{t-1} | x_{t-2}, \ldots, x_1)
+\cdots p(x_1). $$
+This allows the process of \emph{predicting} a sequence of length $T$ (assigning
+probability to the sequence) to be broken down into $T$ steps. Namely, for $t
+= 1$ to $T$, compute $p(x_t | x_{t-1}, \ldots, x_1)$ where $x_1, \ldots,
+x_{t-1}$ are the known previous events in the sequence. 
+
+Consider the $i$\textsuperscript{th} step of the prediction process. Our model
+forms a distribution over possible subsequent events $x'$ in our event space
+$\zeta$:
+$$ p(x' | x_{i-1}, \ldots, x_1). $$
+Suppose that we know the ``true'' underlying distribution $q(x' |
+x_{i-1}, \ldots, x_1)$. Then the \emph{cross-entropy} between $p$ and
+$q$ is given by:
+$$ H(p,q) = - \sum_{x' \in \zeta} q(x' | x_{i-1}, \ldots, x_1) \log{ p(x' |
+x_{i-1}, \ldots, x_1)}. $$
+Of course, the underlying distribtuion $q(x' | x_{i-1}, \ldots, x_1)$ is not
+known in practice. However, we can form the \emph{degenerate distribution}
+$\widetilde{p}(x' | x_{i-1}, \ldots, x_1)$ which deterministically predicts the
+test sequence $\vect{x}$:
+$$ \widetilde{p}(x' | x_{i-1}, \ldots, x_1) \triangleq \begin{cases}
+  1 & x' = x_i \\
+  0 & \text{otherwise}
+\end{cases} $$
+Then, the cross-entropy of our model predicting $\vect{x}$ at timestep $t$ is
+just given by $H(p,\widetilde{p})$:
+$$ - \log{ p(x_t | x_{t-1}, \ldots, x_1) } $$
+giving rise to the cross-entropy sequence loss function
+$\mathcal{L}(\vect{x})$
+which is the mean cross-entropy for the sequence with respect to our model:
+$$ \mathcal{L}(\vect{x}) = - \frac{1}{T} \sum_{t = 1}^T \log_2{ p(x_t | x_{t-1},
+\ldots, x_1) }. $$
+
+Given an unseen test set $(\vect{x}_1,\ldots,\vect{x}_N)$, we then calculate the
+mean cross-entropy loss:
+$$ \frac{1}{N}\sum_{i = 1}^N \mathcal{L}(\vect{x}_i) $$
+as a measure of the predictive performance of our model.
+
+\subsection{Results}
+
+When measuring the predictive performance of our models, we are interested in
+their ability to \emph{generalise} to unseen data. For this reason, it is
+important to ensure that examples seen in the training set do not appear in the
+test set.
+
+In the case of our chosen corpus of melodies extracted from the chorale
+harmonisations of J.S.\ Bach, ensuring a hygienic partition of the data into
+training and test sets is non-trivial. Since Bach harmonised many melodies
+multiple times with variation in ornamentation and tonality, the examples must
+be partitioned based on the underlying melody. This was achieved by encoding
+this information, obtained from the \emph{Riemenschneider} edition of the
+chorale harmonisations \todo (cite?), in the corpus preparation script. 
+
+Following the process for hyperparamter optimisation described in
+Section~\ref{sec:mvs-hyperparams}, the best multiple viewpoint system (MVS) was
+found to have the following hyperpameters:
+\begin{itemize}
+  \item Viewpoints combined using geometric combination with bias set to $0.1$.
+  \item A history parameter of $6$ for viewpoints in both long- and short-term model.
+  \item The following viewpoint sets (using the notation of
+    Section~\ref{sec:impl-linked-vps}):
+\begin{verbatim}
+pitch: { 
+  pitch, (fib x duration)->intref, duration->seqint, (fib x ioi)->pitch,
+ (fib x rest)->intref, (fib x duration)->pitch, ioi->seqint,
+  duration->intref, posinbar->pitch, intref->seqint
+}
+duration: {
+ duration, posinbar->duration, (fib x pitch)->duration,
+ (fib x rest)->duration
+}
+rest: {
+ rest, (fib x duration)->rest, (fib x intref)->rest
+}
+\end{verbatim}
+
+\end{itemize}
+
+The best-performing recurrent neural network (RNN) used a semiquaver-level clock
+and was trained on the corpus with tonal inflation of $\pm 5$. The model had two
+LSTM layers with a state dimensionality of 256. Dropout was used for
+regularisation between these two layers with the probability $0.5$.  After
+training the network for 110 epochs with a learning-rate decay of $0.95$ and
+initial learning rate of $1.0$, the network obtained its optimal loss on the
+test set.
+
+The best-performing MVS achieved a cross-entropy of $2.825\ \mathrm{bits}$ on
+the test set, while the best-performing RNN achieved $2.328\ \mathrm{bits}$. For
+the MVS, this can be decomposed into $1.881\ \mathrm{bits}$ for pitch, $0.832\
+\mathrm{bits}$ for duration, and $0.113\ \mathrm{bits}$ for rest.
+
+These results show that the RNN significantly outperforms the MVS in predictive
+ability. However, one cannot immediately conclude from this that the RNN will
+generate more successful outputs when sampled from. This remains to be
+demonstrated.
+
+\subsection{Analysis}
+
+While a single figure measuring the overall performance of each model is useful,
+it is not particularly insightful. In this section, we take a more fine-grained
+approach by looking at the \emph{entropy profile} of various sequences with
+respect to each model.
 
 \chapter{Conclusion}
 
