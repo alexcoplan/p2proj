@@ -120,11 +120,12 @@ with tf.Session() as sess:
     for b in range(loader.num_batches):
       start = time.time()
       x,y = loader.next_batch()
-      clk = loader.next_clock_batch()
       feed = { 
-        model.input_data: x, model.target_data: y, model.clock_input: clk 
+        model.input_data: x, model.target_data: y 
       }
-      
+      if mode == DataLoader.Mode.MUSIC:
+        feed[model.clock_input] = loader.next_clock_batch()
+
       # for each cell in the initial state for our MultiRNNCell
       # we feed the correct bit of the initial state to the corresponding
       # (c,h) tensors (c is the lstm state, h is the hidden state)
@@ -168,10 +169,11 @@ with tf.Session() as sess:
     prev_epoch_mean_loss = mean_loss
 
   x,y = loader.test_batch
-  clk = loader.test_clock
   test_feed = { 
-    model.input_data: x, model.target_data: y, model.clock_input: clk 
+    model.input_data: x, model.target_data: y
   }
+  if mode == DataLoader.Mode.MUSIC:
+    test_feed[model.clock_input] = loader.test_clock
 
   print("test set loss:", sess.run(model.loss, test_feed))
   if config.keep_prob < 1.0 and config.num_layers > 1:

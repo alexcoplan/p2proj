@@ -17,12 +17,12 @@ class RNNMode(Enum):
 
 class ModelConfig(object):
   def __init__(self, data_loader : DataLoader) -> None:
-    self.keep_prob = 0.5
+    self.keep_prob = 1.0
     self.max_grad_norm = 5
     self.learning_rate = 1.0
-    self.num_epochs = 50
-    self.hidden_size = 256
-    self.lr_decay = 0.95
+    self.num_epochs = 100
+    self.hidden_size = 512
+    self.lr_decay = 0.98
     self.num_layers = 2
     self.mode         = data_loader.mode
     self.batch_size   = data_loader.batch_size
@@ -156,9 +156,7 @@ class Model(object):
     self.lr = tf.Variable(0.0, trainable=False, name="learning_rate")
     tf.summary.scalar('learning_rate', self.lr)
     tvars = tf.trainable_variables()
-    grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars),
-        config.max_grad_norm)
-    
+    grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars), config.max_grad_norm)
     optimizer = tf.train.GradientDescentOptimizer(self.lr)
     self.train_op = optimizer.apply_gradients(zip(grads, tvars)) # type: ignore
     

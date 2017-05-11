@@ -42,8 +42,10 @@ with tf.Session() as sess:
   if ckpt and ckpt.model_checkpoint_path:
     saver.restore(sess, ckpt.model_checkpoint_path)
     x,y = loader.test_batch
-    clk = loader.test_clock
     test_feed = { 
-      model.input_data: x, model.target_data: y, model.clock_input: clk
+      model.input_data: x, model.target_data: y
     }
+    if data_mode == DataLoader.Mode.MUSIC:
+      test_feed[model.clock_input] = loader.test_clock
+
     print("test loss:", sess.run(model.loss, feed_dict=test_feed))
