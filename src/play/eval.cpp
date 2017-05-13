@@ -455,6 +455,54 @@ void bias_grid_sweep(const corpus_t &corpus, ChoraleMVS &mvs, double max_intra,
   o << data_j;
 }
 
+void entropy_profile(
+  ChoraleMVS &mvs,
+  const std::vector<ChoraleEvent> piece,
+  const std::string &json_fname) {
+  auto pitch_xents = mvs.cross_entropies<ChoralePitch>(piece);
+  auto dur_xents   = mvs.cross_entropies<ChoraleDuration>(piece);
+  auto rest_xents  = mvs.cross_entropies<ChoraleRest>(piece);
+
+  auto pitch_dents = mvs.dist_entropies<ChoralePitch>(piece);
+  auto dur_dents   = mvs.dist_entropies<ChoraleDuration>(piece);
+  auto rest_dents  = mvs.dist_entropies<ChoraleRest>(piece);
+
+  std::vector<double> total_xents(piece.size());
+  std::vector<double> total_dents(piece.size());
+  for (unsigned int i = 0; i < piece.size(); i++) {
+    total_xents[i] = pitch_xents.at(i) + dur_xents.at(i) + rest_xents.at(i);
+    total_dents[i] = pitch_dents.at(i) + dur_dents.at(i) + rest_dents.at(i);
+  }
+
+  // compute mean for info
+  double total_xent = 0.0;
+  for (unsigned int i = 0; i < piece.size(); i++) {
+    total_xent += total_xents[i];
+  }
+  std::cout << "mean xent: " << total_xent / (double)piece.size() << std::endl;
+
+  std::map<std::string, std::vector<double>> entropy_map;
+  entropy_map.insert({"cross_entropies", total_xents});
+  entropy_map.insert({"dist_entropies", total_dents});
+
+  render(piece, entropy_map, json_fname);
+}
+
+// evaluate an MVS on a pathalogical example
+void pathalogical(ChoraleMVS &mvs, unsigned int len) {
+  std::vector<ChoraleEvent> eg;
+  KeySig ks(2); // G major
+  QuantizedDuration ts(16); // 4/4
+  MidiPitch rep_pitch(67);
+  QuantizedDuration rep_dur(4);
+  QuantizedDuration rest_dur(0);
+  ChoraleEvent prototype(ks,ts,rep_pitch,rep_dur,rest_dur);
+  for (unsigned int i = 0; i < len; i++)
+    eg.push_back(prototype);
+
+  entropy_profile(mvs, eg, "out/mvs_path_eg.json");
+}
+
 void generate(ChoraleMVS &mvs, 
               const unsigned int len, 
               const QuantizedDuration &ts_dur,
@@ -489,26 +537,7 @@ void generate(ChoraleMVS &mvs,
     }
 
     std::cout << "accepting sample." << std::endl;
-    auto pitch_xents = mvs.cross_entropies<ChoralePitch>(piece);
-    auto dur_xents   = mvs.cross_entropies<ChoraleDuration>(piece);
-    auto rest_xents  = mvs.cross_entropies<ChoraleRest>(piece);
-
-    auto pitch_dents = mvs.dist_entropies<ChoralePitch>(piece);
-    auto dur_dents   = mvs.dist_entropies<ChoraleDuration>(piece);
-    auto rest_dents  = mvs.dist_entropies<ChoraleRest>(piece);
-
-    std::vector<double> total_xents(piece.size());
-    std::vector<double> total_dents(piece.size());
-    for (unsigned int i = 0; i < piece.size(); i++) {
-      total_xents[i] = pitch_xents.at(i) + dur_xents.at(i) + rest_xents.at(i);
-      total_dents[i] = pitch_dents.at(i) + dur_dents.at(i) + rest_dents.at(i);
-    }
-
-    std::map<std::string, std::vector<double>> entropy_map;
-    entropy_map.insert({"cross_entropies", total_xents});
-    entropy_map.insert({"dist_entropies", total_dents});
-
-    render(piece, entropy_map, json_fname);
+    entropy_profile(mvs, piece, json_fname);
     return;
   }
 }
@@ -693,7 +722,7 @@ int main(void) {
   const QuantizedDuration four_four(16);
 
   const unsigned int hist    = 6;
-  const unsigned int st_hist = 3;
+  const unsigned int st_hist = 6;
 
   auto lt_config = MVSConfig::long_term_only(1.0);
   ChoraleMVS lt_only(lt_config);
@@ -745,8 +774,10 @@ int main(void) {
   double max_intra = 0.0;
   double max_inter = 0.0;
   double step = 0.02;
-  bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
-  
+  //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
+
+  pathalogical(full_mvs, 30);
+  //entropy_profile(full_mvs, test_corp.at(93), "out/evald.json");
  // generate(full_mvs, 64, three_four, "out/gend.json");
 }
 

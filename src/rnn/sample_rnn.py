@@ -69,7 +69,8 @@ with tf.Session() as sess:
         prev_str = events[sample]
         prev_dur = str_to_duration(prev_str)
         print("offset:", offset, "clock:", clock, "prev:", prev_str)
-        state, xent, dent, sample = model.clocked_sample_iter(sess, sample, clock, state)
+        state, xent, dent, sample = model.clocked_sample_iter(sess, sample,
+            clock, state)
         xentropies.append(xent)
         dentropies.append(dent)
 

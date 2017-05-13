@@ -6,7 +6,6 @@ this file provides encode/decode methods for that representation
 """
 
 # used to separate pieces in the corpus
-# we may not use this representaiton later, but this will do for now
 divtoken = "|"
 
 def encode_rest(duration):

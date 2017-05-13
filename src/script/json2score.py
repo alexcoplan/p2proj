@@ -4,7 +4,7 @@ from score_utils import render_music21
 import json
 import sys
 import argparse
-
+import numpy as np # type: ignore
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input-file", type=str, default="out/gend.json",
@@ -28,8 +28,10 @@ with open(args.input_file) as json_data:
     entropies = obj["entropies"]
     xents = entropies["cross_entropies"]
     dents = entropies["dist_entropies"]
+
+    print("Plotting entropies...")
+    print("mean xent: {}".format(np.mean(np.array(xents))))
     
-    plt.title("Entropy-time plot for RNN Sample (Random Walk)")
     h_xent, = plt.plot(xents, label="cross entropy")
     h_dent, = plt.plot(dents, label="distribution entropy")
     plt.legend(handles=[h_xent, h_dent])

@@ -19,6 +19,7 @@
 \usepackage{bm} % bold symbols in mathmode
 \usepackage{minted} % syntax highlighting
 \usepackage{csquotes}
+\usepackage{subfig}
 
 % tikz for drawing
 \usepackage{tikz}
@@ -2592,7 +2593,140 @@ demonstrated.
 While a single figure measuring the overall performance of each model is useful,
 it is not particularly insightful. In this section, we take a more fine-grained
 approach by looking at the \emph{entropy profile} of various sequences with
-respect to each model.
+respect to each model. In each profile, we show the cross-entropy: a measure of
+how poorly the model predicted each event, and the \emph{distribution entropy}:
+a measure of overall uncertainty in the prediction at each point.
+
+\begin{figure}[H]
+\centering
+
+\subfloat[RNN Entropy Profile] {
+  \label{subfig:rnn-aus-meines}
+  \includegraphics[width=220pt]{figs/rnn_aus_meines_profile.pdf}
+}
+\subfloat[MVS Entropy Profile] {
+  \label{subfig:mvs-aus-meines}
+  \includegraphics[width=220pt]{figs/mvs_aus_meines_profile.pdf}
+}
+
+\caption{Entropy profiles of models predicting Chorale Melody \emph{Aus Meines
+Herzens Grunde}}
+\label{fig:aus-meines-profiles}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+
+\subfloat[RNN Entropy Profile] {
+  \label{subfig:rnn-danket-dem}
+  \includegraphics[width=220pt]{figs/rnn_danket_dem_herrn.pdf}
+}
+\subfloat[MVS Entropy Profile] {
+  \label{subfig:mvs-danket-dem}
+  \includegraphics[width=220pt]{figs/mvs_danket_dem_herrn.pdf}
+}
+
+\caption{Entropy profiles of models predicting Chorale Melody \emph{Danket dem
+Herrn heut und allzeit}}
+\label{fig:danket-dem-profiles}
+\end{figure}
+
+\subsubsection{Pathalogical Examples}
+
+We expect our models to reject sequences that are clearly not in the chorale
+genre by assigning them a high cross-entropy (low probability). Models that do
+not do this may in fact generate such undesirable sequences when sampled. Thus,
+it is useful to test how our models behave on pathalogical inputs.
+Figure~\ref{fig:path-profiles} illustrates how each model behaves when asked to
+predict a sequence of 30 identical G crotchets.
+
+\begin{figure}[H]
+\centering
+\subfloat[RNN Entropy Profile] {
+  \label{subfig:rnn-path}
+  \includegraphics[width=220pt]{figs/rnn_path_eg.pdf}
+}
+\subfloat[MVS Entropy Profile] {
+  \label{subfig:mvs-path}
+  \includegraphics[width=220pt]{figs/mvs_path_eg.pdf}
+}
+\caption{Entropy profiles of models applied to pathalogical input}
+\label{fig:path-profiles}
+\end{figure}
+
+The MVS behaves 
+
+\section{Listening Survey}
+
+\subsection{Design and Implementation}
+
+A survey for evaluating samples from the models was implemented in the form of a
+web application. The survey stored three pools of samples: one for the MVS,
+another for the RNN, and a third for genuine chorale melodies. Initially, users
+were asked to give a self-assessment of their musical ability. Upon a user
+starting the survey, two samples would be selected from each pool at random.
+After shuffling these samples, they would be presented to the user, at which
+point they were asked, for each sample:
+\begin{enumerate}[label=\arabic*., itemsep=0mm]
+  \item To state whether the sample was composed by a human (i.e.\ a genuine
+    chorale) or a computer, as well as giving a confidence rating (from 0 to 4,
+    expressed as English labels) for this judgement.
+  \item To rate, on a Likert scale, the \emph{coherency} of the sample as a
+    musical composition.
+\end{enumerate}
+
+The decision to include a confidence rating was motivated by a discussion with
+an author of some recent related research \cite{liang2016bachbot}.
+
+Users select their musical experience from one of four tiers:
+\begin{enumerate}[label=\arabic*., itemsep=0mm]
+  \item \emph{Novice}: User listens to music, but does not play any instruments.
+  \item \emph{Intermediate}: User plays or has played an instrument, but has not
+    studied music composition.
+  \item \emph{Advanced}: User has studied music composition in a formal setting.
+  \item \emph{Expert}: User is a teacher or researcher in music.
+\end{enumerate}
+
+\todo Include distribution of experiences received?
+
+\subsection{Results}
+
+The primary subjective question asked of the survey participants was whether or
+not they believe a sample to be composed by a human or a computer. Each such
+classification was recorded along with a user-submitted confidence level on a
+scale of 0-4.
+
+Figure~\ref{fig:human-classification} summarises the user classification
+results, ignoring the user-submitted confidence metric. All error bars indicate
+the standard error from the mean value. We use the classifcation labels $+1$ to
+indicate ``human-composed'' and $-1$ to indicate ``machine-composed''.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=350pt]{figs/human_classification.pdf}
+\caption{Human/computer classification}
+\label{fig:human-classification}
+\end{figure}
+
+Figure~\ref{fig:weighted-classification} takes the user-submitted confidence
+metric into account treating each classification as a vote, and weighting it by
+the user's confidence level.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=350pt]{figs/weighted_human_classification.pdf}
+\caption{Weighted classification}
+\label{fig:weighted-classification}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figs/survey_coherency.pdf}
+\caption{Coherency}
+\label{fig:coherency}
+\end{figure}
+
+\subsection{Analysis}
 
 \chapter{Conclusion}
 
