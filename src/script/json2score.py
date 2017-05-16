@@ -12,6 +12,8 @@ parser.add_argument("--input-file", type=str, default="out/gend.json",
 parser.add_argument("--plot-entropies", default=False, action="store_true",
     help="Plot entropy data using matplotlib")
 parser.add_argument("--svg-path", type=str, default="out/entropy_plot.svg")
+parser.add_argument("--ylim", type=float, default=None,
+    help="Set ylim for plot for side-by-side consistency")
 
 args = parser.parse_args()
 
@@ -37,5 +39,7 @@ with open(args.input_file) as json_data:
     plt.legend(handles=[h_xent, h_dent])
     plt.xlabel("event number")
     plt.ylabel("entropy/bits")
+    if args.ylim is not None:
+      plt.ylim([0.0,args.ylim])
     plt.savefig(args.svg_path)
 

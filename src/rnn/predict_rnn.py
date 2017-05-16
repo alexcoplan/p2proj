@@ -19,10 +19,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--save-dir", type=str, default='save',
   help="model directory containing checkpointed models")
 parser.add_argument("--corpus-path", type=str, default=None,
-  help="path to JSON corpus from which to extract test sequence")
+  help="path to JSON corpus on which to test RNN")
 parser.add_argument("--output-file", type=str, default="out/rnn_evald.json")
-parser.add_argument("--path", default=False, action='store_true',
-  help="instead of predicting test example, run a pathalogical exmaple")
 
 args = parser.parse_args()
 
@@ -33,26 +31,16 @@ with open(os.path.join(args.save_dir, "events_vocab.pkl"), "rb") as f:
   events, vocab = pickle.load(f)
 
 # load target piece to predict
-quant = 16
+quant = 1
 
-if args.path:
-  path_len = 30
-  pitches = [67] * path_len
-  durs = [4] * path_len
-  offsets = list(map(lambda x: x*4, range(path_len)))
-  json_notes = [list(a) for a in zip(pitches,offsets,durs)]
-  ts_semis = 16
-  target = encode_json_notes(json_notes, quant, ts_semis)
-else:
-  with open(args.corpus_path, "r") as f:
-    corpus = json.load(f)["corpus"]
-    test_corpus = corpus["validate"]
-    piece = test_corpus[93]
-    ts_semis = piece["time_sig_amt"]
-    target = encode_json_notes(piece["notes"], quant, ts_semis)
+with open(args.corpus_path, "r") as f:
+  corpus = json.load(f)["corpus"]
+  test_corpus = corpus["validate"]
+  targets = map(lambda p: encode_json_notes(p["notes"], quant,
+    p["time_sig_amt"]), test_corpus)
 
 # load model
-print("Loading model...\n")
+print("Loading model...")
 
 model = Model(saved_config, op_mode=RNNMode.SAMPLE)
 with tf.Session() as sess:
@@ -64,26 +52,30 @@ with tf.Session() as sess:
   else:
     exit()
 
-  state = None
-  processed : List[str] = []
-  xentropies : List[float] = []
-  dentropies : List[float] = []
+  print("Starting prediction...")
 
-  for event_t,tick_t in zip(*target):
-    processed.append(event_t)
-    encoded = vocab[event_t]
-    state, xent, dent, _ = model.clocked_sample_iter(sess, encoded, tick_t, state)
-    xentropies.append(xent)
-    dentropies.append(dent)
+  state = None
+  seq_xents = []
+  for target in targets:
+    xentropies : List[float] = []
+    prev_event, prev_tick = target[0][0], target[1][0]
+
+    for event_t,tick_t in list(zip(*target))[1:]:
+      encoded = vocab[prev_event]
+      state, dist = model.clocked_dist_iter(sess, encoded, prev_tick, state)
+      nxt_encoded = vocab[event_t]
+      xent = float(-np.log2(dist[nxt_encoded]))
+      xentropies.append(xent)
+      prev_event, prev_tick = event_t, tick_t
+
+    seq_xents.append(float(np.mean(np.array(xentropies))))
+
+  print("Done.")
+  print("Mean xent:", np.mean(np.array(seq_xents)))
 
   json_object = {
-    "notes" : decode_events(processed),
-    "entropies" : {
-      "cross_entropies" : xentropies,
-      "dist_entropies" : dentropies
-    }
+    "xents" : seq_xents,
   }
-
   with open(args.output_file, "w") as f:
     f.write(json.dumps(json_object))
 

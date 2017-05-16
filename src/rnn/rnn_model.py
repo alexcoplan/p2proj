@@ -124,28 +124,25 @@ class Model(object):
     output = tf.reshape(tf.concat(1, outputs), [-1, hidden_units])
     softmax_w = tf.get_variable("softmax_w", [hidden_units, vocab_size])
     softmax_b = tf.get_variable("softmax_b", [vocab_size])
-    logits = tf.matmul(output, softmax_w) + softmax_b
+    self.logits = tf.matmul(output, softmax_w) + softmax_b
     
     # enusre no. of inputs matches no. of labels before computing loss
     with tf.control_dependencies([check_dims]):
       # compute a weighted cross-entropy loss
       # note that this function applies softmax to the logits for us
       # since we want to weight all logits equally, we pass all 1s for the weights
-      loss_vector = tf.nn.seq2seq.sequence_loss_by_example(
-          [logits],
-          [tf.reshape(self.target_data, [-1])],
-          [tf.ones([self.batch_size * seq_length], dtype=self.rnn_dtype)],
-          average_across_timesteps=True
-      )
+      self.loss_vector = \
+        tf.nn.sparse_softmax_cross_entropy_with_logits(
+          self.logits, tf.reshape(self.target_data, [-1]))
 
     # nb we are doing truncated backpropagation with the truncation point
     # set to seq_length
 
     # create tensor which gives our probability distribution (used for sampling)
-    self.probs = tf.nn.softmax(logits)
+    self.probs = tf.nn.softmax(self.logits)
 
     batch_size_f = tf.cast(self.batch_size, tf.float32)
-    self.loss = tf.reduce_sum(loss_vector) / (batch_size_f * seq_length)
+    self.loss = tf.reduce_sum(self.loss_vector) / (batch_size_f * seq_length)
 
     tf.summary.scalar('loss', self.loss)
     self.final_state = state
@@ -188,9 +185,28 @@ class Model(object):
 
     xent = -np.log2(dist[sample])
     dent = -np.sum(dist * np.log2(dist))
-    
+
     return state, float(xent), float(dent), sample
 
+  def clocked_dist_iter(self, sess, prev : int, clock : int, state=None):
+    override_bs = { self.batch_size: 1 }
+    if state is None:
+      state = sess.run(self.initial_multicell_state, feed_dict=override_bs)
+
+    x = np.array([[prev]])
+    clk = np.array([[clock]])
+
+    feed = {
+      self.input_data: x,
+      self.clock_input: clk
+    }
+    for i, (c,h) in enumerate(self.initial_multicell_state):
+      feed[c] = state[i].c
+      feed[h] = state[i].h
+
+    [probs,state] = sess.run([self.probs, self.final_state], feed_dict=feed)
+    dist = probs[0]
+    return state, dist
 
   def sample(self, sess, events, vocab, num, prime_events):
     # create initial state for our RNN (multi-)cell with a batch size of one

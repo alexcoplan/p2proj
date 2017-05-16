@@ -15,6 +15,7 @@ with open(args.data_file, "r") as f:
 
 model_j = survey_j["by_model"]
 sample_j = survey_j["by_sample"]
+xp_counts = survey_j["xp_counts"]
 
 xp_idxs = np.arange(4)
 
@@ -160,6 +161,15 @@ plt.xlabel("Experience")
 plt.ylabel("Weighted human/computer classification (±1)")
 plt.xticks(idxs, xp_labels)
 plt.axhline(y=0, color='k')
+ax = plt.gca()
+ax.set_ylim([-0.45,0.7])
 
+# show response/experiecne distribution
+plt.figure(4)
+plt.title("Distribution of survey responses by experience")
+plt.xlabel("Experience")
+plt.ylabel("Responses")
+plt.bar(idxs[0:4], xp_counts, width*2, color='b')
+plt.xticks(idxs[0:4], xp_labels[0:4])
 plt.show()
 

@@ -150,6 +150,28 @@ double EntropyMeasurement::project<ChoraleRest>() {
   return h_rest;
 }
 
+std::vector<EntropyMeasurement>
+evaluate_detail(const corpus_t &corpus, ChoraleMVS &mvs) {
+  std::vector<EntropyMeasurement> result;
+
+  unsigned int i = 1;
+
+  for (const auto &c : corpus) {
+    if (++i % 4 == 0)
+      std::cout << "=" << std::flush;
+
+    EntropyMeasurement point;
+    point.h_pitch    = mvs.avg_sequence_entropy<ChoralePitch>(c);
+    point.h_duration = mvs.avg_sequence_entropy<ChoraleDuration>(c);
+    point.h_rest     = mvs.avg_sequence_entropy<ChoraleRest>(c);
+    result.push_back(point);
+  }
+
+  std::cout << std::endl;
+
+  return result;
+}
+
 // returns < pitch_entropies, duration_entropies >
 std::vector<EntropyMeasurement>
 evaluate(const corpus_t &corpus, double intra_bias, double inter_bias,
@@ -713,6 +735,20 @@ void add_vps_to_optimizer(VPPool &p, MVSOptimizer &o) {
   o.add_to_pool(&p.fibxintref_p_rest);
 }
 
+void seqlevel_evaluate(const std::string &json_fname,
+  const corpus_t &corpus, ChoraleMVS &mvs) {
+  auto points = evaluate_detail(corpus, mvs);
+  std::vector<double> total_xents;
+  for (auto p : points)
+    total_xents.push_back(p.h_pitch + p.h_duration + p.h_rest);
+
+  json result_j;
+  result_j["xents"] = total_xents;
+
+  std::ofstream o(json_fname);
+  o << result_j << std::endl;
+}
+
 int main(void) {
   corpus_t train_corp;
   corpus_t test_corp;
@@ -774,11 +810,12 @@ int main(void) {
   double max_intra = 0.0;
   double max_inter = 0.0;
   double step = 0.02;
-  //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
 
-  pathalogical(full_mvs, 30);
-  //entropy_profile(full_mvs, test_corp.at(93), "out/evald.json");
- // generate(full_mvs, 64, three_four, "out/gend.json");
+  //seqlevel_evaluate("out/seqlevel.json", test_corp, full_mvs);
+  //bias_grid_sweep(test_corp, full_mvs, max_intra, max_inter, step);
+  //pathalogical(full_mvs, 30);
+  entropy_profile(full_mvs, test_corp.at(88), "out/mvs_auf_meinen.json");
+  //generate(full_mvs, 64, three_four, "out/gend.json");
 }
 
 

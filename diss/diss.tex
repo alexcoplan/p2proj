@@ -452,7 +452,7 @@ achieve state-of-the-art results in sequence prediction \cite{zaremba2014recurre
 
 In the connectionist literature on modelling music, $n$-gram models are often
 used as a baseline approach (e.g.\ \cite{boulanger2012modeling}
-\cite{liang2016bachbot}). However, such $n$-gram models are typically only
+\cite{liangbachbot}). However, such $n$-gram models are typically only
 models of the surface structure, and sophisticated models such as multiple
 viewpoint systems are not usually considered.
 
@@ -2223,6 +2223,29 @@ necessary to accept a candidate viewpoint.
   \end{algorithmic}
 \end{algorithm}
 
+The best-performing MVS was found to have the following hyperparameters:
+\begin{itemize}
+  \item Viewpoints combined using geometric combination with bias set to $0.1$.
+  \item A history parameter of $6$ for viewpoints in both long- and short-term model.
+  \item The following viewpoint sets (using the notation of
+    Section~\ref{sec:impl-linked-vps}):
+\begin{verbatim}
+pitch: { 
+  pitch, (fib x duration)->intref, duration->seqint, (fib x ioi)->pitch,
+ (fib x rest)->intref, (fib x duration)->pitch, ioi->seqint,
+  duration->intref, posinbar->pitch, intref->seqint
+}
+duration: {
+ duration, posinbar->duration, (fib x pitch)->duration,
+ (fib x rest)->duration
+}
+rest: {
+ rest, (fib x duration)->rest, (fib x intref)->rest
+}
+\end{verbatim}
+
+\end{itemize}
+
 \section{Recurrent Neural Network}
 
 \subsection{Overview}
@@ -2450,6 +2473,16 @@ compositions by trasposing them into a common key.
 
 \todo Explain ``clock'' inputs. Discuss symmetry with multiple viewpoints.
 
+\subsection{Hyerparameters}
+
+The best-performing recurrent neural network (RNN) used a semiquaver-level clock
+and was trained on the corpus with tonal inflation of $\pm 5$. The model had two
+LSTM layers with a state dimensionality of 256. Dropout was used for
+regularisation between these two layers with the probability $0.5$.  After
+training the network for 110 epochs with a learning-rate decay of $0.95$ and
+initial learning rate of $1.0$, the network obtained its optimal loss on the
+test set.
+
 \section{Testing and Debugging}
 
 \todo Get lots of points and stickers for demonstrating good software
@@ -2489,6 +2522,8 @@ survey, and conclude by summarising the results of the evaluation.
 
 \section{Predictive Performance}
 
+\subsection{Loss Function}
+
 Recall from Section~\ref{sec:gen-models} that both techniques implemented in
 this work approximate the joint distribution $p(\vect{x})$ over sequences
 $\vect{x} = x_1,\ldots,x_t$ as follows:
@@ -2517,8 +2552,8 @@ $$ \widetilde{p}(x' | x_{i-1}, \ldots, x_1) \triangleq \begin{cases}
   0 & \text{otherwise}
 \end{cases} $$
 Then, the cross-entropy of our model predicting $\vect{x}$ at timestep $t$ is
-just given by $H(p,\widetilde{p})$:
-$$ - \log{ p(x_t | x_{t-1}, \ldots, x_1) } $$
+given by: 
+$$ H(p,\widetilde{p}) = - \log{ p(x_t | x_{t-1}, \ldots, x_1) } $$
 giving rise to the cross-entropy sequence loss function
 $\mathcal{L}(\vect{x})$
 which is the mean cross-entropy for the sequence with respect to our model:
@@ -2542,93 +2577,117 @@ harmonisations of J.S.\ Bach, ensuring a hygienic partition of the data into
 training and test sets is non-trivial. Since Bach harmonised many melodies
 multiple times with variation in ornamentation and tonality, the examples must
 be partitioned based on the underlying melody. This was achieved by encoding
-this information, obtained from the \emph{Riemenschneider} edition of the
-chorale harmonisations \todo (cite?), in the corpus preparation script. 
+this information by hand, using the \emph{Riemenschneider} edition of the
+chorale harmonisations, in the corpus preparation script. 
 
-Following the process for hyperparamter optimisation described in
-Section~\ref{sec:mvs-hyperparams}, the best multiple viewpoint system (MVS) was
-found to have the following hyperpameters:
-\begin{itemize}
-  \item Viewpoints combined using geometric combination with bias set to $0.1$.
-  \item A history parameter of $6$ for viewpoints in both long- and short-term model.
-  \item The following viewpoint sets (using the notation of
-    Section~\ref{sec:impl-linked-vps}):
-\begin{verbatim}
-pitch: { 
-  pitch, (fib x duration)->intref, duration->seqint, (fib x ioi)->pitch,
- (fib x rest)->intref, (fib x duration)->pitch, ioi->seqint,
-  duration->intref, posinbar->pitch, intref->seqint
-}
-duration: {
- duration, posinbar->duration, (fib x pitch)->duration,
- (fib x rest)->duration
-}
-rest: {
- rest, (fib x duration)->rest, (fib x intref)->rest
-}
-\end{verbatim}
+For the purposes of evaluation, we shall consider the best model (determined by
+the cross-entropy loss on the test set) for each technique. For the multiple
+viewpoint system (MVS), this was obtained by following the hyperparamter
+optimisation process described in Section~\ref{sec:mvs-hyperparams}. For the
+recurrent neural network (RNN), the hyperparameters were chosen by hand.
 
-\end{itemize}
+With 95\% confidence, the MVS obtained a cross-entropy of $2.826 \pm 0.071\
+\mathrm{bits}/\mathrm{event}$ on the test set, while the RNN obtained a
+cross-entropy of $3.017 \pm 0.078\ \mathrm{bits}/\mathrm{event}$. Thus, with
+$95\%$ confidence, our best-performing MVS outperforms the RNN in terms of
+predictive ability.  
 
-The best-performing recurrent neural network (RNN) used a semiquaver-level clock
-and was trained on the corpus with tonal inflation of $\pm 5$. The model had two
-LSTM layers with a state dimensionality of 256. Dropout was used for
-regularisation between these two layers with the probability $0.5$.  After
-training the network for 110 epochs with a learning-rate decay of $0.95$ and
-initial learning rate of $1.0$, the network obtained its optimal loss on the
-test set.
-
-The best-performing MVS achieved a cross-entropy of $2.825\ \mathrm{bits}$ on
-the test set, while the best-performing RNN achieved $2.328\ \mathrm{bits}$. For
-the MVS, this can be decomposed into $1.881\ \mathrm{bits}$ for pitch, $0.832\
-\mathrm{bits}$ for duration, and $0.113\ \mathrm{bits}$ for rest.
-
-These results show that the RNN significantly outperforms the MVS in predictive
-ability. However, one cannot immediately conclude from this that the RNN will
-generate more successful outputs when sampled from. This remains to be
-demonstrated.
+While these results indicate that the MVS might generate more successful outputs
+when sampled from, this remains to be demonstrated. We continue with a more
+fine-grained analysis of the predictive performance of the models, and then turn
+to analysing the outputs directly.
 
 \subsection{Analysis}
 
-While a single figure measuring the overall performance of each model is useful,
-it is not particularly insightful. In this section, we take a more fine-grained
-approach by looking at the \emph{entropy profile} of various sequences with
-respect to each model. In each profile, we show the cross-entropy: a measure of
-how poorly the model predicted each event, and the \emph{distribution entropy}:
-a measure of overall uncertainty in the prediction at each point.
+Measuring the overall performance of each model in a single number is useful,
+but it is not particularly insightful. In this section, we take a more
+fine-grained approach by looking at the \emph{entropy profile} of various
+sequences with respect to each model. In each profile, we show the
+cross-entropy: a measure of how poorly the model predicted each event, and the
+distribution entropy: a measure of overall uncertainty in the prediction
+at each point.
 
 \begin{figure}[H]
 \centering
-
-\subfloat[RNN Entropy Profile] {
+\subfloat[RNN (mean loss: $3.602\ \mathrm{bits}$)] {
   \label{subfig:rnn-aus-meines}
   \includegraphics[width=220pt]{figs/rnn_aus_meines_profile.pdf}
 }
-\subfloat[MVS Entropy Profile] {
+\subfloat[MVS (mean loss: $3.332\ \mathrm{bits}$)] {
   \label{subfig:mvs-aus-meines}
   \includegraphics[width=220pt]{figs/mvs_aus_meines_profile.pdf}
 }
 
-\caption{Entropy profiles of models predicting Chorale Melody \emph{Aus Meines
-Herzens Grunde}}
+\subfloat[Input chorale \emph{Aus Meines Herzens Grunde}] {
+  \label{subfig:aus-meines-score}
+  \includegraphics[width=0.9\linewidth]{figs/aus_meines_score.pdf}
+}
+\caption{Entropy profiles of models predicitng example unseen chorale}
 \label{fig:aus-meines-profiles}
+\end{figure}
+
+Figure~\ref{fig:aus-meines-profiles} shows a side-by-side comparison of the two
+models on a melody from the test set. At position \textbf{A}, we have direct
+re-use of the initial melodic material. At \textbf{B}, we have a related but
+distinct middle section, and at position \textbf{C}, the opening material
+returns. It can be seen that, in this case, the MVS predicts unseen material
+more successfully than the RNN, while the RNN predicts re-used material slightly
+better.
+
+Figure~\ref{fig:danket-dem-profiles} gives an example where the MVS outperforms
+the RNN. The note at position \textbf{A} is unexpected by both models, but
+several orders of magnitude more so by the RNN. \textbf{B} indicates the start
+of the second phrase, and \textbf{C} indicates the return of material from
+\textbf{A}. In this case, unlike the RNN, the MVS predicts the re-used material
+particularly well. This success might be attributable to the short-term model.
+
+Figure~\ref{fig:als-der-profiles} shows one of the (few) examples where the RNN
+outperforms the MVS. Some of the melodies in the corpus, such as this one, are
+written with rests in between phrases. The positions of the rests in the melody
+are given by \textbf{A}, \textbf{B}, and \textbf{C}. It can be seen that the RNN
+handles these better, in particular predicting the rest at position \textbf{C}
+accurately.
+
+\begin{figure}[H]
+\centering
+
+\subfloat[RNN (mean loss: $3.044\ \mathrm{bits}$)] {
+  \label{subfig:rnn-danket-dem}
+  \includegraphics[width=220pt]{figs/rnn_danket_dem_profile.pdf}
+}
+\subfloat[MVS (mean loss: $1.849\ \mathrm{bits}$)] {
+  \label{subfig:mvs-danket-dem}
+  \includegraphics[width=220pt]{figs/mvs_danket_dem_profile.pdf}
+}
+
+\subfloat[Input chorale \emph{Danket dem Herrn heut und allzeit}] {
+  \label{subfig:danket-dem-score}
+  \includegraphics[width=0.9\linewidth]{figs/danket_dem_score.pdf}
+}
+
+\caption{Entropy profiles of chorale on which MVS significantly outperforms RNN}
+\label{fig:danket-dem-profiles}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 
-\subfloat[RNN Entropy Profile] {
-  \label{subfig:rnn-danket-dem}
-  \includegraphics[width=220pt]{figs/rnn_danket_dem_herrn.pdf}
+\subfloat[RNN (mean loss: $2.686\ \mathrm{bits}$)] {
+  \label{subfig:rnn-als-der}
+  \includegraphics[width=220pt]{figs/rnn_als_der_profile.pdf}
 }
-\subfloat[MVS Entropy Profile] {
-  \label{subfig:mvs-danket-dem}
-  \includegraphics[width=220pt]{figs/mvs_danket_dem_herrn.pdf}
+\subfloat[MVS (mean loss: $3.031\ \mathrm{bits}$)] {
+  \label{subfig:mvs-als-der}
+  \includegraphics[width=220pt]{figs/mvs_als_der_profile.pdf}
 }
 
-\caption{Entropy profiles of models predicting Chorale Melody \emph{Danket dem
-Herrn heut und allzeit}}
-\label{fig:danket-dem-profiles}
+\subfloat[Input chorale \emph{Als der gütige Gott vollenden wollt sein Wort}] {
+  \label{subfig:als-der-score}
+  \includegraphics[width=0.9\linewidth]{figs/als_der_full.pdf}
+}
+
+\caption{Entropy profiles of chorale on which RNN outperforms MVS}
+\label{fig:als-der-profiles}
 \end{figure}
 
 \subsubsection{Pathalogical Examples}
@@ -2642,41 +2701,54 @@ predict a sequence of 30 identical G crotchets.
 
 \begin{figure}[H]
 \centering
-\subfloat[RNN Entropy Profile] {
+\subfloat[RNN (mean loss: $2.566\ \mathrm{bits}$)] {
   \label{subfig:rnn-path}
-  \includegraphics[width=220pt]{figs/rnn_path_eg.pdf}
+  \includegraphics[width=220pt]{figs/rnn_path_profile.pdf}
 }
-\subfloat[MVS Entropy Profile] {
+\subfloat[MVS (mean loss: $2.248\ \mathrm{bits}$)] {
   \label{subfig:mvs-path}
-  \includegraphics[width=220pt]{figs/mvs_path_eg.pdf}
+  \includegraphics[width=220pt]{figs/mvs_path_profile.pdf}
+}
+
+\subfloat[Input Sequence] {
+  \label{subfig:path-score}
+  \includegraphics[width=0.95\linewidth]{figs/path_score.pdf}
 }
 \caption{Entropy profiles of models applied to pathalogical input}
 \label{fig:path-profiles}
 \end{figure}
 
-The MVS behaves 
+Unfortunately, neither model really rejects this pathalogical input, with both
+assigning cross-entropies below their respective mean losses on the test set. In
+the MVS, this is likely due to over-fitting of the short-term model as the
+sequence is predicted. The RNN exhibits similar behaviour where the
+cross-entropy actually decreases over time.
 
 \section{Listening Survey}
 
 \subsection{Design and Implementation}
 
 A survey for evaluating samples from the models was implemented in the form of a
-web application. The survey stored three pools of samples: one for the MVS,
-another for the RNN, and a third for genuine chorale melodies. Initially, users
-were asked to give a self-assessment of their musical ability. Upon a user
-starting the survey, two samples would be selected from each pool at random.
-After shuffling these samples, they would be presented to the user, at which
-point they were asked, for each sample:
+web application written using the web framework Ruby on
+Rails\footnote{http://rubyonrails.org/}.  The survey stored three pools of
+samples: one for the MVS, another for the RNN, and a third for genuine chorale
+melodies. Initially, users were asked to give a self-assessment of their musical
+ability. Upon a user starting the survey, two samples would be selected from
+each pool at random.  After shuffling these samples, they would be presented to
+the user, at which point they were asked, for each sample:
 \begin{enumerate}[label=\arabic*., itemsep=0mm]
-  \item To state whether the sample was composed by a human (i.e.\ a genuine
+  \item To assess whether the sample was composed by a human (i.e.\ a genuine
     chorale) or a computer, as well as giving a confidence rating (from 0 to 4,
-    expressed as English labels) for this judgement.
+    expressed with English labels) for this judgement.
   \item To rate, on a Likert scale, the \emph{coherency} of the sample as a
     musical composition.
 \end{enumerate}
 
-The decision to include a confidence rating was motivated by a discussion with
-an author of some recent related research \cite{liang2016bachbot}.
+Recent research by Liang et al.\ \cite{liangbachbot} concerning the modelling of
+four-part chorales with deep recurrent networks made use of a survey-based
+evaluation. A discussion with one of the authors on possible improvements to
+their evaluation led to the use of a user-submitted confidence metric for
+classification decisions.
 
 Users select their musical experience from one of four tiers:
 \begin{enumerate}[label=\arabic*., itemsep=0mm]
@@ -2687,7 +2759,12 @@ Users select their musical experience from one of four tiers:
   \item \emph{Expert}: User is a teacher or researcher in music.
 \end{enumerate}
 
-\todo Include distribution of experiences received?
+\begin{figure}[H]
+\centering
+\includegraphics[width=300pt]{figs/response_dist.pdf}
+\caption{Distribution of survey responses received}
+\label{fig:response-dist}
+\end{figure}
 
 \subsection{Results}
 
@@ -2699,7 +2776,9 @@ scale of 0-4.
 Figure~\ref{fig:human-classification} summarises the user classification
 results, ignoring the user-submitted confidence metric. All error bars indicate
 the standard error from the mean value. We use the classifcation labels $+1$ to
-indicate ``human-composed'' and $-1$ to indicate ``machine-composed''.
+indicate ``human-composed'' and $-1$ to indicate ``machine-composed''. The line
+$y = 0$ in the graphs is therefore the classification performance we expect from
+uninformed guessing.
 
 \begin{figure}[H]
 \centering
@@ -2726,7 +2805,13 @@ the user's confidence level.
 \label{fig:coherency}
 \end{figure}
 
-\subsection{Analysis}
+\todo Include per-sample coherency and per-sample classification?
+
+\section{Expert Evaluation}
+
+\section{Discussion}
+
+\todo Analysis of scores?
 
 \chapter{Conclusion}
 
