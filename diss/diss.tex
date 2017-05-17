@@ -1,4 +1,9 @@
-% Template for a Computer Science Tripos Part II project dissertation
+% texcount rules (ignore code + pseudocode):
+%TC:group listing 0 0
+%TC:group algorithmic 0 0
+%TC:group algorithm 0 0
+%TC:group minted 0 0
+%TC:group cases 0 0
 \documentclass[12pt,a4paper,twoside,openright]{report}
 \usepackage[UKenglish]{isodate}
 \usepackage[pdfborder={0 0 0}]{hyperref}    % turns references into hyperlinks
@@ -38,15 +43,10 @@
 \newcommand{\insharp}[0]{\sharp[raise=0.1,scale=0.8]}
 \newcommand{\inflat}[0]{\flat[raise=0.1,scale=0.8]}
 
-% check and cross
-\usepackage{pifont}
-\newcommand{\cmark}{\ding{51}}%
-\newcommand{\xmark}{\ding{55}}%
-
 \usepackage[style=numeric,backend=biber]{biblatex}
 \addbibresource{refs.bib}
 
-\usepackage{docmute}   % only needed to allow inclusion of proposal.tex
+\usepackage{docmute} % only needed to allow inclusion of proposal.tex
 
 \newcommand{\todo}{\textcolor{red}{\textbf{todo}~}}
 
@@ -998,6 +998,7 @@ common through the entire corpus.  This is especially true of music, and indeed
 the chorales, where entire melodic fragments are often re-used within a given
 chorale melody.
 
+\todo get rid of the next clause
 In a conventional MVS architecture, this is achieved explicitly by using
 entirely separate \emph{long-term} and \emph{short-term} models. The long-term
 model is trained on the entire corpus, and the short-term model just on the
@@ -1017,6 +1018,8 @@ architectural constraints are often enforced (and indeed, are in this work):
     short-term and long-term predictions using a separate bias parameter
     $b_{\mathrm{ext}}$.
 \end{itemize}
+
+\todo Transition sentence
 
 \section{Recurrent Neural Networks}\label{sec:rnn-intro}
 
@@ -2378,7 +2381,7 @@ they were largely unsuccessful. In particular, applying dropout to the
 \emph{recurrent} connections in a RNN leads to poor performance.
 
 The authors found that applying dropout only to the non-recurrent connections
-successfully prevents overfitting in a recurrent network and lead to improved
+successfully prevents overfitting in a recurrent network and led to improved
 performance on a number of tasks. In the context of the LSTM formulation of
 Section~\ref{sec:lstm-prep}, we replace:
 $$ \vect{x} = [\vect{h}_{t-1}^l, \vect{h}_t^{l-1}] $$
@@ -2530,18 +2533,23 @@ summarising the results of the evaluation.
 
 \section{Predictive Performance}
 
-\subsection{Loss Function}
-
-Recall from Section~\ref{sec:gen-models} that both techniques implemented in
-this work approximate the joint distribution $p(\vect{x})$ over sequences
-$\vect{x} = x_1,\ldots,x_t$ as follows:
+In this section we investigate the performance of the models applied to the
+problem of \emph{prediction}: the assignment of probabilities to the events in a
+sequence. Recall from Section~\ref{sec:gen-models} that both techniques
+implemented in this work approximate the joint distribution $p(\vect{x})$ over
+sequences $\vect{x} = x_1,\ldots,x_t$ as follows:
 $$ p(\vect{x}) = p(x_t | x_{t-1}, \ldots, x_1) p(x_{t-1} | x_{t-2}, \ldots, x_1)
 \cdots p(x_1). $$
-This allows the process of \emph{predicting} a sequence of length $T$ (assigning
-probability to the sequence) to be broken down into $T$ steps. Namely, for $t
-= 1$ to $T$, compute $p(x_t | x_{t-1}, \ldots, x_1)$ where $x_1, \ldots,
-x_{t-1}$ are the known previous events in the sequence. 
+This allows the process of \emph{predicting} a sequence of length $T$ to be
+broken into $T$ steps: for $t = 1$ to $T$, compute $p(x_t | x_{t-1}, \ldots,
+x_1)$ where $x_1, \ldots, x_{t-1}$ are the known previous events in the
+sequence. 
 
+
+\subsection{Loss Function}
+
+We use a \emph{cross-entropy} loss function to measure how well a model predicts
+a particular sequence, which is derived as follows.  
 Consider the $i$\textsuperscript{th} step of the prediction process. Our model
 forms a distribution over possible subsequent events $x'$ in our event space
 $\zeta$:
@@ -2551,7 +2559,7 @@ x_{i-1}, \ldots, x_1)$. Then the \emph{cross-entropy} between $p$ and
 $q$ is given by:
 $$ H(p,q) = - \sum_{x' \in \zeta} q(x' | x_{i-1}, \ldots, x_1) \log_2{ p(x' |
 x_{i-1}, \ldots, x_1)}. $$
-Of course, the underlying distribtuion $q(x' | x_{i-1}, \ldots, x_1)$ is not
+Of course, the underlying distribution $q(x' | x_{i-1}, \ldots, x_1)$ is not
 known in practice. However, we can form the \emph{degenerate distribution}
 $\widetilde{p}(x' | x_{i-1}, \ldots, x_1)$ which deterministically predicts the
 test sequence $\vect{x}$:
@@ -2573,8 +2581,7 @@ mean cross-entropy loss:
 $$ \frac{1}{N}\sum_{i = 1}^N \mathcal{L}(\vect{x}_i) $$
 as a measure of the predictive performance of our model. Since the cross-entropy
 at each timestep increases monotonically with $1/p$, it is a direct measure of
-the error in our predictions. The logarithm yields losses that lie in a
-manageable numerical range.
+the error in our predictions. 
 
 \subsection{Results}
 
@@ -2601,6 +2608,7 @@ outperforms the RNN in terms of predictive ability. While this indicates that
 the MVS might generate more successful outputs, this remains to be demonstrated.
 
 \subsubsection{Analysis}
+
 \vspace{-4mm}
 \begin{figure}[H]
 \centering
@@ -2856,19 +2864,99 @@ human-composed.
 \label{fig:coherency}
 \end{figure}
 
-\todo Do I need to do a sample-by-sample breakdown?
+\section{Discussion}
+
+\todo sample anlaysis x4
 
 \section{Expert Evaluation}
 
 \todo Waiting on email from Mark.
 
-\section{Discussion}
-
-\todo Do we need this section? Can it be the conclusion?
-
 \chapter{Conclusion}
 
-\todo Write me.
+\section{Summary}
+
+A multiple viewpoint system (MVS) capable of generating music was implemented.
+The implementation provides a general framework for MVS construction and
+specialises this framework to the chorale genre. A recurrent neural network
+(RNN) for generating music, incorporating domain-specific extensions, was
+implemented. Both models meet the success criteria of the project.
+
+The best-performing MVS was found to outperform the best RNN in its ability to
+generalise and predict unseen chorale melodies. I conjectured that the MVS would
+therefore produce more successful musical compositions when sampled. The results
+from a listening survey taken by over 100 participants support this hypothesis.
+Since both objective quantitative evaluation of the models and subjective
+evaluation of their outputs have been performed, all the success criteria of the
+project have been fulfilled. 
+
+These results indicate that the implemented MVS is a superior system for the
+generation of melody to the RNN. While we clearly cannot generalise this claim
+to all recurrent networks, viewpoint systems, or musical genres, it demonstrates
+that a MVS is capable of outperforming models employing sophisticated techniques
+from the field of deep learning.
+
+\section{Contributions}
+
+An open source framework for implementing multiple viewpoint systems was
+released under the permissive MIT license in the hope to accelerate future work
+in this area. 
+
+In this work, we generalised viewpoint combination bias parameters to take on
+real values. Empirically, we observed the convexity of the loss surface with
+respect to these parameters. Demonstrating this formally and applying techniques
+from convex optimisation to eliminate these hyperparameters would be a
+possible direction for future work.
+
+\section{Reflection}
+
+There were many choices to be made in refining the project proposal and carrying
+out the implementation. In general, my choices of libraries, languages, tools,
+and software engineering strategy were all found to be very effective in
+accomplishing this. \texttt{C++}, with its flexible and powerful template
+system, proved to be an excellent choice for the MVS implementation.
+TensorFlow's abstraction of the computational graph was found to be ideal for
+the RNN implementation, and the library enabled the expedient development
+necessitated by the time-consuming MVS implementation.
+
+A discussion of our results with an expert musicologist revealed that including
+\emph{fermata} in our chorale representation might have led to greatly
+improved peformance of both models, since the models would no longer have to
+infer phrase strucutre. These were initially omitted in the hope of improved
+generality.
+
+In hindsight, a more sophistcated PPM variant, such as PPM C or D, might have
+led to considerably improved MVS performance \cite{pearce2004combining}. While
+evaluating the project, I also discovered that the PPM implementation could be
+re-written to take the time complexity from quadratic to linear.  This would
+yield an estimated $100$-fold speedup in prediction time using the current
+viewpoints, and even greater speedup for viewpoints with larger domains. I plan
+to extend the open-source implementation with this linear-time variant, as well
+as more sophisticated PPM escape methods.
+
+Due to time constraints, the hyperparameters for both models were chosen based
+on a single (carefully-chosen) train/test split.  Cross validation would provide
+a more robust basis for hyperparameter selection, and should be employed in
+future work.
+
+\section{Future Work}
+
+Tools for the automatic generation of lifting and reification code from a
+high-level specification would be invaluable for future research on viewpoint
+systems. Additionally, applying more recent deep learning methods such as
+\emph{recursive} neural networks or \emph{generative adversarial networks} to
+music would provide interesting directions for future research.
+
+\section{Closing Remarks}
+
+Our results call into question the contentious issue of whether deep learning
+can truly replace feature engineering. In the modelling of music, it is often
+desirable to model specific styles, such as the works of a single composer. For
+such tasks, the vast quantities of data required to employ deep models are
+simply not available. In conclusion, while deep learning has achieved
+state-of-the-art results in a number of areas, we should not lose sight of the
+effectiveness of specialised models with carefully-engineered features applied
+to modest datasets.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % the bibliography
