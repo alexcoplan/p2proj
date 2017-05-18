@@ -4,6 +4,7 @@
 %TC:group algorithm 0 0
 %TC:group minted 0 0
 %TC:group cases 0 0
+%TC:macro \sref [ignore]
 \documentclass[12pt,a4paper,twoside,openright]{report}
 \usepackage[UKenglish]{isodate}
 \usepackage[pdfborder={0 0 0}]{hyperref}    % turns references into hyperlinks
@@ -109,7 +110,7 @@ College:            & \bf St Catharine's College                     \\
 Project Title:      & \bf A Comparison of Statistical Models and Recurrent
 Neural Networks for the \newline Generation of Music \\
 Examination:        & \bf Computer Science Tripos -- Part II, July 2017  \\
-Word Count:         & 12,914 \\
+Word Count:         & 11,980 \\
 Project Originator: & Alex Coplan \\
 Supervisor:         & Matthew Ireland                    \\ 
 \end{tabular}
@@ -400,7 +401,7 @@ evaluated, with the conclusions presented in Chapter~\ref{chap:conc}.
 \section{Choice of Techniques}
 
 Despite the strong performance of multiple viewpoint systems (MVSs) when applied
-to music, as discussed in Section~\ref{sec:context-of-work}, they are rarely
+to music, as discussed in \sref{sec:context-of-work}, they are rarely
 used as a baseline approach or compared with mainstream machine learning
 techniques such as neural networks. The reasons for this, we argue, are
 three-fold:
@@ -890,7 +891,7 @@ In a MVS, this is achieved explicitly with separate \emph{long-term} and
 corpus, and the short-term model (STM) just on the sequence being predicted or
 generated. Figure~\ref{fig:mvs-arch} illustrates this architecture: viewpoint
 combination is indicated by $\oplus$, and is performed as per
-Section~\ref{sec:vp-comb}.
+\sref{sec:vp-comb}.
 
 In order to control the number of hyperparameters, the following architectural
 constraints are enforced:
@@ -1029,7 +1030,7 @@ $\vect{h}_t^L$ as the output vector at time $t$.
 A deep RNN is specified by a transition function from previous to current
 states:
 $$ \delta : \vect{h}_t^{l-1}, \vect{h}_{t-1}^l \rightarrow \vect{h}_t^l $$
-so a basic RNN as per Section~\ref{sec:rnn-intro} can be specified as:
+so a basic RNN as per \sref{sec:rnn-intro} can be specified as:
 $$ \delta(\vect{h}_{t-1}^l, \vect{h}_t^{l-1}) = f(\vect{W}^l_x [\vect{h}_{t-1}^l,
 \vect{h}_t^{l-1}] + \vect{b}^l_x) $$
 where $\vect{W}^l_x \in \mathbb{R}^{2n \times n}$, $\vect{b}^l_x \in
@@ -1176,14 +1177,14 @@ orthogonal components which could be completed in two-week sprints and
 individually tested. Code reviews were performed with the project supervisor at
 the end of each sprint. 
 
-Unit tests were assmebled from hand calculations and data taken from examples in
+Unit tests were assembled from hand calculations and data taken from examples in
 key papers. Using this method, an error was discovered in the example context
 model data from Conklin\ \& Witten's 1995 paper \cite{conklin1995viewpoints}.
 
 \texttt{C++} code was written using modern language features and followed the
 \texttt{C++} mantra of \emph{Resource Allocation is Initialisation} (RAII) which
 prevented memory leaks in the vast majority of cases. The unique memory leak was
-due to a missing virtual destructor in the root of the prediciton stack. This
+due to a missing virtual destructor in the root of the prediction stack. This
 was debugged using \texttt{valgrind}\footnote{http://valgrind.org/} running
 inside a Linux container for reproducibility and due to recent conflicting
 changes in macOS, my development platform of choice.
@@ -1197,7 +1198,7 @@ repository\footnote{https://github.com/alexcoplan/p2proj}.
 \section{Corpus Preparation and Analysis}\label{sec:corpus-prep-analysis}
 
 The high-level description of the chosen representation in
-Section~\ref{sec:corp-rep} was made concrete by using a JSON format to encode
+\sref{sec:corp-rep} was made concrete by using a JSON format to encode
 the chorales. JSON was chosen due to readily-available library support in both
 Python and \texttt{C++}, as well as its human-readable nature, so as to simplify
 the debugging process. This JSON format was used for musical I/O of both models.
@@ -1228,7 +1229,7 @@ Figure~\ref{fig:chorale-excerpt} exemplifies this format.
 
 Analysis was performed on the corpus in order to better understand its musical
 characteristics. This informed the construction of \texttt{C++} classes to
-represent musical types, as well as corpus preprocessing techniques utilisted in
+represent musical types, as well as corpus preprocessing techniques utilised in
 the RNN implementation. Figures~\ref{fig:key-dist} and \ref{fig:range-dist}
 demonstrate this analysis.
 
@@ -1267,14 +1268,14 @@ A complete framework for implementing Multiple Viewpoint Systems in \verb!C++!
 has been implemented and released as an open source project for others to use.
 Since no existing framework was available, this had to be implemented from
 scratch. The framework implements the formalism detailed in
-Section~\ref{sec:mvs-formalism} in full. I chose to make the implementation as
+\sref{sec:mvs-formalism} in full. I chose to make the implementation as
 general as possible so that it may be of use in other contexts in the future. 
 
 This general framework was then specialised to model the chorales. At the core
 of the framework, the \emph{prediction by partial match} (PPM) algorithm was
 implemented for smoothing variable-order context models. The distributions
 predicted by these context models are combined using the entropy-weighted
-schemes described in Section~\ref{sec:vp-comb}.
+schemes described in \sref{sec:vp-comb}.
 
 Abstractions were made such that, using these primitives, \emph{basic},
 \emph{derived}, \emph{linked}, and \emph{triply-linked} viewpoints can be
@@ -1286,7 +1287,7 @@ algorithm in the form of \emph{forward step-wise selection}
 
 The principal design strategy of the implementation was to achieve a tight
 correspondence between the \texttt{C++} type system and the formalism of
-multiple viewpoints detailed in Section~\ref{sec:mvs-formalism}. This was
+multiple viewpoints detailed in \sref{sec:mvs-formalism}. This was
 considered desirable for two main reasons:
 \begin{itemize}
   \item A correspondence between the \texttt{C++} type system and MVS formalism
@@ -1399,7 +1400,7 @@ the implementation.
   \item \texttt{TrieNode<b>} implements a trie with branching factor \texttt{b}.
   \item Using this data structure, \texttt{ContextModel<b>} implements a context
     model over an alphabet of size \texttt{b}, as per
-    Section~\ref{sec:ctx-model-prep}.   
+    \sref{sec:ctx-model-prep}.   
   \item A unified representation for domain-specific types is used throughout.
     Examples include basic types such as \texttt{ChoralePitch} and
     \texttt{ChoraleDuration}, derived types such as \texttt{ChoraleInterval} and
@@ -1409,14 +1410,14 @@ the implementation.
     domain-specific types.
   \item \texttt{EventDistribution<T>} represents a probability distribution over
     a type \texttt{T}. It supports random sampling as well as multiple
-    distribution combination schemes as per Section~\ref{sec:vp-comb}. Objects
+    distribution combination schemes as per \sref{sec:vp-comb}. Objects
     of this type are returned by \texttt{SequenceModel} objects when predicting
     the next event in a sequence.
   \item All viewpoints implement the \texttt{Predictor<EventSpace,T>} template
     interface. These are outlined in Figure~\ref{fig:uml-prediction}. Such
     objects contain an underlying \texttt{SequenceModel} object and support the
     operations of \emph{lifting} and \emph{reification} as per
-    Section~\ref{sec:mvs-formalism}.
+    \sref{sec:mvs-formalism}.
   \item \texttt{ChoraleVPLayer} is a container for sets of viewpoints over the
     chorale-specific types, used to implement both the \emph{long-term} and
     \emph{short-term} model.
@@ -1429,7 +1430,7 @@ the implementation.
 
 \subsection{Context Models}
 
-Recall from Section~\ref{sec:ctx-model-prep} that a context model populates a
+Recall from \sref{sec:ctx-model-prep} that a context model populates a
 database of examples during training and subsequently uses an inference
 procedure to perform prediction by matching contexts against the database. We
 first tackle the construction of the underlying data structure, and then turn to
@@ -1467,7 +1468,7 @@ $h$-grams at the tail of the sequence (with the window at the far right).
 
 \subsubsection{Implementing PPM}\label{subsec:ppm-imp}
 
-Recall from the discussion in Section~\ref{sec:ctx-model-prep} that care must be
+Recall from the discussion in \sref{sec:ctx-model-prep} that care must be
 taken to ensure the normalisation of distributions predicted by PPM.
 Algorithm~\ref{alg:ppm-a} details pseudocode for PPM A with exclusion which I
 derived from high-level descriptions in the literature. 
@@ -1576,7 +1577,7 @@ abstract context models by providing an interface in terms of viewpoint types.
 This is the job of a class which we call \texttt{SequenceModel}.  Specifically,
 \texttt{SequenceModel<T>} is a wrapper around an instance of
 \texttt{ContextModel<T::cardinality>} for \texttt{T} a viewpoint type
-represented as per Section~\ref{sec:cpp-event-rep}. 
+represented as per \sref{sec:cpp-event-rep}. 
 
 Additionally, given some context, \texttt{SequenceModel<T>} objects generate
 probability distributions over subsequent events by iterating the PPM
@@ -1596,7 +1597,7 @@ There are various techniques for combining probability distributions in a MVS.
 In line with the Agile development methodology, I initially implemented an
 entropy-weighted arithmetic combination scheme in order to get a working result
 at an early stage. Later, on the basis of its superior performance
-(Section~\ref{sec:vp-comb}), I decided to implement a geometric scheme for
+(\sref{sec:vp-comb}), I decided to implement a geometric scheme for
 viewpoint combination.  
 
 In order to cleanly express distribution combination with a standard interface,
@@ -1627,7 +1628,7 @@ yet allow the choice of a different underlying implementation, I utilised the
 \end{figure}
 
 \texttt{ArithmeticComb} implements the weighted arithmetic formula given in
-Section~\ref{sec:vp-comb}. \texttt{GeometricComb} is a direct implementation of
+\sref{sec:vp-comb}. \texttt{GeometricComb} is a direct implementation of
 Pearce's weighted geometric formula (\ref{eq:pearce-geometric}). However, this
 was found to suffer from numerical instability, detected through the presence of
 extremely high or infinite cross-entropy on the test set. 
@@ -1706,7 +1707,7 @@ this is not available.
 \subsection{Early Viewpoints}
 
 The event space for the chorales, determined by our choice of encoding in
-Section~\ref{sec:corpus-prep-analysis}, is:
+\sref{sec:corpus-prep-analysis}, is:
 $$ \zeta = [\mathrm{pitch}] \times [\mathrm{onset}] \times [\mathrm{duration}]
 \times [\mathrm{keysig}] \times [\mathrm{timesig}]. $$
 
@@ -1860,7 +1861,7 @@ motivating the implementation of linked viewpoints. I first implemented a
 types}, notably enabling a viewpoint linking pitch and duration.
 
 There are a few points to note about the implementation. Recall from
-Section~\ref{sec:mvs-formalism} that the formalism treats linked viewpoints as
+\sref{sec:mvs-formalism} that the formalism treats linked viewpoints as
 inherently symmetric objects in that $\tau_1 \otimes \tau_2$ predicts both
 $\tau_1$ and $\tau_2$. However, in the implementation, I chose to decouple these
 to allow the asymmetric use of linked viewpoints. Use the notation $\tau_1
@@ -1869,7 +1870,7 @@ predicts $\tau_2$.
 
 The meta-type \texttt{EventPair<P,Q>} takes viewpoint types $P,Q$ and implements
 a viewpoint type $T$ with $[T] = [P] \times [Q]$ following the convention of
-Section~\ref{sec:cpp-event-rep} for representing viewpoint types in
+\sref{sec:cpp-event-rep} for representing viewpoint types in
 \texttt{C++}. The underlying context model for a linked viewpoint over types $P$
 and $Q$ is an instance of \texttt{SequenceModel<EventPair<P,Q>>}.
 
@@ -1931,7 +1932,7 @@ a predictive type.
 
 \subsection{Hyperparameter Optimisation}\label{sec:mvs-hyperparams}
 
-Following the architectural constraints of Section~\ref{sec:mvs-arch}, the
+Following the architectural constraints of \sref{sec:mvs-arch}, the
 free hyperparameters in our model are:
 \begin{enumerate}[label=(\arabic*), itemsep=0mm]
   \item The set of viewpoints used. \label{itm:set-vps}
@@ -2062,7 +2063,7 @@ the LSTM state vectors is governed by \texttt{hidden\_size}.
 The LSTM model definition uses the default TensorFlow implementation,
 \texttt{BasicLSTMCell}. This class is simply a convenient wrapper around a
 handful of TensorFlow graph operations to define an LSTM cell as introduced in
-Section~\ref{sec:lstm-prep}. 
+\sref{sec:lstm-prep}. 
 
 \begin{listing}
   \begin{minted}[frame=single, linenos=true, fontsize=\footnotesize,
@@ -2086,7 +2087,7 @@ on a parameter \texttt{batch\_size}.
 \subsubsection{Training}
 
 To mitigate the effects of the \emph{exploding gradient problem}, described in
-Section~\ref{sec:rnn-train}, I clip the norm of gradients in the network to a
+\sref{sec:rnn-train}, I clip the norm of gradients in the network to a
 maximum value given by the hyperparameter \texttt{max\_grad\_norm}. This is a
 technique utilised by e.g.\ Graves in 2013 \cite{graves2013generating}.
 
@@ -2110,7 +2111,7 @@ After observing significant overfitting with two-layer LSTMs during training,
 dropout was applied to the connections between the LSTM layers as per Zaremba et
 al.\ \cite{zaremba2014recurrent}.
 
-In the context of the LSTM formulation of Section~\ref{sec:lstm-prep}, we
+In the context of the LSTM formulation of \sref{sec:lstm-prep}, we
 replace:
 $$ \vect{x} = [\vect{h}_{t-1}^l, \vect{h}_t^{l-1}] $$
 with
@@ -2225,7 +2226,7 @@ evaluation.
 
 In this section we investigate the performance of the models applied to the
 problem of \emph{prediction}: the assignment of probabilities to the events in a
-sequence. Recall from Section~\ref{sec:gen-models} that both techniques
+sequence. Recall from \sref{sec:gen-models} that both techniques
 implemented in this work approximate the joint distribution $p(\vect{x})$ over
 sequences $\vect{x} = x_1,\ldots,x_t$ as follows:
 $$ p(\vect{x}) = p(x_t | x_{t-1}, \ldots, x_1) p(x_{t-1} | x_{t-2}, \ldots, x_1)
@@ -2287,7 +2288,7 @@ encoded by hand in the corpus preparation script.
 
 To compare the techniques, we choose the best-performing model from each based
 on the test loss. For the MVS, this was obtained using the hyperparameter
-optimisation process of Section~\ref{sec:mvs-hyperparams}, while the RNN
+optimisation process of \sref{sec:mvs-hyperparams}, while the RNN
 hyperparameters were chosen by careful experimentation. 
 
 With 95\% confidence, the MVS obtained a cross-entropy of $2.826 \pm 0.071\
@@ -2612,7 +2613,7 @@ In hindsight, a more sophisticated PPM variant, such as PPM C or D, might have
 led to considerably improved MVS performance \cite{pearce2004combining}. I plan
 to extend the open-source implementation with these PPM methods, as well as
 implementing the linear-time PPM algorithm proposed in
-Section~\ref{subsec:ppm-imp}.
+\sref{subsec:ppm-imp}.
 
 Due to time constraints, the hyperparameters for both models were chosen based
 on a single (carefully-chosen) train/test split.  Cross validation would provide
