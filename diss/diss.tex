@@ -1014,10 +1014,6 @@ dependencies over many timesteps. The idea is to maintain additional state known
 as the \emph{cell state} which flows through the network with only minor
 \emph{linear}, \emph{pointwise} interactions.
 
-There are in fact many LSTM variants: we use the architecture of Zaremba et al.\
-\cite{zaremba2014recurrent}. Before introducing LSTMs in detail, we introduce
-the notion of deep recurrent networks.
-
 In a deep recurrent network, information is not only processed horizontally
 through time, but also vertically through $L$ hidden layers ($L > 1$). We use a
 homogeneous state representation with all states in $\mathbb{R}^n$.
@@ -1187,13 +1183,11 @@ then writing the code.
 
 \section{Corpus Preparation and Analysis}\label{sec:corpus-prep-analysis}
 
-Before implementing either model, the corpus needed to be processed and exported
-to a common format. The high-level description of the chosen representation in
+The high-level description of the chosen representation in
 Section~\ref{sec:corp-rep} was made concrete by using a JSON format to encode
-the chorales. JSON was chosen due to the readily-available library support in
-both Python and \texttt{C++}, as well as its human-readable nature, so as to
-simplify the debugging process. This JSON format was used not only for the
-corpus, but also for musical I/O of both models.
+the chorales. JSON was chosen due to readily-available library support in both
+Python and \texttt{C++}, as well as its human-readable nature, so as to simplify
+the debugging process. This JSON format was used for musical I/O of both models.
 Figure~\ref{fig:chorale-excerpt} exemplifies this format. 
 
 \vspace{4mm}
@@ -1219,16 +1213,17 @@ Figure~\ref{fig:chorale-excerpt} exemplifies this format.
 \label{fig:chorale-excerpt}
 \end{figure}
 
+Analysis was performed on the corpus in order to better understand its musical
+characteristics. This informed the construction of \texttt{C++} classes to
+represent musical types, as well as corpus preprocessing techniques utilisted in
+the RNN implementation. Figures~\ref{fig:key-dist} and \ref{fig:range-dist}
+demonstrate this analysis.
+
 Tonality metadata was extracted in the form of key signatures represented as
 integers in $[-7,7]$, where a positive number indicates the sharps, and a
 negative number flats. Time signatures are represented as the number of
 semiquavers in a bar, which suffices to distinguish \lilyTimeSignature{3}{4} and
 \lilyTimeSignature{4}{4}, the two time signatures used in the chorales.
-
-Alternative representations such as a list of accidentals to represent a key
-signature, or an exact representation of the time signature were considered.
-However, these representations are wasteful in space, and are superfluous in
-that they represent data that do not occur in the corpus.
 
 \begin{figure}[H]
 \centering
@@ -1243,18 +1238,6 @@ that they represent data that do not occur in the corpus.
 \caption{Histogram showing distribution of pitch range in chorales}
 \label{fig:range-dist}
 \end{figure}
-
-In addition to extracting melodies from the \texttt{music21} chorale corpus and
-encoding them in our JSON format, the corpus preparation script performs
-analysis on the corpus to determine the domains of musical types in our corpus.
-That is, the script computes the sets of pitches, durations, intervals, etc.\
-that occur in the chorales, and stores these as metadata along with the corpus. 
-
-This informed the representation of musical types as \texttt{C++} classes (see
-Section~\ref{sec:cpp-event-rep}). Figures~\ref{fig:key-dist} and
-\ref{fig:range-dist} exemplify the analysis performed on the corpus. By
-preprocessing the corpus, we also factor out this work from the point at which
-data is ingested into each model.
 
 \section{Multiple Viewpoint System}
 
@@ -1439,14 +1422,8 @@ procedure to perform prediction by matching contexts against the database. We
 first tackle the construction of the underlying data structure, and then turn to
 inference.
 
-Given an example sequence $e_1^k$, we need to extract $h$-grams from this
-sequence in order to populate the trie data structure. The procedure for this
-can be thought of as passing a sliding window over the input sequence and
-generating subsequences. This procedure is detailed in
-Algorithm~\ref{alg:sliding-window} and illustrated in
-Figure~\ref{fig:hgram-extract}.
-
-\vspace{4mm}
+The procedure for extracting $h$-grams from an example sequence $e_1^k$is
+detailed in Algorithm~\ref{alg:sliding-window}.
 
 \begin{algorithm}[H]
   \caption{Sliding window algorithm for $h$-gram extraction}
@@ -1464,13 +1441,6 @@ Figure~\ref{fig:hgram-extract}.
     \EndFunction
   \end{algorithmic}
 \end{algorithm}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=250pt]{figs/sliding_window_tmp.jpg}
-\caption{Illustration of the $h$-gram extraction algorithm with $\hbar = 3$}
-\label{fig:hgram-extract}
-\end{figure}
 
 The function \Call{add-or-increment}{$e_i^j$} looks up $e_i^j$ in the trie. If
 found, its count is incremented. Otherwise, $e_i^j$ is inserted into the trie,
@@ -1548,6 +1518,13 @@ $(\alpha,\beta,\gamma,\delta,\alpha,\gamma,\alpha,\delta)$.
 \label{fig:ppm-stepwise}
 \end{figure}
 
+Observe that Algorithm~\ref{alg:ppm-a} has time complexity $O(\hbar|[\tau]|)$.
+To form a full distribution over $\tau$ requires $|[\tau]|$ iterations of this
+algorithm giving a quadratic complexity of $O(\hbar|[\tau]|^2)$. After
+completing and profiling the implementation, I realised that PPM can in fact
+generate this distribution in linear time by constructing the entire
+distribution simultaneously.
+
 \subsection{Event Representation}\label{sec:cpp-event-rep}
 
 In order to abstract the low-level \texttt{ContextModel} implementation and to
@@ -1572,13 +1549,6 @@ To interface with the context model implementation, it suffices for each
 viewpoint type $\tau$ to specify a well-known enumeration of $[\tau]$. The class
 outlined in Listing~\ref{lst:event-rep} is a minimal example of how a class can
 conform to this type representation convention.
-
-Note that this is nothing more than a convention. Conformance to this convention
-is not enforced \emph{explicitly} by any particular language feature. However,
-if a class that does not conform to this convention is passed to a template
-expecting a viewpoint type, this can still be caught at compile time due to
-template substitution failure, e.g.\ when a template class attempts to access
-\cppi{T::cardinality}.
 
 Many templates in the implementation accept viewpoint types represented in this
 way. I also chose to implement an iterator \texttt{EventEnumerator<T>} to
@@ -2064,27 +2034,6 @@ To improve on this, I utilised Python 3.6's \emph{type annotations} along with
 the static type checker \texttt{mypy}\footnote{http://mypy-lang.org} which was
 found to be highly effective at catching problems early and improving the
 overall efficiency of Python development.
-
-\subsection{Input Representation}
-
-Before implementing the RNN itself, I implemented a module to ingest
-data from corpora. Specifically, this \texttt{DataLoader} module takes a source
-corpus and determines a \emph{vocabulary} $\Sigma$ for the source. The source is
-then encoded using an enumeration of $\Sigma$ and split into mini-batch
-matrices. 
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=100pt]{figs/rnn_frontend.jpg}
-\caption{RNN front-end}
-\label{fig:rnn-frontend}
-\end{figure}
-
-Importantly, the \texttt{DataLoader} module manages train and test data
-separately: for text, $10\%$ of the text is kept aside as test data. I chose to
-delegate the train/test split of musical data to the corpus preparation stage
-since this needs particular care. The split is therefore specified in the
-\texttt{JSON} file. 
 
 \subsection{Core Model Implementation}
 
