@@ -26,6 +26,8 @@
 \usepackage{csquotes}
 \usepackage{subfig}
 
+\newcommand{\sref}[1]{Section~\ref{#1}}
+
 % tikz for drawing
 \usepackage{tikz}
 \usepackage{tikz-uml}
@@ -700,12 +702,11 @@ contexts.  Figure~\ref{fig:generalise} illustrates this problem.
 \end{figure}
 
 An obvious approach to achieve generalisation would be to model some or all of
-the $\tau_i$ \emph{independently}. To see this, consider that while there is
-some correlation between e.g.\ pitch and duration, much of the rhythmic
-regularity in music is pitch-independent. Hence, it might be effective to model
-duration independently of all other attributes. Similarly, Fragment (b) of
-Figure~\ref{fig:generalise} motivates modelling \emph{pitch} independently of
-duration.
+the $\tau_i$ \emph{independently}. While there is some correlation between e.g.\
+pitch and duration, much of the rhythmic regularity in music is
+pitch-independent. Hence, it might be effective to model duration independently
+of other attributes. Similarly, Fragment (b) of Figure~\ref{fig:generalise}
+motivates modelling \emph{pitch} independently of duration.
 
 Furthermore, complex languages such as music can be viewed using many abstract
 interpretations. A simple example is the \emph{melodic contour} with domain
@@ -758,9 +759,8 @@ $$
 
 Viewpoints over product types are known as \emph{linked viewpoints}. 
 
-Note that one can also make use of \emph{threaded viewpoints}: those defined
-only at certain fixed intervals in a sequence. However, these are considered out
-of scope for this work.
+Note that \emph{threaded viewpoints}, those defined only at certain fixed
+intervals in a sequence, are considered out of scope for this work.
 
 In order to train a viewpoint of type $\tau$, we need to provide the
 underlying context model with sequences in $[\tau]^*$. To obtain such sequences
@@ -1169,15 +1169,28 @@ perform the backwards pass through the network during training were handled
 automatically. TensorFlow \cite{abadi2016tensorflow}, with its abstraction of
 the \emph{computational graph}, was considered the ideal tool for this purpose.
 
-\section{Software Engineering Methodology}
+\section{Software Engineering}
 
-I decided to adopt an \emph{Agile} development methodology when undertaking the
-implementation. Agile was chosen primarily for the flexibility offered in the
-face of changing timescales and requirements.
+An Agile development methodology was adopted to divide the implementation into
+orthogonal components which could be completed in two-week sprints and
+individually tested. Code reviews were performed with the project supervisor at
+the end of each sprint. 
 
-For the MVS implementation, I decided to use a largely test-driven development
-strategy, writing unit tests based on calculations or data given in papers and
-then writing the code. 
+Unit tests were assmebled from hand calculations and data taken from examples in
+key papers. Using this method, an error was discovered in the example context
+model data from Conklin\ \& Witten's 1995 paper \cite{conklin1995viewpoints}.
+
+\texttt{C++} code was written using modern language features and followed the
+\texttt{C++} mantra of \emph{Resource Allocation is Initialisation} (RAII) which
+prevented memory leaks in the vast majority of cases. The unique memory leak was
+due to a missing virtual destructor in the root of the prediciton stack. This
+was debugged using \texttt{valgrind}\footnote{http://valgrind.org/} running
+inside a Linux container for reproducibility and due to recent conflicting
+changes in macOS, my development platform of choice.
+
+The project and dissertation source code were kept under version control using
+Git\footnote{https://git-scm.com/} and pushed to an online
+repository\footnote{https://github.com/alexcoplan/p2proj}.
 
 \chapter{Implementation}\label{chap:impl}
 
@@ -1452,7 +1465,7 @@ requires a context model that can be updated online during sequence prediction.
 Therefore, context models also implement a method which extracts just those
 $h$-grams at the tail of the sequence (with the window at the far right).
 
-\subsubsection{Implementing PPM}
+\subsubsection{Implementing PPM}\label{subsec:ppm-imp}
 
 Recall from the discussion in Section~\ref{sec:ctx-model-prep} that care must be
 taken to ensure the normalisation of distributions predicted by PPM.
@@ -1579,12 +1592,12 @@ parameterised on types. Any viewpoint class modelling an underlying type
 
 \subsection{Distribution Combination}
 
-As mentioned in Section~\ref{sec:vp-comb}, there are various techniques for
-combining probability distributions in a MVS. In line with the Agile development
-methodology, I initially implemented an entropy-weighted arithmetic combination
-scheme in order to get a working result at an early stage. Later, on the basis
-of its superior performance (Section~\ref{sec:vp-comb}), I decided to implement
-a geometric scheme for viewpoint combination.  
+There are various techniques for combining probability distributions in a MVS.
+In line with the Agile development methodology, I initially implemented an
+entropy-weighted arithmetic combination scheme in order to get a working result
+at an early stage. Later, on the basis of its superior performance
+(Section~\ref{sec:vp-comb}), I decided to implement a geometric scheme for
+viewpoint combination.  
 
 In order to cleanly express distribution combination with a standard interface,
 yet allow the choice of a different underlying implementation, I utilised the
@@ -2590,19 +2603,16 @@ the RNN implementation, and the library enabled the expedient development
 necessitated by the time-consuming MVS implementation.
 
 A discussion of our results with an expert musicologist revealed that including
-\emph{fermata} in our chorale representation might have led to greatly
-improved performance of both models, since the models would no longer have to
-infer phrase structure. These were initially omitted in the hope of improved
+\emph{fermata} in our chorale representation might have led to greatly improved
+performance of both models, since the models would no longer have to infer
+phrase structure. These were initially omitted in the hope of improved
 generality.
 
 In hindsight, a more sophisticated PPM variant, such as PPM C or D, might have
-led to considerably improved MVS performance \cite{pearce2004combining}. While
-evaluating the project, I also discovered that the PPM implementation could be
-re-written to take the time complexity from quadratic to linear.  This would
-yield an estimated $100$-fold speedup in prediction time using the current
-viewpoints, and even greater speedup for viewpoints with larger domains. I plan
-to extend the open-source implementation with this linear-time variant, as well
-as more sophisticated PPM escape methods.
+led to considerably improved MVS performance \cite{pearce2004combining}. I plan
+to extend the open-source implementation with these PPM methods, as well as
+implementing the linear-time PPM algorithm proposed in
+Section~\ref{subsec:ppm-imp}.
 
 Due to time constraints, the hyperparameters for both models were chosen based
 on a single (carefully-chosen) train/test split.  Cross validation would provide
@@ -2616,6 +2626,7 @@ high-level specification would be invaluable for future research on viewpoint
 systems. Additionally, applying more recent deep learning methods such as
 \emph{recursive} neural networks or \emph{generative adversarial networks} to
 music would provide interesting directions for future research.
+
 
 \section{Closing Remarks}
 
