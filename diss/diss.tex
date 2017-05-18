@@ -471,7 +471,25 @@ probabilistic models.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=400pt]{figs/high_level_tmp.jpg}
+\begin{tikzpicture}[-latex,auto,node distance=1.5cm]
+\tikzstyle{n} = [draw,shape=rectangle]
+\tikzset{every text node part/.style={align=center}}
+%% nodes for t = 0
+\node[n] (ctx) {Context\\$(e_1,\ldots,e_k)$};
+\node (model) [right = 1.0cm of ctx] {\textbf{Generative}\\\textbf{Model}};
+\node[n] (MVS) [above= 0.3cm of model] {MVS};
+\node[n] (RNN) [below= 0.3cm of model] {RNN};
+\node[n] (dist) [right= 1.0cm of model] {Prediction\\$p(e' | e_1, \ldots, e_k)$ };
+\node[n] (sample) [right= 0.8cm of dist] {Sample\\$e_{k+1}$};
+
+\path (ctx) edge (MVS) 
+      (ctx) edge (RNN)
+      (MVS) edge (dist)
+      (RNN) edge (dist)
+      (dist) edge (sample);
+
+\path (sample) edge [dashed,out=90,in=90,anchor=north,looseness=0.45] (ctx);
+\end{tikzpicture}
 \caption{Overview of probabilistic sequence generation}
 \label{fig:seq-gen-overview}
 \end{figure}
@@ -647,9 +665,44 @@ This recursive formulation can be somewhat misleading, as the notation implies
 that (\ref{eq:ppm-general}) gives rise to properly normalised probability
 distributions. This is in fact not the case. 
 
+\vspace{4mm}
 \begin{figure}[H]
 \centering
-\includegraphics[width=400pt]{figs/problematic_trie_tmp.jpg}
+\begin{tikzpicture}[-latex,auto,node distance=1.5cm]
+\tikzstyle{n} = [draw,shape=rectangle]
+\tikzset{every text node part/.style={align=center}}
+%% nodes for t = 0
+\node[n] (root) {$() : 6$};
+\node[n] (b) [below of=root] {$\beta : 2$};
+\node[n] (a) [left =2.0cm of b] {$\alpha : 3$};
+\node[n] (ag) [below of=a,gray,dashed] {$\alpha\gamma : 0$};
+\node[n] (ab) [left of=ag] {$\alpha\beta : 2$};
+\node[n] (aa) [left of=ab] {$\alpha\alpha : 1$};
+\node[n] (ae) [right of=ag] {$\alpha\epsilon : 1$};
+\node[n] (bg) [below of=b] {$\beta\gamma : 1$};
+\node[n] (g) [right of=b] {$\gamma : 1$};
+\node[n] (ga) [below of=g] {$\gamma\alpha : 1$};
+\node[n] (e) [right of=g] {$\epsilon : ?$};
+\node (h1) [right of=e] {$h = 1$};
+\node (h0) [above of=h1] {$h = 0$};
+\node (h2) [below of=h1] {$h = 2$};
+
+\path (root) edge (a)
+  (root) edge (b)
+  (root) edge (g)
+  (root) edge (e)
+  (a) edge (aa)
+  (a) edge (ab)
+  (a) edge (ag)
+  (a) edge (ae)
+  (b) edge (bg)
+  (g) edge (ga);
+
+\path (ae) edge [bend right,red,dashed] (a)
+      (ae) edge [red,dashed] (b)
+      (ae) edge [red,dashed] (g);
+
+\end{tikzpicture}
 \caption{Trie demonstrating lack of normalisation in standard PPM.}
 \label{fig:bad-ppm-trie}
 \end{figure}
@@ -874,7 +927,46 @@ later implement the geometric scheme.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=250pt]{figs/mvs_arch_tmp.jpg}
+\scalebox{1.2}{
+\begin{tikzpicture}[-latex,auto,node distance=1.0cm]
+\tikzstyle{n} = [draw,shape=rectangle]
+\tikzstyle{op} = [draw,shape=circle, inner sep=-0.04cm, outer sep=0]
+\tikzstyle{wrap} = [draw,gray,dashed,shape=rectangle, minimum height=1.8cm,
+minimum width=4.4cm]
+\tikzset{every text node part/.style={align=center}}
+\node[n] (st1) {$\tau_1$};
+\node[n] (st2) [right of=st1] {$\tau_2$};
+\node (stdots) [right of=st2] {$\cdots$};
+\node[n] (stN) [right of=stdots] {$\tau_N$};
+\node[op] (stcomb) [below right=0.7cm and 0.0cm of st2] {\Large$+$};
+\node (stmlab) [above right=0.3cm and -0.5cm of st1] {Short-term Model};
+\node (stbias) [below=0.0cm of stcomb] {$b_{\mathrm{int}}$};
+\node[wrap] (stwrap) [below=-0.75cm of stmlab] {};
+
+\node[n] (lt1) [right = 1.5cm of stN] {$\tau_1$};
+\node[n] (lt2) [right of=lt1] {$\tau_2$};
+\node (ltdots) [right of=lt2] {$\cdots$};
+\node[n] (ltN) [right of=ltdots] {$\tau_N$};
+\node (ltlab) [above right=0.3cm and -0.5cm of lt1] {Long-term Model};
+\node[op] (ltcomb) [below right=0.7cm and 0.0cm of lt2] {\Large$+$};
+\node (ltbias) [below=0.0cm of ltcomb] {$b_{\mathrm{int}}$};
+\node[wrap] (ltwrap) [below=-0.75cm of ltlab] {};
+
+\node[op] (comb) [below right=2.0cm and 2.3cm of stcomb] {\Large$+$};
+\node (extbias) [above=0.0cm of comb] {$b_{\mathrm{ext}}$};
+\node (pred) [below=0.8cm of comb] {Final Prediction};
+
+\path (st1) edge (stcomb) 
+  (st2) edge (stcomb) 
+  (stN) edge (stcomb)
+  (lt1) edge (ltcomb)
+  (lt2) edge (ltcomb)
+  (ltN) edge (ltcomb)
+  (stcomb) edge (comb)
+  (ltcomb) edge (comb)
+  (comb) edge (pred);
+\end{tikzpicture}
+}
 \caption{Typical MVS architecture}
 \label{fig:mvs-arch}
 \end{figure}
@@ -905,18 +997,11 @@ constraints are enforced:
     using a separate bias parameter $b_{\mathrm{ext}}$.
 \end{itemize}
 
-\vspace{8mm}
+\vspace{6mm}
 
 We now turn to our second technique of choice: recurrent neural networks.
 
 \section{Recurrent Neural Networks}\label{sec:rnn-intro}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=400pt]{figs/high_level_rnn_tmp.jpg}
-\caption{Overview of music generation using RNN}
-\label{fig:rnn-gen-overview}
-\end{figure}
 
 RNNs can be formulated as a dynamical system with a state evolving over time.
 Given an initial state $\vect{h}_0$ and input data $\vect{x}_t \in
@@ -1143,8 +1228,8 @@ For example, an LSTM that also considers the previous cell state
 $\vect{c}_{t-1}^l$ when evaluating the gate units (equations (\ref{eq:lstm-f})
 through (\ref{eq:lstm-d})) is known as an LSTM with \emph{peephole} connections.
 Generally, LSTM variants have only been shown to achieve marginal performance
-improvements from the standard LSTM architecture. We shall only consider the
-architecture described thus far.
+improvements from the standard LSTM architecture \cite{greff2016lstm}. We shall
+only consider the architecture described thus far.
 
 \subsection{Regularisation}
 
@@ -1259,7 +1344,25 @@ semiquavers in a bar, which suffices to distinguish \lilyTimeSignature{3}{4} and
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=400pt]{figs/high_level_mvs_tmp.jpg}
+\begin{tikzpicture}[-latex,auto,node distance=1.5cm]
+\tikzstyle{n} = [draw,shape=rectangle]
+\tikzset{every text node part/.style={align=center}}
+%% nodes for t = 0
+\node[n] (ctx) {Context\\$(e_1,\ldots,e_k)$};
+\node (model) [right = 1.0cm of ctx] {\textbf{Generative}\\\textbf{Model}};
+\node[n] (MVS) [above= 0.3cm of model,line width=0.5mm,blue] {\textbf{MVS}};
+\node[n] (RNN) [below= 0.3cm of model,gray] {RNN};
+\node[n] (dist) [right= 1.0cm of model] {Prediction\\$p(e' | e_1, \ldots, e_k)$ };
+\node[n] (sample) [right= 0.8cm of dist] {Sample\\$e_{k+1}$};
+
+\path (ctx) edge[thick,blue] (MVS) 
+      (ctx) edge[gray] (RNN)
+      (MVS) edge[thick,blue] (dist)
+      (RNN) edge[gray] (dist)
+      (dist) edge (sample);
+
+\path (sample) edge [dashed,out=90,in=90,anchor=north,looseness=0.45] (ctx);
+\end{tikzpicture}
 \caption{Overview of music generation using MVS}
 \label{fig:mvs-gen-overview}
 \end{figure}
@@ -2020,6 +2123,31 @@ to accept a candidate viewpoint.
 
 \subsection{Overview}
 
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[-latex,auto,node distance=1.5cm]
+\tikzstyle{n} = [draw,shape=rectangle]
+\tikzset{every text node part/.style={align=center}}
+%% nodes for t = 0
+\node[n] (ctx) {Context\\$(e_1,\ldots,e_k)$};
+\node (model) [right = 1.0cm of ctx] {\textbf{Generative}\\\textbf{Model}};
+\node[n] (MVS) [above= 0.3cm of model,gray] {MVS};
+\node[n] (RNN) [below= 0.3cm of model,blue,line width=0.5mm] {\textbf{RNN}};
+\node[n] (dist) [right= 1.0cm of model] {Prediction\\$p(e' | e_1, \ldots, e_k)$ };
+\node[n] (sample) [right= 0.8cm of dist] {Sample\\$e_{k+1}$};
+
+\path (ctx) edge [gray] (MVS) 
+      (ctx) edge[thick,blue] (RNN)
+      (MVS) edge [gray] (dist)
+      (RNN) edge[thick,blue] (dist)
+      (dist) edge (sample);
+
+\path (sample) edge [dashed,out=90,in=90,anchor=north,looseness=0.45] (ctx);
+\end{tikzpicture}
+\caption{Overview of music generation using RNN}
+\label{fig:rnn-gen-overview}
+\end{figure}
+
 A multi-layer LSTM recurrent neural network (RNN) was implemented in Python
 using TensorFlow \cite{abadi2016tensorflow}. The network uses \emph{dropout} for
 regularisation as per Zaremba et al.\ \cite{zaremba2014recurrent}. A decoupled
@@ -2179,11 +2307,6 @@ Magenta\footnote{https://magenta.tensorflow.org/2016/07/15/lookback-rnn-attentio
 and feed the current \emph{bar position} as an additional input to the network.
 This allows the network to act on global metrical information in addition to
 local information. This modification was found to largely eliminate this issue.
-
-%\section{Testing and Debugging}
-%
-%\todo Get lots of points and stickers for demonstrating good software
-%engineering practice by testing thoroughly.
 
 \chapter{Evaluation}\label{chap:eval}
 
