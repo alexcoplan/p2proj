@@ -76,6 +76,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Title
+%TC:ignore
 
 \pagestyle{empty}
 
@@ -131,7 +132,7 @@ All that has been completed appears in this dissertation.
 
 \section*{Special Difficulties}
 
-\todo
+None.
  
 \newpage
 \section*{Declaration}
@@ -159,6 +160,7 @@ any substantial extent for a comparable purpose.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % now for the chapters
+%TC:endignore
 
 \pagestyle{headings}
 
@@ -188,7 +190,7 @@ observation to make is that music has a rich underlying structure: modelling the
 statistics of notes directly (the \emph{surface structure}) is insufficient to
 capture the complex language of musical style. This observation motivated the
 development of more sophisticated models, known as \emph{multiple viewpoint
-systems} \cite{conklin1995viewpoints}.  A multiple viewpoint system exploits the
+systems} \cite{conklin1995viewpoints}. A multiple viewpoint system exploits the
 rich underlying event structure of complex languages by combining the
 predictions of an ensemble of Markov models, each modelling a different
 attribute of the event space.
@@ -459,12 +461,11 @@ novel comparison between two sophisticated yet contrasting approaches.
 
 \section{Structure}
 
-In the following chapter, we introduce the supporting theory and background
-for the chosen techniques, as well as justifying the decisions made in
-order to refine the proposal ahead of the implementation.
-Chapter~\ref{chap:impl} then details the implementation itself. In
-Chapter~\ref{chap:eval}, the implemented models are evaluated, with the
-conclusions presented in Chapter~\ref{chap:conc}.
+In the following chapter, we introduce the necessary background for the chosen
+techniques, as well as justifying the decisions made in order to refine the
+proposal ahead of the implementation.  Chapter~\ref{chap:impl} then details the
+implementation itself. In Chapter~\ref{chap:eval}, the implemented models are
+evaluated, with the conclusions presented in Chapter~\ref{chap:conc}.
 
 \chapter{Preparation}
 
@@ -537,7 +538,7 @@ also considered; however, the possibility of bias in the evaluation due to
 users' familiarity with the samples was of concern.
 
 An internal format for melody based on a widely-used representation in the
-multiple viewpoint system literature (e.g.\ \cite{conklin1995viewpoints}) was
+MVS literature (e.g.\ \cite{conklin1995viewpoints}) was
 decided on. Musical time is quantised with a quantum of
 $1/16$\textsuperscript{th} notes (semiquavers), since this is the smallest note
 value encountered in the corpus.
@@ -631,11 +632,10 @@ notation which will be used throughout this section.
 
 \subsection{Context Models}\label{sec:ctx-model-prep}
 
-The central primitive underlying a multiple viewpoint system is the
-\emph{context model}. In general, a context model over some type $\tau$ is a
-data structure storing sequences in $[\tau]^*$ together with a contextual
-inference procedure exploiting the Markov assumption (\ref{eq:markov-asmptn}) to
-predict distributions over $[\tau]$. 
+The central primitive underlying a MVS is the \emph{context model}. In general,
+a context model over some type $\tau$ is a data structure storing sequences in
+$[\tau]^*$ together with a contextual inference procedure exploiting the Markov
+assumption (\ref{eq:markov-asmptn}) to predict distributions over $[\tau]$. 
 
 The underlying data structure is initially specialised from example sequences.
 The inference procedure later makes predictions by matching inputs contexts
@@ -900,7 +900,7 @@ as a \emph{multiple viewpoint system} (MVS).
 
 A MVS decomposes this task by predicting $e_{k+1}$ componentwise. Out of all the
 viewpoints in the system, consider just those viewpoints capable of predicting
-some $\tau_i$. At each timestep, given the context $e_1^k$, $N$ of these
+some $\tau_i$. At each timestep, given the context $e_1^k$, $N$ such
 viewpoints will \emph{activate}, meaning they predict a distribution for
 $\tau_i$. This section concerns techniques for the combination of $N$ such
 distributions to form an overall prediction. In particular, we consider
@@ -935,17 +935,29 @@ $$ \hat{H}(i) \triangleq \begin{cases}
   1 & \text{otherwise.}
 \end{cases} $$
 
-Finally, so that we can favour distributions with lower $\hat{H}$ (lower
-uncertainty), we introduce an exponential bias $b \in \mathbb{R}_0^+$:
-$$ w_i = \hat{H}(i)^{-b}. $$
+Finally, to favour distributions with lower $\hat{H}$ (lower uncertainty), we
+introduce an exponential bias $b \in \mathbb{R}_0^+$: $$ w_i = \hat{H}(i)^{-b}.
+$$
 
 Note that we do not restrict $b$ to integer values, as is commonly done in the
-literature \cite{whorley2013phd}. Pearce \cite{pearce2004improved} introduces a
-new method for combining viewpoint predictions which outperforms arithmetic
-schemes: namely, a \emph{weighted geometric mean}:
+literature \cite{whorley2013phd}. 
+
+Pearce \cite{pearce2004improved} introduces a new method for distribtuion
+combination which outperforms arithmetic schemes: a \emph{weighted geometric
+mean}:
 $$ p(j) = \frac{1}{Z} \left( \prod_{i = 1}^N p_i(j)^{w_i} \right)^{ \frac{1}{
 \sum_{i = 1}^N w_i }} $$
 where $Z$ is a normalisation constant, and the $w_i$ are calculated as before.
+
+Figure~\ref{fig:dist-comb-plot} shows the effect of using these two schemes on
+some example distributions. It can be seen that a very low probability
+prediction from one distribution has considerably more bearing with the
+geometric scheme. Note also that when combining distributions $C$ and $D$, since
+$D$ has much lower entropy (greater certainty), it has considerably
+more effect on the overall result under both schemes.
+
+I chose to first implement the arithmetic scheme as a baseline approach and
+later implement the geometric scheme.
 
 \begin{figure}[H]
 \centering
@@ -953,16 +965,6 @@ where $Z$ is a normalisation constant, and the $w_i$ are calculated as before.
 \caption{Plots illustrating distribution combination schemes ($b = 2$)}
 \label{fig:dist-comb-plot}
 \end{figure}
-
-Figure~\ref{fig:dist-comb-plot} shows the effect of using these two schemes on
-some example distributions. It can be seen that a very low probability
-prediction from one distribution has considerably more bearing with the
-geometric scheme. Note also that when combining distributions $C$ and $D$, since
-$D$ has much lower entropy (and thus greater certainty), it has considerably
-more effect on the overall result under both schemes.
-
-I chose to first implement the arithmetic scheme as a baseline approach and
-later implement the geometric scheme.
 
 \subsection{MVS Architecture}\label{sec:mvs-arch}
 
@@ -980,26 +982,26 @@ common through the entire corpus.  This is especially true of music, and indeed
 the chorales, where entire melodic fragments are often re-used within a given
 chorale melody.
 
-In a MVS, this is achieved explicitly by using separate \emph{long-term} and
-\emph{short-term} models. The long-term model is trained on the entire corpus,
-and the short-term model solely on the sequence being predicted or generated.
-Figure~\ref{fig:mvs-arch} illustrates this architecture: viewpoint combination
-is indicated by $\oplus$, and is performed as per Section~\ref{sec:vp-comb}.
+In a MVS, this is achieved explicitly separate \emph{long-term} and
+\emph{short-term} models. The long-term model (LTM) is trained on the entire
+corpus, and the short-term model (STM) just on the sequence being predicted or
+generated.  Figure~\ref{fig:mvs-arch} illustrates this architecture: viewpoint
+combination is indicated by $\oplus$, and is performed as per
+Section~\ref{sec:vp-comb}.
 
-In order to keep the number of hyperparameters under control, the following
-architectural constraints are often enforced (and indeed, are in this work):
+In order to control the number of hyperparameters, the following architectural
+constraints are enforced:
 \begin{itemize}
   \item The same set of viewpoints $\set{\tau_1, \ldots, \tau_N}$ is used in both
-    the long-term and short-term model. 
-  \item The viewpoints in the long-term model all have the same order bound
-    $h_l$. Similarly, those in the short-term model all have order bound $h_s$.
-  \item The viewpoint combination within each of these two models is performed
-    using the same bias parameter $b_{\mathrm{int}}$ and the combination of the
-    short-term and long-term predictions using a separate bias parameter
-    $b_{\mathrm{ext}}$.
+    the LTM and STM. 
+  \item The viewpoints in the LTM all have order bound $h_l$. Similarly, those
+    in the STM have order bound $h_s$.
+  \item Viewpoint combination within the LTM and STM is performed using the same
+    bias parameter $b_{\mathrm{int}}$ and the combination of their predictions
+    using a separate bias parameter $b_{\mathrm{ext}}$.
 \end{itemize}
 
-\vspace{4mm}
+\vspace{8mm}
 
 We now turn to our second technique of choice: recurrent neural networks.
 
@@ -1014,10 +1016,9 @@ a RNN evolves as per (\ref{eq:dyn-sys}) for $t \in \mathbb{N}$.
   \label{eq:dyn-sys}
 \end{equation} 
 
-The output
-$\vect{o}_t$ may then be a function of the hidden state $\vect{h}_t$, or indeed
-a function of both the state $\vect{h}_t$ and input vector $\vect{x}_t$. The key
-observation to make from (\ref{eq:dyn-sys}) is that the same parameters
+The output $\vect{o}_t$ may then be a function of the hidden state $\vect{h}_t$,
+or a function of both the state $\vect{h}_t$ and input vector $\vect{x}_t$. The
+key observation to make from (\ref{eq:dyn-sys}) is that the same parameters
 $\vect{\theta}$ are used at each iteration of $f$. 
 
 We can usefully represent such a network as a \emph{computational graph}. Figure
@@ -1049,9 +1050,7 @@ The algorithm used for training a RNN, known as \emph{backpropagation through
   gradient contributions from each timestep and update the weights accordingly
   by gradient descent.
 
-Even in a RNN that is \emph{spatially} shallow (i.e.\ with a
-single layer at each timestep), unfolding the computational graph results in a
-graph that is very deep: the network itself is \emph{temporally deep}. With the
+Unfolding the computational graph for an RNN yields a very deep graph. With the
 choice of $f$ in a basic RNN, the repeated composition of an affine
 transformation and nonlinearity can exhibit highly nonlinear behaviour. While
 this can be desirable, granting the network much expressive power, training such
@@ -1064,13 +1063,13 @@ networks can be problematic.
 \label{fig:exploding-grad}
 \end{figure}
 
-One such problem in deep networks is that the high-dimensional surface of our
-loss function with respect to the weights can exhibit sharp ``cliffs'' where the
-gradient is very large \cite{Goodfellow-et-al-2016}: this is known as the
-\emph{exploding gradient problem}, illustrated in
-Figure~\ref{fig:exploding-grad}. The negative effects of this problem on
-training can largely be mitigated by \emph{clipping} the norm of the gradient to
-some maximum value during training.
+One such problem in deep networks is known as the \emph{exploding gradient
+problem}, where the high-dimensional surface of our loss function with respect
+to the weights exhibits sharp ``cliffs'' where the gradient is very large
+\cite{Goodfellow-et-al-2016}. However, the negative effects of this problem on
+training, illustrated in Figure~\ref{fig:exploding-grad}, can largely be
+mitigated by \emph{clipping} the the gradients to some maximum norm during
+training.
 
 \subsubsection{Long-term dependencies}
 
@@ -1079,13 +1078,13 @@ gradient problem}. This is caused not only by the network being very deep, but
 in particular by the repeated application of $f$ with the same parameters at
 each timestep.
 
-Here, we follow of Goodfellow et al.\ \cite{Goodfellow-et-al-2016} and refer to
+Here, we follow Goodfellow et al.\ \cite{Goodfellow-et-al-2016} and refer to
 Hochreiter and Schmidhuber \cite{hochreiter1997long} for a deeper treatment.
 This argument makes several simplifying assumptions, but clearly illustrates how
 the problem might arise.
 
 Suppose we simplify the function composition in a neural network to simply apply
-matrix multiplication (with no inputs, biases, or nonlinearities). The
+matrix multiplication (no inputs, biases, or nonlinearities). The
 recurrence relation: 
 $$ \vect{h}_t = \vect{W}^\top \vect{h}_{t-1} $$ 
 describes the evolution of such a network. A straightforward induction shows:
@@ -1098,46 +1097,43 @@ $$ \vect{h}_t = (\vect{Q}^\top \vect{\Lambda}^t \vect{Q}) \vect{h}_0. $$
 As $t \rightarrow \infty$, any eigenvalues with magnitude less than $1$ will
 vanish, and those with magnitude greater than $1$ will explode. The problem of
 vanishing and exploding gradients comes from the fact that gradients through the
-graph of a such a (simplified) network are \emph{also} scaled according to
+graph of such a (simplified) network are \emph{also} scaled according to
 $\vect{\Lambda}^t$ \cite{Goodfellow-et-al-2016}.
 
 Complex languages such as music require a good predictor to learn long-term
 dependencies in sequences. However, if the gradient vanishes in this manner as
 we calculate gradients further back in time, then gradient descent will
-experience an exponential slow-up in learning such dependencies. Eventually,
-we will also encounter numerical problems with gradients of sufficiently small
-magnitude. For this reason, learning long-term dependencies with basic RNNs is
-considered intractable.
+experience an exponential slow-up in learning such dependencies. For this
+reason, learning long-term dependencies with basic RNNs is considered
+intractable.
 
 \subsection{Long Short-Term Memory}\label{sec:lstm-prep}
 
 In 1997, Hochreiter and Schmidhuber discovered a radically different RNN
 architecture known as \emph{long short-term memory} (LSTM)
-\cite{hochreiter1997long}. Despite the superficial complexity of this
-architecture, it is based on a simple fundamental idea which is used to achieve
-constant gradient flow through time, thereby enabling LSTM networks to learn
-long-term dependencies over many timesteps. The idea is to maintain additional
-state known as the \emph{cell state} which flows through the network with only
-minor \emph{linear}, \emph{pointwise} interactions, protected by structures
-known as gates. 
+\cite{hochreiter1997long}. The architecture is based on a simple fundamental
+idea which is used to achieve constant gradient flow through time, thereby
+enabling LSTM networks to learn long-term dependencies over many timesteps. The
+idea is to maintain additional state known as the \emph{cell state} which flows
+through the network with only minor \emph{linear}, \emph{pointwise}
+interactions.
 
-There are in fact many variants of LSTM: we follow Zaremba et al.\
-\cite{zaremba2014recurrent} in both notational conventions and LSTM design.
-Before introducing LSTMs in detail, we shall first define some notation and
-introduce the notion of deep recurrent networks in general.
+There are in fact many LSTM variants: we follow Zaremba et al.\
+\cite{zaremba2014recurrent} in LSTM design. Before introducing LSTMs in detail,
+we first define some notation and introduce the notion of deep recurrent
+networks in general.
 
 In a deep recurrent network, information is not only processed horizontally
 through time, but also vertically through $L$ hidden layers ($L > 1$). We use a
-homogeneous state representation with all states in $\mathbb{R}^n$, including
-all input and output vectors. 
+homogeneous state representation with all states in $\mathbb{R}^n$.
 
 Let subscripts denote timesteps and superscripts denote layers so that
-$\vect{h}_t^l \in \mathbb{R}^n$ denotes the state at time $t$ in layer $l$. In
-order to represent input events $x_t$ drawn from an alphabet $\Sigma$ as vectors
-in $\mathbb{R}^n$, we use an embedding $E : \Sigma \rightarrow \mathbb{R}^n$
-which is either learned through pre-training or learned together with the
-weights for the network. Let $\vect{h}_t^0 = E(x_t)$ denote the input vector at
-time $t$ and take $\vect{h}_t^L$ as the output vector at time $t$.
+$\vect{h}_t^l \in \mathbb{R}^n$ denotes the state at time $t$ in layer $l$. To
+represent input events $x_t$ drawn from an alphabet $\Sigma$ as vectors in
+$\mathbb{R}^n$, we use an embedding $E : \Sigma \rightarrow \mathbb{R}^n$ which
+is either learned through pre-training or learned together with the weights for
+the network. Let $\vect{h}_t^0 = E(x_t)$ denote the input vector at time $t$ and
+take $\vect{h}_t^L$ as the output vector at time $t$.
 
 We can now specify a RNN with a deterministic transition function from previous
 to current states:
@@ -1155,45 +1151,44 @@ $$ \vect{o_t} = \vect{W}_y \vect{h}_t^L + \vect{b}_y $$
 where $\vect{W}_y \in \mathbb{R}^{n \times |\Sigma|}$ and $\vect{b}_y \in
 \mathbb{R}^{|\Sigma|}$. 
 
-Treating $\vect{o}_t$ as log-probabilities, we can obtain a probability
-distribution over output symbols $y_t \in \Sigma$ with a softmax activation on
-this layer:
+Treating $\vect{o}_t$ as log-probabilities, we obtain a probability distribution
+over output symbols $y_t \in \Sigma$ with a softmax activation on this layer:
 $$ p(y_t) = \mathrm{softmax}(\vect{o}_t) $$
 where for a vector $\vect{z} \in \mathbb{R}^n$, $\mathrm{softmax}(\vect{z})$ is
 given by:
 $$ \mathrm{softmax}(\vect{z})_i = \frac{ e^{z_i} }{ \sum_{j = 1}^n e^{z_j} }. $$
 
 Figure~\ref{fig:deep-rnn-arch} illustrates the general architecture of a deep
-RNN. The merging of arrows denotes \emph{vector concatenation}. We refer to the
-units $A_t^l$ as \emph{cells}, specified by the transition function $\delta$.
-Note that weight sharing occurs across time, but each layer has its own
-parameters. This makes sense since each layer processes data of a (semantically)
-different type. The initial state $\vect{h}_{\mathrm{init}}^l$ for the cells in
-the $l$\textsuperscript{th} layer is typically set to $\vect{0}$ or initialised
+RNN. The merging of arrows denotes \emph{vector concatenation}. The units
+$A_t^l$ are known as \emph{cells}, specified by the transition function
+$\delta$.  Note that weight sharing occurs across time, but not between layers.
+The initial state $\vect{h}_{\mathrm{init}}^l$ for the cells in the
+$l$\textsuperscript{th} layer is typically set to $\vect{0}$ or initialised
 randomly. 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=350pt]{figs/deep_rnn_tmp.jpg}
+\includegraphics[width=400pt]{figs/deep_rnn_tmp.jpg}
 \caption{Flow of information in deep RNN}
 \label{fig:deep-rnn-arch}
 \end{figure}
 
-We now have the necessary machinery to introduce long short-term memory cells in
-the context of deep recurrent networks. LSTM cells replace the $A_t^l$ in the
-network with a complex structure centered around carefully protecting the
-\emph{cell state}: an additional state vector $\vect{c}_t^l$ that allows data to
-flow through many timesteps without undergoing complex non-linear information
-morphing as in the case of $\vect{h}_t^l$.
-
-Therefore, our $\delta$ function for LSTMs needs to specify the temporal
-transformation of $\vect{c}_t^l$ in addition to the hidden state
-transformations:
+Since LSTMs maintian an additional cell state $\vect{c}_t^l$, the transition
+function changes to reflect this:
 $$ \delta_{\mathrm{LSTM}} : \vect{h}_{t-1}^l, \vect{h}_t^{l-1}, \vect{c}_{t-1}^l
 \rightarrow \vect{h}_t^l, \vect{c}_t^l. $$
 
 The flow of information through an LSTM network is shown in
-Figure~\ref{fig:deep-lstm-arch}.
+Figure~\ref{fig:deep-lstm-arch}. $\delta_{\mathrm{LSTM}}$ is given by equations
+(\ref{eq:lstm-f}) through (\ref{eq:lstm-d}) and illustrated in
+Figure~\ref{fig:lstm-cell}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=350pt]{figs/lstm_detail_tmp.png}
+\caption{LSTM Cell Structure}
+\label{fig:lstm-cell}
+\end{figure}
 
 \begin{figure}[H]
 \centering
@@ -1221,25 +1216,15 @@ equations (\ref{eq:lstm-c}) and (\ref{eq:lstm-h}).
   \vect{h}_t^l &= \vect{o} \ast \tanh(\vect{c}_t^l) \label{eq:lstm-h}
 \end{align}
 
-Note that, as before, the parameters are shared across timesteps but not between
-layers: layer superscripts are excluded from the parameters in the LSTM
-equations for clarity. Figure~\ref{fig:lstm-cell} shows the structure of this
-LSTM cell and interprets the LSTM equations graphically.
+Note that, as before, parameters are shared across timesteps but not between
+layers: layer superscripts are excluded from the LSTM parameters for clarity.
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=300pt]{figs/lstm_detail_tmp.png}
-\caption{LSTM Cell Structure}
-\label{fig:lstm-cell}
-\end{figure}
-
-\vspace{-2mm}
-The purpose of the cell state $\vect{c}_t^l$ is to act as a long-term memory.
-The LSTM can be understood intuitively as protecting and using this cell state
-by following three principles of selectivity:
+The purpose of the cell state $\vect{c}_t^l$ is to act as a memory.  The LSTM
+can be understood intuitively as using this cell state following three
+principles of selectivity:
 \begin{enumerate}[label=\arabic*., itemsep=0mm]
   \item \textbf{Write} selectively: only a summary of the information entering
-    the cell should be written to the protected memory.
+    the cell should be written to the cell state.
   \item \textbf{Read} selectively: only a summary of the information stored in
     the cell's memory should be included in the output state vector.
   \item \textbf{Forget} selectively: occasionally, previously-useful memories
@@ -1256,7 +1241,7 @@ principles as follows:
   \item $\vect{f}$ is known as the \emph{forget gate}: it selectively removes
     information from the previous cell state.
   \item The tanh layer $\vect{d}$ is known as the \emph{input feature}. It
-    computes data that we may wish to store in the protected cell state.
+    computes data that can be written in the protected cell state.
 \item $\vect{i}$ is known as the \emph{input gate}: it controls which data from
   the input feature gets written into the cell state.
 \item Finally, $\vect{o}$ is the \emph{output gate}: it regulates which data
@@ -1275,40 +1260,34 @@ consider the architecture described thus far.
 
 A known problem with neural networks in general is \emph{overfitting}. For deep
 feedforward networks, \emph{dropout} \cite{srivastava2014dropout} has seen
-significant success in preventing overfitting (regularisation). It was not until
-the recent work of Zaremba et al.\ \cite{zaremba2014recurrent} that it was known
-how to successfully apply dropout to recurrent networks. The authors determine
-that applying dropout to only the non-recurrent connections in the network leads
-to successful regularisation. 
+significant success in preventing overfitting (regularisation). However, it was
+not until the recent work of Zaremba et al.\ \cite{zaremba2014recurrent} that it
+was known how to successfully apply dropout to recurrent networks. The authors
+determine that applying dropout to only the non-recurrent connections in the
+network leads to successful regularisation. 
 
 \section{Choice of Libraries}
 
-The first significant choice to be made was that of a suitable library to assist
-in corpus preparation and musical I/O. Initial inspection of relevant corpora
-and their formats indicated that writing a parser for an established music
-notation format such as MusicXML would take a considerable amount of time and
-offer limited flexibility. After further research, it was decided that the
-Python package \texttt{music21}\footnote{http://web.mit.edu/music21/} would be
-utilised. \texttt{music21} is an open-source toolkit for computational
-musicology. This package was considered ideal for the task of corpus preparation
-due to the following features:
+Inspection of relevant corpora indicated that writing a parser for an
+established music notation format such as MusicXML would take a considerable
+amount of time and offer limited flexibility. It was decided that the Python
+package \texttt{music21}\footnote{http://web.mit.edu/music21/}, an open-source
+toolkit for computational musicology, would be utilised for this task. This
+package was considered ideal for the task of corpus preparation due to the
+following features:
 \begin{itemize}
   \item Built-in corpora including the Bach chorales in MusicXML format.
   \item Included parser for various music notation formats, including MusicXML.
   \item High-level features for manipulating musical data.
 \end{itemize}
 
-The other major choice of library was that of a neural network library to assist
-in the implementation of the RNN. I was specifically looking for a library where
-the level of abstraction is such that there is considerable flexibility provided
-to the user, but mundane tasks such as calculating the gradients to perform the
-backwards pass through the network during training were handled by the library.
-
-Google's TensorFlow \cite{abadi2016tensorflow}, with its primary abstraction
-being the \emph{computational graph}, was considered the ideal tool for this
-purpose.  Furthermore, TensorFlow was considered advantageous due to
-its very large user base, and therefore increased availability of information
-and support concerning the library.
+The other major choice of library was that of a library to assist in the
+implementation of the RNN. I wanted a library where the level of abstraction
+offers considerable flexibility, but mundane tasks such as calculating the
+gradients to perform the backwards pass through the network during training were
+handled automatically. Google's TensorFlow \cite{abadi2016tensorflow}, with its
+abstraction of the \emph{computational graph}, was considered the ideal tool for
+this purpose.  
 
 \section{Software Engineering Methodology}
 
@@ -1316,18 +1295,22 @@ I decided to adopt an \emph{Agile} development methodology when undertaking the
 implementation. Agile was chosen primarily for the flexibility offered in the
 face of changing timescales and requirements.
 
+For the MVS implementation, I decided to use a largely test-first development
+strategy, writing unit tests based on calculations or data given in papers and
+then writing the code.
+
 \chapter{Implementation}\label{chap:impl}
 
 \section{Corpus Preparation and Analysis}\label{sec:corpus-prep-analysis}
 
-Before implementing either model, the corpus needed to be
-processed and exported to a common format. The high-level description of the
-chosen corpus representation in Section~\ref{sec:corp-rep} was made concrete by
-using a JSON format to encode the chorales. JSON was chosen due to the
-readily-available library support in both Python and \texttt{C++}, as well as
-the human-readable nature of the format, so as to simplify the debugging
-process. This JSON format was later used not only for the corpus, but also for
-musical I/O of both models.
+Before implementing either model, the corpus needed to be processed and exported
+to a common format. The high-level description of the chosen representation in
+Section~\ref{sec:corp-rep} was made concrete by using a JSON format to encode
+the chorales. JSON was chosen due to the readily-available library support in
+both Python and \texttt{C++}, as well as the human-readable nature of the
+format, so as to simplify the debugging process. This JSON format was used not
+only for the corpus, but also for musical I/O of both models.
+Figure~\ref{fig:chorale-excerpt} exemplifies this format. 
 
 \vspace{4mm}
 \begin{minted}[frame=single, linenos=true, fontsize=\footnotesize]{js}
@@ -1352,12 +1335,9 @@ musical I/O of both models.
 \label{fig:chorale-excerpt}
 \end{figure}
 
-An example encoding of a chorale melody using this JSON representation is given
-in Figure~\ref{fig:chorale-excerpt}. 
-
 Tonality metadata was extracted in the form of key signatures represented as
 integers in $[-7,7]$, where a positive number indicates the number of sharps,
-and a negative number the number of flats.  Time signatures are represented as
+and a negative number the number of flats. Time signatures are represented as
 the number of semiquavers in a bar, which suffices to distinguish
 \lilyTimeSignature{3}{4} and \lilyTimeSignature{4}{4}, the two time signatures
 used in the chorales.
@@ -1394,8 +1374,7 @@ Section~\ref{sec:cpp-event-rep}). Figures~\ref{fig:key-dist} and
 The \texttt{music21} corpus consists of MusicXML files describing notation for
 Bach's four-part chorale harmonisations. During the corpus preparation process,
 I use \texttt{music21} to parse these XML files, extract the soprano part, and
-output the corresponding JSON, as well as performing additional processing such
-as \emph{anacrusis} detection. By preprocessing the corpus, we factor out this
+output the corresponding JSON. By preprocessing the corpus, we factor out this
 process from the point at which data is ingested into each model.
 
 \section{Multiple Viewpoint System}
@@ -1422,14 +1401,13 @@ implemented for smoothing variable-order context models. The distributions
 predicted by these context models are combined using the entropy-weighted
 schemes described in Section~\ref{sec:vp-comb}.
 
-Template-based abstractions were made such that, using these primitives, \emph{basic},
-\emph{derived}, \emph{linked}, and \emph{triply-linked} viewpoints can be
-instantiated over arbitrary combinations of types. Both a \emph{long-term}
-model, for capturing regularity throughout the corpus, and a \emph{short-term}
-model, for capturing the regularity within a composition, were implemented.
-Sampling by iterative random walk was implemented for melody generation.
-Finally, an automatic viewpoint selection algorithm in the form of \emph{forward
-step-wise selection} \cite{pearce2005construction} was implemented.
+Template-based abstractions were made such that, using these primitives,
+\emph{basic}, \emph{derived}, \emph{linked}, and \emph{triply-linked} viewpoints
+can be instantiated over arbitrary combinations of types. Both a
+\emph{long-term} model and \emph{short-term} were implemented.  Sampling by
+iterative random walk was implemented for melody generation.  Finally, an
+automatic viewpoint selection algorithm in the form of \emph{forward step-wise
+selection} \cite{pearce2005construction} was implemented.
 
 \begin{figure}[H]
 \centering
@@ -1471,35 +1449,31 @@ step-wise selection} \cite{pearce2005construction} was implemented.
 \caption{UML Class Diagram of Prediction Stack}
 \label{fig:uml-prediction}
 \end{figure}
+\vspace{4mm}
 
-The principal design strategy of the implementation was to achieve a symmetry
-and tight correspondence between the \texttt{C++} type system and the formalism
-of multiple viewpoints detailed in Section~\ref{sec:mvs-formalism}. This was
+The principal design strategy of the implementation was to achieve a tight
+correspondence between the \texttt{C++} type system and the formalism of
+multiple viewpoints detailed in Section~\ref{sec:mvs-formalism}. This was
 considered desirable for two main reasons:
 \begin{itemize}
-  \item A correspondence between the \texttt{C++} type system and MVS
-    formalism provides the basis for a clean API that should be easily
-    understood by both \texttt{C++} programmers and those familiar with the
-    formalism.
-  \item Making full use of the type system in a statically-typed language can
+  \item A correspondence between the \texttt{C++} type system and MVS formalism
+    provides the basis for an API that should be intelligble by both
+    \texttt{C++} programmers and those familiar with the formalism.
+  \item Making full use of the type system in a statically-typed language 
     enables many more potential programmer errors to be caught at compile time.
 \end{itemize}
 
 \texttt{C++} templates were considered the ideal tool to achieve this. Templates
 are \emph{flexible}, allow for considerable \emph{generality}, and are evaluated
-at compile time, achieving better safety guarantees: in particular, they
-eliminate much of the need for dynamic memory allocation, a cause of many common
-runtime issues. As we shall see, specific viewpoints are implemented by
-specialising the template classes \texttt{GeneralViewpoint} and
-\texttt{GeneralLinkedVP}. 
+at compile time, thereby achieving better safety guarantees.
 
 Despite templates being the primary means of achieving polymorphism, inheritance
-polymorphism is used to implement an abstract base class for viewpoints (see
-Figure~\ref{fig:uml-prediction}). This was done in order to unify the
+polymorphism is used to implement an abstract base class for viewpoints
+(Figure~\ref{fig:uml-prediction}). This was done in order to unify the
 otherwise-heterogeneous viewpoint types predicting each basic type. For example,
 viewpoints $\emph{duration} \otimes \emph{pitch}$, \emph{seqint}, and
-\emph{pitch} have different corresponding types, but are all predictors of
-pitch: we want to refer to them polymorphically as such.
+\emph{pitch} have different types, but are all predictors of pitch: we want to
+refer to them polymorphically as such.
 
 We now give a brief overview of the main components to gain an appreciation of
 the intent behind each component before taking a closer look at various parts of
@@ -1537,8 +1511,8 @@ the implementation.
     the chorale-specific types, used to
     implement both the \emph{long-term} and \emph{short-term} model.
   \item Finally, \texttt{ChoraleMVS} is a high-level class which manages all the
-    components of a multiple viewpoint system over chorales and provides a
-    unified interface for tasks such as \emph{prediction} and \emph{generation}.
+    components of a MVS over chorales and provides a unified interface for tasks
+    such as \emph{prediction} and \emph{generation}.
     Figure~\ref{fig:chorale-uml} illustrates how these components relate to each
     other.
 \end{itemize}
@@ -1585,20 +1559,21 @@ hierarchy}
 \label{fig:chorale-uml}
 \end{figure}
 
+\newpage
 \subsection{Context Models}
 
 Recall from Section~\ref{sec:ctx-model-prep} that a context model populates a
 database of examples during training and subsequently uses an inference
 procedure to perform prediction by matching contexts against the database. We
 first tackle the task of constructing the underlying data structure, and then
-turn to the implementation of PPM.
+turn to inference.
 
-Given an example sequence $e_1^k$, we need to extract all $h$-grams from this
+Given an example sequence $e_1^k$, we need to extract $h$-grams from this
 sequence in order to populate the trie data structure. The procedure for this
 can be thought of as passing a sliding window over the input sequence and
 generating subsequences. This procedure is detailed in
 Algorithm~\ref{alg:sliding-window} and illustrated in
-Figure~\ref{fig:hgram-extract} for an input sequence $e_1^5$.
+Figure~\ref{fig:hgram-extract}.
 
 \vspace{4mm}
 
@@ -1627,24 +1602,24 @@ Figure~\ref{fig:hgram-extract} for an input sequence $e_1^5$.
 \end{figure}
 
 The function \Call{add-or-increment}{$e_i^j$} looks up $e_i^j$ in the trie. If
-it is found, then its count is incremented. Otherwise, $e_i^j$ is inserted into
-the trie, the resulting node initialised with a count of unity. Note that $()$,
-the empty sequence, corresponds to the root node in the trie.
+found, its count is incremented. Otherwise, $e_i^j$ is inserted into the trie,
+the resulting node initialised with a count of unity. Note that $()$, the empty
+sequence, corresponds to the root node in the trie.
 
 While this algorithm can be used to construct a long-term model, a short-term
 model requires a context model that can be updated online during sequence
-prediction. Therefore, context models also need to implement a method which just
-extracts those $h$-grams at the tail of the sequence (with the window at the far
+prediction. Therefore, context models also implement a method which extracts
+just those $h$-grams at the tail of the sequence (with the window at the far
 right).
 
 \subsubsection{Implementing PPM}
 
-Recall from the discussion in Section~\ref{sec:ctx-model-prep} that considerable
-care must be taken to ensure the normalisation of the distributions predicted by
-PPM. The technique of \emph{exclusion} maintains state during the trie traversal
-in order to reason about the possible context matches at each stage of
-execution. Algorithm~\ref{alg:ppm-a} details pseudocode for PPM A with exclusion
-which I derived from the high-level descriptions given in the literature.
+Recall from the discussion in Section~\ref{sec:ctx-model-prep} that care must be
+taken to ensure the normalisation of the distributions predicted by PPM. The
+technique of \emph{exclusion} maintains state during the trie traversal in order
+to reason about possible context matches at each stage of execution.
+Algorithm~\ref{alg:ppm-a} details pseudocode for PPM A with exclusion which I
+derived from high-level descriptions in the literature.
 
 The key to exclusion in this algorithm is the \textit{Dead} set that
 is maintained throughout the recursion. This set should be initialised to
@@ -1687,29 +1662,29 @@ at lower-order models. To compute $\mathbb{P}(e' | e_1^k)$ we call
 \end{algorithm}
 
 To realise this pseudocode in \texttt{C++}, the PPM implementation in a
-\texttt{ContextModel<b>} instance (with alphabet size \texttt{b}) utilises
-bitvectors implemented using \texttt{std::bitset<b>} to efficiently represent
-sets of nodes. This achieves better efficiency than alternatives such as
-\texttt{std::array<b, bool>} in both space and time: typical implementations
-pack bits into machine words and implement the bitwise operations directly.
+\texttt{ContextModel<b>} instance utilises bitvectors implemented using
+\texttt{std::bitset<b>} to efficiently represent sets of nodes. This improves on
+alternatives such as \texttt{std::array<b, bool>} in both space and time:
+typical implementations pack bits into machine words and implement the bitwise
+operations directly.
 
 Figure~\ref{fig:ppm-stepwise} shows the step-by-step execution of this algorithm
-computing $\mathbb{P}(\beta|\alpha\gamma)$ on a context model over the alphabet $\Sigma =
-\set{\alpha,\beta,\gamma,\delta}$ having seen the training sequence
+computing $\mathbb{P}(\beta|\alpha\gamma)$ on a context model over the alphabet
+$\Sigma = \set{\alpha,\beta,\gamma,\delta}$ having seen the training sequence
 $(\alpha,\beta,\gamma,\delta,\alpha,\gamma,\alpha,\delta)$.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=400pt]{figs/ppm_stepwise_tmp.jpg}
-\caption{Step-by-step execution of PPM with $\hbar = 3$ computing $p(\beta|\alpha\gamma)$}
+\caption{Step-by-step execution of PPM with $\hbar = 3$}
 \label{fig:ppm-stepwise}
 \end{figure}
 
 \subsection{Event Representation}\label{sec:cpp-event-rep}
 
-In order to abstract the low-level \texttt{ContextModel} implementation and
-generally to represent viewpoint types as first-class citizens in \texttt{C++},
-a simple scheme was devised to represent viewpoint types as classes.
+In order to abstract the low-level \texttt{ContextModel} implementation and to
+represent viewpoint types as first-class citizens in \texttt{C++}, a simple
+scheme was devised to represent viewpoint types as classes.
 
 \begin{listing}[H]
   \begin{minted}[frame=single, linenos=true, fontsize=\footnotesize, mathescape]{cpp}
@@ -1748,7 +1723,7 @@ the \texttt{C++11} standard template library, enabling clean loops such as~
 Now that we have established a scheme for representing viewpoint types, we can
 abstract context models by providing an interface in terms of viewpoint types.
 This is the job of a class which we call \texttt{SequenceModel}.  Specifically,
-\texttt{SequenceModel<T>} is a wrapper class around an instance of
+\texttt{SequenceModel<T>} is a wrapper around an instance of
 \texttt{ContextModel<T::cardinality>} for \texttt{T} a viewpoint type
 represented as per Section~\ref{sec:cpp-event-rep}. 
 
@@ -1767,12 +1742,11 @@ parameterised on types. Any viewpoint class modelling an underlying type
 \subsection{Distribution Combination}
 
 As mentioned in Section~\ref{sec:vp-comb}, there are various techniques for
-combining probability distributions in a multiple viewpoint system. In line with
-the Agile development methodology, I initially implemented an entropy-weighted
-arithmetic combination scheme in order to get a working result at an early
-stage. Later, on the basis of its superior performance
-(Section~\ref{sec:vp-comb}), I decided to implement a geometric scheme for
-viewpoint combination.  
+combining probability distributions in a MVS. In line with the Agile development
+methodology, I initially implemented an entropy-weighted arithmetic combination
+scheme in order to get a working result at an early stage. Later, on the basis
+of its superior performance (Section~\ref{sec:vp-comb}), I decided to implement
+a geometric scheme for viewpoint combination.  
 
 In order to cleanly express distribution combination with a standard interface,
 yet allow the choice of a different underlying implementation, I utilised the
@@ -1804,8 +1778,8 @@ yet allow the choice of a different underlying implementation, I utilised the
 \texttt{ArithmeticComb} implements the weighted arithmetic formula given in
 Section~\ref{sec:vp-comb}. \texttt{GeometricComb} is a direct implementation of
 Pearce's weighted geometric formula (\ref{eq:pearce-geometric}). However, this
-was found to suffer from numerical instability. This was detected through the
-presence of extremely high or infinite cross-entropy on the test set. 
+was found to suffer from numerical instability, detected through the presence of
+extremely high or infinite cross-entropy on the test set. 
 
 \begin{equation}
 p(j) = \frac{1}{Z} \left( \prod_{i = 1}^N p_i(j)^{w_i} \right)^{ \frac{1}{
@@ -1851,20 +1825,20 @@ represent, $f_1(x)$ breaks down.
 \begin{figure}[H]
 \centering
 \includegraphics[width=400pt]{figs/instability.pdf}
-\caption{Example of Numerical Instability in Naïve Geometric Combination}
+\caption{Numerical Instability in Naïve Geometric Combination}
 \label{fig:num-instab}
 \end{figure}
 
 \subsection{Sampling from Distributions}
 
 To sample from probability distributions, a high-quality source of randomness is
-needed. After an initial investigation of the pseudo-random number generators
-(PRNGs) available in the \texttt{C++11} standard library, I found several other
-PRNGs that were shown to be superior in both performance and statistical
-quality. Of these, I chose to implement \texttt{xoroshiro128+}, the successor to
-the well-known \texttt{xorshift128+} PRNG \cite{vigna2017further}.  As of this
-writing, \texttt{xoroshiro128+} has been found to pass more statistical tests
-than any other PRNG, including those available in the \texttt{C++11} standard
+needed. After initially investigating the pseudo-random number generators
+(PRNGs) in the \texttt{C++11} standard library, I found several other PRNGs that
+were shown to be superior in both performance and statistical quality. Of these,
+I chose to implement \texttt{xoroshiro128+}, the successor to the well-known
+\texttt{xorshift128+} PRNG \cite{vigna2017further}.  As of this writing,
+\texttt{xoroshiro128+} has been found to pass more statistical tests than any
+other PRNG, including those available in the \texttt{C++11} standard
 library\footnote{http://xoroshiro.di.unimi.it}. 
 
 The implementation used the publicly-available reference C
@@ -1876,8 +1850,8 @@ to other \texttt{C++} developers.
 
 Sampling is performed using the \texttt{xoroshiro128+} implementation by
 default, but an alternative random source can easily be configured. The PRNG is
-seeded using the system's source of randomness, falling back to high-resolution
-uptime when this is not available.
+seeded using the system's source of randomness, falling back to system time when
+this is not available.
 
 \subsection{Early Viewpoints}
 
@@ -1887,13 +1861,13 @@ $$ \zeta = [\mathrm{pitch}] \times [\mathrm{onset}] \times [\mathrm{duration}]
 \times [\mathrm{keysig}] \times [\mathrm{timesig}]. $$
 
 Recall that the type \emph{onset} specifies the quantised starting time of each
-event within a sequence. A problem with using this event space directly when
-modelling the chorales with multiple viewpoints is that $[\mathrm{onset}]$ is
-not a finite set. In practice, one could ensure its finiteness by setting a
-maximum possible length of piece. However, this solution is unsatisfactory, not
-least because it bounds the length of possible compositions. Moreover, modelling
-this type directly or in combination with other types is not likely to capture
-any useful regularity, since it is a global property of each composition.
+event within a sequence. Using this event space directly when modelling the
+chorales with multiple viewpoints is problematic because $[\mathrm{onset}]$ is
+not a finite set. In practice, one could ensure its finiteness by fixing a
+maximum onset. However, this solution is unsatisfactory, not least because it
+bounds the length of possible compositions. Moreover, modelling this type
+directly or in combination with other types is not likely to capture any useful
+regularity, since it is a global property of each composition.
 
 Instead, define the type \emph{rest} as follows:
 $$ \Psi_{\mathrm{rest}}(e_1^k) \triangleq \begin{cases} 
@@ -1911,15 +1885,15 @@ the MVS.
 As suggested by our chosen corpus representation, we make the assumption that
 types \emph{keysig} and \emph{timesig} remain constant throughout a single
 sequence. Therefore, our task is to predict \emph{pitch}, \emph{duration}, and
-\emph{rest} at each timestep. This gives rise to the first viewpoints that were
-implemented: the \emph{basic viewpoints}. These viewpoints simply model
-these basic types individually.
+\emph{rest} at each timestep. This gives rise to the first implemented
+viewpoints: the \emph{basic viewpoints}. These viewpoints simply model these
+basic types individually.
 
-\texttt{BasicViewpoint<T>} is then just a simple wrapper around
-\texttt{SequenceModel<T>} that conforms to \texttt{Predictor<ChoraleEvent, T>}.
-Such viewpoints can be used to set a baseline for the performance of a multiple
-viewpoint system: a MVS $\set{\mathrm{pitch}, \mathrm{duration}, \mathrm{rest}}$
-simply implements a naïve independent $n$-gram approach.
+\texttt{BasicViewpoint<T>} is simply a wrapper around \texttt{SequenceModel<T>}
+that conforms to \texttt{Predictor<ChoraleEvent, T>}. Such viewpoints can be
+used to set a baseline performance: a MVS $\set{\mathrm{pitch},
+\mathrm{duration}, \mathrm{rest}}$ simply implements a naïve independent
+$n$-gram approach.
 
 \subsubsection{Derived Types}
 
@@ -2033,15 +2007,14 @@ and \texttt{IntrefViewpoint}, both implementing the
 
 \subsection{Linked Viewpoints}\label{sec:impl-linked-vps}
 
-As discussed previously, pitch and duration are almost never independent in
-music. This motivates the use of linked viewpoints. I first implemented a
-generic \texttt{BasicLinkedViewpoint} class which implements a linked viewpoint
-over arbitrary \emph{basic types}, in particular enabling a viewpoint linking
-pitch and duration.
+As discussed previously, pitch and duration are almost never independent,
+motivating the implementation of linked viewpoints. I first implemented a
+\texttt{BasicLinkedViewpoint} template capable of linking arbitrary \emph{basic
+types}, in particular enabling a viewpoint linking pitch and duration.
 
 There are a few points to note about the implementation. Firstly, observe that
 the formalism introduced in Section~\ref{sec:mvs-formalism} treats linked
-viewpoints as inherently symmetric objects; that is, $\tau_1 \otimes \tau_2$
+viewpoints as inherently symmetric objects in that $\tau_1 \otimes \tau_2$
 predicts both $\tau_1$ and $\tau_2$. However, in the implementation, I chose to
 decouple these to allow the asymmetric use of linked viewpoints. Use the
 notation $\tau_1 \rightarrow \tau_2$ to denote the linked viewpoint $\tau_1
@@ -2054,27 +2027,27 @@ Section~\ref{sec:cpp-event-rep} for representing viewpoint types in
 and $Q$ is then an instance of \texttt{SequenceModel<EventPair<P,Q>>}.
 
 To predict a distribution over either of the constituent types of a linked
-viewpoint, one simply sums out the joint distribution over the other type: a
-viewpoint $\tau_1 \rightarrow \tau_2$ predicts a distribution over $[\tau_1]
-\times [\tau_2]$ and then marginalises to obtain a distribution over $[\tau_2]$.
+viewpoint, one simply marginalises the joint distribution: a viewpoint $\tau_1
+\rightarrow \tau_2$ predicts a distribution over $[\tau_1] \times [\tau_2]$ and
+marginalises to obtain a distribution over $[\tau_2]$.
 
 While the ability to link basic types is useful, it would be better to be able
-to link arbitrary combinations of basic and \emph{derived} types. However, the
-derived types implemented thus far rely on specialised code for lifting and
-reification. To implement $\emph{seqint} \rightarrow \emph{duration}$, we would
-need to implement a specific linked viewpoint for this combination of types that
-performs the lifting and reification for \emph{seqint}.
+to link arbitrary combinations of basic and \emph{derived} types. Unfortunately,
+the derived types implemented thus far rely on specialised code for lifting and
+reification. Implementing $\emph{seqint} \rightarrow \emph{duration}$ would
+require implementing a specialised linked viewpoint for this combination of types
+that performs the lifting and reification for \emph{seqint}.
 
 \subsection{Generalised Viewpoints}
 
 The insight that led to the development of a fully general viewpoint
-implementation was to make the code for \emph{lifting} and \emph{reification} of
-each type a property of the type itself. In addition, each derived type $\tau$
+implementation was to make the code for \emph{lifting} and \emph{reifying} each
+each type a property of the type itself. Additionally, each derived type $\tau$
 declares a \texttt{derived\_from} property, which gives the name of the type
 from which $\tau$ is derived. 
 
-Template meta-programming was then utilised to compute the surface type of any
-type \texttt{T} at compile time. The surface type of a type \texttt{T} is
+Template meta-programming was utilised to compute the surface type of any type
+\texttt{T} at compile time. The surface type of a type \texttt{T} is
 \texttt{T::derived\_from} if \texttt{T} is derived, and \texttt{T} otherwise.
 
 These changes allowed the implementation of \texttt{GeneralViewpoint},
@@ -2084,8 +2057,8 @@ the appropriate lifting and reification depending on their inputs.
 
 \begin{table}[H]
   \begin{tabular}{ r | l | p{4.55cm} | p{6.5cm} }
-    Type $\tau$ & Predicts & Syntactic Domain $[\tau]$ & Interpretation \\ \hline
-    pitch & pitch & $\set{60,\ldots,82}$ & MIDI Pitch of note \\
+    Type $\tau$ & Predicts & Domain $[\tau]$ & Interpretation \\ \hline
+    pitch & pitch & $\set{60,\ldots,82}$ & MIDI pitch of note \\
     duration & duration & $\{$1, 2, 3, 4, 6, 8, 12, 14, 16, 20, 24, 28, 32, 56,
     64$\}$ &
     Duration of note in semiquavers \\
@@ -2095,8 +2068,8 @@ the appropriate lifting and reification depending on their inputs.
     seqint & pitch & $\set{-12,-9,-8,\ldots,10,12}$ & Sequential melodic interval \\
     intref & pitch & $\set{0,\ldots,11}$ & Harmonic interval with referent \\
     posinbar & - & $\set{0,\ldots,15}$ & Position of event within bar \\
-    fib & - & $\set{\texttt{false}, \texttt{true}}$ & \texttt{true} iff.\ event is first in bar \\
-    fip & - & $\set{\texttt{false}, \texttt{true}}$ & \texttt{true} iff.\ event is first in piece \\
+    fib & - & $\set{\texttt{false}, \texttt{true}}$ & \texttt{true} iff.\ event first in bar \\
+    fip & - & $\set{\texttt{false}, \texttt{true}}$ & \texttt{true} iff.\ event first in piece \\
     ioi & - & $\{$1, 2, 3, 4, 6, 8, 12, 14, 16, 20, 24$\}$ & Consecutive onset
     difference
   \end{tabular}
@@ -2121,9 +2094,9 @@ free hyperparameters in our model are:
     \label{itm:bias-params}
 \end{enumerate}
 
-We can handle \ref{itm:set-vps} with an automatic viewpoint selection algorithm.
-Specifically, we implement a forward stepwise selection algorithm to achieve
-this. For \ref{itm:hbar} and \ref{itm:bias-params} we use a grid search,
+We can optimise \ref{itm:set-vps} with an automatic viewpoint selection
+algorithm. Specifically, we implement a forward stepwise selection algorithm to
+achieve this. For \ref{itm:hbar} and \ref{itm:bias-params} we use a grid search,
 illustrated in Figure~\ref{fig:grid-search}. 
 
 Empirically, the resulting surface for \ref{itm:bias-params} is convex at many
@@ -2133,8 +2106,8 @@ an important subtlety is that the setting of \ref{itm:hbar} and
 \ref{itm:bias-params} can both potentially affect the set of viewpoints that
 result from the selection algorithm.
 
-A heuristic approach to choosing the hyperparameters, would therefore be to run
-the selection algorithm for \ref{itm:set-vps}, optimise \ref{itm:hbar}, then
+A heuristic approach to choosing the hyperparameters, would be to run the
+selection algorithm for \ref{itm:set-vps}, optimise \ref{itm:hbar}, then
 \ref{itm:bias-params}, and repeat until convergence. While this technique cannot
 guarantee to find a global minimum, it is empirically effective.
 
@@ -2144,6 +2117,8 @@ guarantee to find a global minimum, it is empirically effective.
 \caption{Grid search over bias parameters}
 \label{fig:grid-search}
 \end{figure}
+
+\vspace{4mm}
 
 \subsubsection{Automatic Viewpoint Selection}
 
@@ -2199,12 +2174,12 @@ necessary to accept a candidate viewpoint.
 A multi-layer LSTM recurrent neural network (RNN) was implemented in Python
 using TensorFlow \cite{abadi2016tensorflow}. The network uses \emph{dropout} for
 regularisation as per Zaremba et al.\ \cite{zaremba2014recurrent}. A decoupled
-``front-end'' to the RNN was implemented which allows the same internal model to
-be used for character-level language modelling and music modelling. Random walk
-sampling was implemented for generation. In addition, modifications to the
-conventional sequence-prediction RNN architecture were made by feeding the
-network additional \emph{global} musical information at each timestep, which was
-found to improve performance considerably.
+``front-end'' to the RNN allows the same internal model to be used for
+character-level language modelling and music modelling. Random walk sampling was
+implemented for generation. Furthermore, modifications to the conventional
+sequence-prediction RNN architecture were made by feeding the network additional
+\emph{global} musical information at each timestep, which was found to improve
+performance considerably.
 
 As a precursor to implementing a RNN for music modelling, I implemented a
 recurrent network and applied it to the well-studied task of character-level
@@ -2215,19 +2190,19 @@ tuning the model's hyperparameters. The results of this are discussed in
 Appendix~\ref{apx:rnn-language}.
 
 Since I chose to use TensorFlow to implement the RNN, this necessitated the use
-of Python. Unfortunately, because Python uses a dynamic type system, many
-programmer errors that could be caught at load time are instead caught at
-runtime. This can lead to a significant amount of wasted time, especially when
-errors occur following a lengthy computation. 
+of Python. Unfortunately, because of Python's dynamic type system, many errors
+that could be caught at load time are instead caught at runtime. This can lead
+to significant time wastage, especially when errors occur following a lengthy
+computation. 
 
-To improve on this situation, I utilised Python 3.6's \emph{type annotations}
-along with the static type checker \texttt{mypy}\footnote{http://mypy-lang.org}
-which was found to be highly effective at catching errors statically and
-improving the overall efficiency of development in Python.
+To improve on this, I utilised Python 3.6's \emph{type annotations} along with
+the static type checker \texttt{mypy}\footnote{http://mypy-lang.org} which was
+found to be highly effective at catching errors statically and improving the
+overall efficiency of development in Python.
 
 \subsection{Input Representation}
 
-Before implementing the RNN model itself, I first implemented a module to ingest
+Before implementing the RNN itself, I first implemented a module to ingest
 data from corpora. Specifically, this \texttt{DataLoader} module takes a source
 corpus and determines a \emph{vocabulary} $\Sigma$ for the source. The source is
 then encoded using an enumeration of $\Sigma$ and split into mini-batch
@@ -2272,25 +2247,23 @@ self.cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
   \caption{LSTM Definition in \texttt{Model} Class}
 \end{listing}
 
-The only difference with the LSTM as introduced previously is that the
-TensorFlow LSTM implementation adds a bias of $1$ to the forget gate layer. This
+The only difference from the LSTM as introduced previously is that the
+TensorFlow LSTM implementation adds a bias of $1$ to the forget gate unit. This
 prevents forgetting towards the beginning of training, which is useful in
 practice.
 
-The dimensionality of much of the input I/O is governed by the parameters
-\texttt{batch\_size} and \texttt{vocab\_size} which are determined by the
-\texttt{DataLoader} class. For simplicity, I chose to unfold the RNN to a fixed
-size, specified by the parameter \texttt{seq\_length}.
+For simplicity, I chose to unfold the RNN to a fixed size, specified by the
+parameter \texttt{seq\_length}. The dimensionality of the mini-batches depends
+on a parameter \texttt{batch\_size}.
 
 \subsubsection{Training}
 
 To mitigate the effects of the \emph{exploding gradient problem}, introduced in
-Section~\ref{sec:rnn-train}, I clip the norm of gradients in the network to some
+Section~\ref{sec:rnn-train}, I clip the norm of gradients in the network to a
 maximum value given by the hyperparameter \texttt{max\_grad\_norm}. This is a
 technique utilised by e.g.\ Graves in 2013 \cite{graves2013generating}.
 
-The network is trained by stochastic gradient descent. Specifically, the
-training data are split into mini-batches during ingestion. At train time, the
+The network is trained by stochastic gradient descent. At train time, the
 gradient is computed using each mini-batch in turn to complete an \emph{epoch}
 of training (an entire pass through the data). The total number of epochs
 performed in a session is given by the \texttt{num\_epochs} parameter.
@@ -2306,21 +2279,12 @@ hyperparameter \texttt{learning\_rate}.
 
 \subsubsection{Regularisation}
 
-\emph{Dropout} \cite{srivastava2014dropout} is a powerful technique for
-preventing overfitting in deep feedforward networks which works by randomly
-shutting off some fraction of the units in some or all of the layers at train
-time. This prevents excessive co-adaption among units in the network.
+After empirically observing significant overfitting on two-layers LSTMs during
+training, dropout was applied to the connections between the LSTM layers as per
+Zaremba et al.\ \cite{zaremba2014recurrent}.
 
-A recent paper by Zaremba et al.\ \cite{zaremba2014recurrent} made a major
-contribution by showing how to apply dropout successfully to recurrent networks.
-Although attempts had been made to apply dropout to RNNs prior to this work,
-they were largely unsuccessful. In particular, applying dropout to the
-\emph{recurrent} connections in a RNN leads to poor performance.
-
-The authors found that applying dropout only to the non-recurrent connections
-successfully prevented overfitting in a recurrent network and led to improved
-performance on a number of tasks. In the context of the LSTM formulation of
-Section~\ref{sec:lstm-prep}, we replace:
+In the context of the LSTM formulation of Section~\ref{sec:lstm-prep}, we
+replace:
 $$ \vect{x} = [\vect{h}_{t-1}^l, \vect{h}_t^{l-1}] $$
 with
 $$ \vect{x} = [\vect{h}_{t-1}^l, \mathrm{D}_p(\vect{h}_t^{l-1})] $$
@@ -2396,15 +2360,14 @@ engineering practice by testing thoroughly.
 
 \chapter{Evaluation}\label{chap:eval}
 
-The goal of the evaluation of this work is to compare the performance of the two
-implemented techniques, the multiple viewpoint system (MVS) and recurrent neural
-network (RNN), on the task of generating chorale-like melodies.
+The goal of the evaluation is to compare the performance of the two implemented
+techniques, the multiple viewpoint system (MVS) and recurrent neural network
+(RNN), on the task of generating chorale-like melodies.
 
-The first important issue to address in undertaking this is specifying what is
-meant by \emph{performance} with respect to melody generation. As with any art
-form, the success of a music generation system in the abstract sense is not
-something that can be specified objectively. However, one \emph{can} objectively
-investigate:
+The first issue to address is specifying what is meant by \emph{performance}
+with respect to melody generation. As with any art form, the success of a music
+generation system in the abstract sense is not something that can be specified
+objectively. However, one \emph{can} objectively investigate:
 \begin{itemize}
   \item The responses of many human participants to subjective evaluation
     criteria in an effort to generalise and draw conclusions about the opinions
@@ -2423,16 +2386,14 @@ investigate:
 \vspace{4mm}
 
 We start by introducing an objective metric for comparing the \emph{predictive}
-performance of the two techniques. Then, we compare the two techniques using
-this metric, thereby selecting the models to take forward for further
-evaluation. 
+performance of the two techniques. Then, we compare the techniques using this
+metric, thereby selecting the models to take forward for further evaluation. 
 
-Then, after introducing and justifying subjective evaluation criteria for
-generated outputs, we present and discuss an evaluation survey in which
-participants listened to model outputs and responded to questions based on the
-chosen evaluation criteria. We supplement this mass evaluation survey with
-specific comments from an expert musicologist. Finally, we conclude by
-summarising the results of the evaluation.
+After introducing and justifying subjective evaluation criteria for generated
+outputs, we present and discuss an evaluation survey in which participants
+listened to model outputs and responded to questions based on the chosen
+evaluation criteria. Finally, we conclude by summarising the results of the
+evaluation.
 
 \section{Predictive Performance}
 
@@ -2452,10 +2413,9 @@ sequence.
 \subsection{Loss Function}
 
 We use a \emph{cross-entropy} loss function to measure how well a model predicts
-a particular sequence, which is derived as follows.  
-Consider the $i$\textsuperscript{th} step of the prediction process. Our model
-forms a distribution over possible subsequent events $x'$ in our event space
-$\zeta$:
+a particular sequence, which is derived as follows.  Consider the
+$i$\textsuperscript{th} step of prediction. Our model forms a distribution over
+possible subsequent events $x'$ in our event space $\zeta$:
 $$ p(x' | x_{i-1}, \ldots, x_1). $$
 Suppose that we know the ``true'' underlying distribution $q(x' |
 x_{i-1}, \ldots, x_1)$. Then the \emph{cross-entropy} between $p$ and
@@ -2489,20 +2449,20 @@ the error in our predictions.
 \subsection{Results}
 
 When measuring predictive performance, we are interested in the ability of our
-models to \emph{generalise} to unseen data. For this reason, we must ensure that
-examples seen in training do not appear in the test set. In the case of our
-corpus of melodies extracted from the chorale harmonisations of J.S.\ Bach,
-ensuring a hygienic partition of the data into training and test sets is
-non-trivial. Since Bach harmonised melodies multiple times with slight variation
-in ornamentation and tonality, the data had to be partitioned based on the
-underlying melody. To achieve this, the mapping between chorales and
-harmonisations\footnote{Taken from the \emph{Riemenschneider} edition of Bach's
-chorale harmonisations.} was encoded by hand in the corpus preparation script.
+models to \emph{generalise}. For this reason, we must ensure that examples seen
+in training do not appear in the test set. In the case of our corpus of melodies
+extracted from the chorale harmonisations of J.S.\ Bach, ensuring a hygienic
+partition of the data into training and test sets is non-trivial. Since Bach
+harmonised melodies multiple times with slight variation in ornamentation and
+tonality, the data had to be partitioned based on the underlying melody. To
+achieve this, the mapping between chorales and harmonisations\footnote{Taken
+from the \emph{Riemenschneider} edition of Bach's chorale harmonisations.} was
+encoded by hand in the corpus preparation script.
 
-To compare the two techniques, we choose the best-performing model based on the
-test loss. For the MVS, this was obtained using the hyperparameter optimisation
-process of Section~\ref{sec:mvs-hyperparams}, while the RNN hyperparameters were
-chosen by hand. 
+To compare the techniques, we choose the best-performing model from each based
+on the test loss. For the MVS, this was obtained using the hyperparameter
+optimisation process of Section~\ref{sec:mvs-hyperparams}, while the RNN
+hyperparameters were chosen by careful experimentation. 
 
 With 95\% confidence, the MVS obtained a cross-entropy of $2.826 \pm 0.071\
 \mathrm{bits}/\mathrm{event}$ on the test set, while the RNN achieved $3.017 \pm
@@ -2543,10 +2503,9 @@ point.
 Figure~\ref{fig:aus-meines-profiles} shows a side-by-side comparison of the two
 models on a melody from the test set. At position \textbf{A}, we have direct
 re-use of the initial melodic material. At \textbf{B}, we have a related but
-distinct middle section, and at position \textbf{C}, the opening material
-returns. It can be seen that, in this case, the MVS predicts unseen material
-more successfully than the RNN, while the RNN predicts re-used material slightly
-better.
+distinct middle section, and at \textbf{C}, the opening material returns. It can
+be seen that, in this case, the MVS predicts unseen material more successfully
+than the RNN, while the RNN predicts re-used material slightly better.
 
 Figure~\ref{fig:danket-dem-profiles} gives an example where the MVS outperforms
 the RNN. The note at position \textbf{A} is unexpected by both models, but
@@ -2638,10 +2597,10 @@ utilising techniques such as \emph{negative training}.
 
 We now turn to the task of evaluating the outputs produced by sampling from the
 models. To do this, we need to establish useful \emph{subjective} evaluation
-criteria. Since, fundamentally, we want our models to imitate a musical style,
-desirable outputs should be a \emph{pastiche} of that style. We
-therefore consider the \emph{distinguishability} of our outputs from original
-compositions to be a primary evaluation criterion of interest.
+criteria. Since we want our models to imitate a musical style, desirable outputs
+should be a \emph{pastiche} of that style. We therefore consider the
+\emph{distinguishability} of our outputs from original compositions to be a
+primary evaluation criterion of interest.
 
 Secondarily, a desirable property of (arguably) \emph{any} musical composition
 is that the composition is perceived as a \emph{unified} and \emph{cohesive}
@@ -2674,8 +2633,17 @@ the user, at which point they were asked, for each sample:
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=350pt]{figs/survey_screenshot.png}
-\caption{Screenshot of survey user interface}
+\subfloat[User self-assessment] {
+  \label{subfig:ui-xp}
+  \includegraphics[width=0.8\linewidth]{figs/xp_selection.png}
+}
+
+\subfloat[Survey Questions] {
+  \label{subfig:ui-survey-qs}
+\includegraphics[width=0.8\linewidth]{figs/survey_screenshot.png}
+}
+
+\caption{Screenshots of Survey UI}
 \label{fig:survey-ui}
 \end{figure}
 
@@ -2684,16 +2652,6 @@ four-part chorales with deep recurrent networks made use of a large-scale
 survey-based evaluation. A discussion with one of the authors on possible
 improvements to their evaluation led to the use of a user-submitted confidence
 metric for classification decisions.
-
-Users select their musical experience from one of four categories:
-\begin{enumerate}[label=\arabic*., itemsep=0mm]
-  \item \emph{Novice}: Listens to music, but does not play any instruments.
-  \item \emph{Intermediate}: Plays or has played an instrument, but has not
-    studied composition.
-  \item \emph{Advanced}: Has studied music composition in a formal setting.
-  \item \emph{Expert}: Is a teacher or researcher in music.
-\end{enumerate}
-\vspace{2mm}
 
 The target demographic of the survey was very broad, making the choice of online
 survey appropriate. Due to the use of musical self-assessment, responses from
