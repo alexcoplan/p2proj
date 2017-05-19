@@ -1136,15 +1136,97 @@ given by:
 $$ \mathrm{softmax}(\vect{z})_i = \frac{ e^{z_i} }{ \sum_{j = 1}^n e^{z_j} }. $$
 
 Figure~\ref{fig:deep-rnn-arch} illustrates the general architecture of a deep
-RNN. The merging of arrows denotes \emph{vector concatenation}. The units
-$A_t^l$ are known as \emph{cells}, specified by the transition function
-$\delta$.  Note that weight sharing occurs across time, but not between layers.
-The initial states $\vect{h}_{\mathrm{init}}^l$ can be set to $\vect{0}$ or
-initialised randomly.
+RNN. The units $A_t^l$ are known as \emph{cells}, specified by the transition
+function $\delta$.  Note that weight sharing occurs across time, but not between
+layers. The initial states $\vect{h}_{\mathrm{init}}^l$ can be set to
+$\vect{0}$ or initialised randomly.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=400pt]{figs/deep_rnn_tmp.jpg}
+\scalebox{1.0}{
+\begin{tikzpicture}[-latex,auto,node distance=3.5cm]
+\tikzstyle{n} = [draw,shape=rectangle]
+\tikzstyle{cell} = [draw,shape=rectangle, minimum width=1.8cm, minimum
+height=1cm]
+\tikzstyle{op} = [draw,shape=circle, inner sep=-0.03cm, outer sep=0]
+\tikzstyle{wrap} = [draw,gray,dashed,shape=rectangle, minimum height=1.8cm,
+minimum width=4.4cm]
+\tikzset{every text node part/.style={align=center}}
+
+\node[cell] (a11) {$A_1^1$};
+\node[cell] (a21) [right of=a11] {$A_2^1$};
+\node (rdots1) [right of=a21] {$\cdots$};
+\node[cell] (aT1) [right of=rdots1] {$A_T^1$};
+
+\node[cell] (a12) [above =1.5cm of a11] {$A_1^2$};
+\node[cell] (a22) [right of=a12] {$A_2^2$};
+\node (rdots2) [right of=a22] {$\cdots$};
+\node[cell] (aT2) [right of=rdots2] {$A_T^2$};
+
+\node (vdots1) [above = 1.5cm of a12] {$\vdots$};
+\node (vdots2) [above = 1.5cm of a22] {$\vdots$};
+\node (vdotsT) [above = 1.5cm of aT2] {$\vdots$};
+
+\node[cell] (a1L) [above = 1.5cm of vdots1] {$A_1^L$};
+\node[cell] (a2L) [right of=a1L] {$A_2^L$};
+\node (rdotsL) [right of=a2L] {$\cdots$};
+\node[cell] (aTL) [right of=rdotsL] {$A_T^L$};
+
+\node[cell] (s1) [above = 1.0cm of a1L] {softmax};
+\node[cell] (s2) [right of=s1] {softmax};
+\node[cell] (sT) [above = 1.0cm of aTL] {softmax};
+
+\node (p1) [above =0.5cm of s1] {$p(y_1)$};
+\node (p2) [above =0.5cm of s2] {$p(y_2)$};
+\node (pT) [above =0.5cm of sT] {$p(y_T)$};
+
+\node (ini1) [left = 1.0cm of a11] {$\vect{h}_{\mathrm{init}}^1$};
+\node (ini2) [left = 1.0cm of a12] {$\vect{h}_{\mathrm{init}}^2$};
+\node (iniL) [left = 1.0cm of a1L] {$\vect{h}_{\mathrm{init}}^L$};
+
+\node (x1) [below = 1.0cm of a11] {$\vect{h}_1^0 = E(x_1)$};
+\node (x2) [below = 1.0cm of a21] {$\vect{h}_2^0 = E(x_2)$};
+\node (xT) [below = 1.0cm of aT1] {$\vect{h}_T^0 = E(x_T)$};
+
+\path (a11) edge node [near start] {$\vect{h}_1^1$} (a21);
+\path (a21) edge node [near start] {$\vect{h}_2^1$} (rdots1);
+\path (rdots1) edge node [near start] {$\vect{h}_{T-1}^1$} (aT1);
+
+\path (a12) edge node [near start] {$\vect{h}_1^2$} (a22);
+\path (a22) edge node [near start] {$\vect{h}_2^2$} (rdots2);
+\path (rdots2) edge node [near start] {$\vect{h}_{T-1}^2$} (aT2);
+
+\path (a1L) edge node [near start] {$\vect{h}_1^L$} (a2L);
+\path (a2L) edge node [near start] {$\vect{h}_2^L$} (rdotsL);
+\path (rdotsL) edge node [near start] {$\vect{h}_{T-1}^L$} (aTL);
+
+\path (a11) edge node [near start] {$\vect{h}_1^1$} (a12);
+\path (a21) edge node [near start] {$\vect{h}_2^1$} (a22);
+\path (aT1) edge node [near start] {$\vect{h}_T^1$} (aT2);
+
+\path (a12) edge node [near start] {$\vect{h}_1^2$} (vdots1);
+\path (a22) edge node [near start] {$\vect{h}_2^2$} (vdots2);
+\path (aT2) edge node [near start] {$\vect{h}_T^2$} (vdotsT);
+
+\path (vdots1) edge node [near start] {$\vect{h}_1^{L-1}$} (a1L);
+\path (vdots2) edge node [near start] {$\vect{h}_2^{L-1}$} (a2L);
+\path (vdotsT) edge node [near start] {$\vect{h}_T^{L-1}$} (aTL);
+
+\path (a1L) edge node {$\vect{h}_1^L$} (s1);
+\path (a2L) edge node {$\vect{h}_2^L$} (s2);
+\path (aTL) edge node {$\vect{h}_T^L$} (sT);
+
+\path (s1) edge (p1)
+  (s2) edge (p2)
+  (sT) edge (pT)
+  (ini1) edge (a11)
+  (ini2) edge (a12)
+  (iniL) edge (a1L)
+  (x1) edge (a11)
+  (x2) edge (a21)
+  (xT) edge (aT1);
+\end{tikzpicture}
+}
 \caption{Flow of information in deep RNN}
 \label{fig:deep-rnn-arch}
 \end{figure}
@@ -1154,23 +1236,68 @@ function incorporates this:
 $$ \delta_{\mathrm{LSTM}} : \vect{h}_{t-1}^l, \vect{h}_t^{l-1}, \vect{c}_{t-1}^l
 \rightarrow \vect{h}_t^l, \vect{c}_t^l. $$
 
-The flow of information through an LSTM network is shown in
-Figure~\ref{fig:deep-lstm-arch}. $\delta_{\mathrm{LSTM}}$ is given by equations
+$\delta_{\mathrm{LSTM}}$ is given by equations
 (\ref{eq:lstm-f}) through (\ref{eq:lstm-d}) and illustrated in
 Figure~\ref{fig:lstm-cell}.
-
+\vspace{4mm}
 \begin{figure}[H]
 \centering
-\includegraphics[width=350pt]{figs/lstm_detail_tmp.png}
+\scalebox{1.2}{
+\begin{tikzpicture}[-latex,auto,node distance=1.5cm]
+\tikzstyle{n} = [draw,shape=rectangle, minimum width=1cm, minimum height=0.6cm]
+\tikzstyle{m} = [inner sep = -0.01mm, outer sep = -0.01mm]
+\tikzstyle{op} = [draw,shape=circle, inner sep=0, outer sep=0]
+\tikzstyle{wrap} = [draw,shape=rectangle, minimum height=3.5cm,
+minimum width=8.0cm]
+\tikzset{every text node part/.style={align=center}}
+
+\node[n] (fgate) {$\sigma$};
+\node[n] (igate) [right of=fgate] {$\sigma$};
+\node[n] (feature) [right of=igate] {$\tanh$};
+\node[n] (ogate) [right of=feature] {$\sigma$};
+\node[op] (omul) [right of=ogate] {$\times$};
+\node[n] (otanh) [above=0.5cm of omul] {$\tanh$};
+
+\node[m] (i2fg) [below=0.5cm of fgate] {};
+\node[m] (i2ig) [below=0.5cm of igate] {};
+\node[m] (i2feat) [below=0.5cm of feature] {};
+\node[m] (i2og) [below=0.5cm of ogate] {};
+\node[m] (c2out) [above=0.55cm of otanh] {};
+\node[m] (og2hout) [right=2.0cm of i2og] {};
+
+\node[op] (dmul) [above=0.5cm of feature] {$\times$};
+\node[op] (dadd) [above=0.5cm of dmul] {$+$};
+\node[op] (fmul) [left=2.6cm of dadd] {$\times$};
+
+\node[wrap] (wrap) [above=-1.5cm of feature] {};
+
+\node (hin) [left=1.5cm of i2fg] {$[\vect{h}_{t-1}^l, \vect{h}_t^{l-1}]$};
+\node (cin) [left=1.5cm of fmul] {$\vect{c}_{t-1}^l$};
+\node (cout) [right=2.0cm of c2out] {$\vect{c}_t^l$};
+\node (hout) [right=1.5cm of og2hout] {$\vect{h}_t^l$};
+
+\path (i2fg) edge (fgate)
+      (i2ig) edge (igate)
+      (i2feat) edge (feature)
+      (i2og) edge (ogate)
+      (fgate) edge node {$\vect{f}$} (fmul)
+      (igate) edge [bend left=30] node {$\vect{i}$} (dmul)
+      (feature) edge node {$\vect{d}$} (dmul)
+      (dmul) edge (dadd)
+      (ogate) edge node {$\vect{o}$} (omul)
+      (c2out) edge (otanh)
+      (otanh) edge[-] (omul)
+      (omul) edge [bend right=20] (hout.west);
+
+\path (hin) edge[-] (i2og)
+      (cin) edge[-,thick] (fmul)
+      (fmul) edge[-,thick] (dadd)
+      (dadd) edge[thick] (cout);
+
+\end{tikzpicture}
+}
 \caption{LSTM Cell Structure}
 \label{fig:lstm-cell}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=400pt]{figs/lstm_net_tmp.jpg}
-\caption{Flow of information in deep LSTM network}
-\label{fig:deep-lstm-arch}
 \end{figure}
 
 Let $\ast$ denote pointwise vector multiplication. Given input
