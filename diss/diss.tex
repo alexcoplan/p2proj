@@ -1757,7 +1757,177 @@ $(\alpha,\beta,\gamma,\delta,\alpha,\gamma,\alpha,\delta)$.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=400pt]{figs/ppm_stepwise_tmp.jpg}
+\begin{tikzpicture}[-latex,auto,node distance=1.5cm]
+\tikzstyle{n} = [draw,shape=rectangle]
+\tikzstyle{op} = [draw,shape=circle, inner sep=-0.03cm, outer sep=0]
+\tikzstyle{wrap} = [draw,gray,dashed,shape=rectangle, minimum height=1.8cm,
+minimum width=4.4cm]
+\tikzset{every text node part/.style={align=center}}
+
+\node[n] (root-1) {$() : 8$};
+\node[n] (b-1) [below of=root-1] {$\beta : 1$};
+\node[n] (bg-1) [below of=b-1] {$\beta\gamma : 1$};
+\node[n] (bgd-1) [below of=bg-1] {$\beta\gamma\delta : 1$};
+\node[n] (a-1) [left=2.0cm of b-1] {$\alpha : 3$};
+\node[n] (ag-1) [thick,red,below of=a-1] {$\alpha\gamma : 1$};
+\node[n] (aga-1) [thick,red,below of=ag-1] {$\alpha\gamma\alpha  : 1$};
+\node[n] (ab-1) [left=0.5cm of ag-1]  {$\alpha\beta : 1$};
+\node[n] (ad-1) [right of= ag-1] {$\alpha\delta : 1$};
+\node[n] (abg-1) [below of=ab-1] {$\alpha\beta\gamma : 1$};
+\node[n] (g-1) [right= 0.6cm of b-1] {$\gamma : 2$};
+\node[n] (ga-1) [below of=g-1] {$\gamma\alpha : 1$};
+\node[n] (gad-1) [below of=ga-1] {$\gamma\alpha\delta : 1$};
+\node[n] (gd-1) [right=0.5cm of ga-1] {$\gamma\delta : 1$};
+\node[n] (gda-1) [below of=gd-1] {$\gamma\delta\alpha : 1$};
+\node[n] (d-1) [right of=g-1] {$\delta : 1$};
+\node (dots-1) [below right of=d-1] {$\cdots$};
+\node (info-1) [right=0.0cm of dots-1] {
+  \begin{minipage}{3cm}
+    \small
+    \begin{align*}
+      \mathit{Dead} &= \varnothing \\
+      \mathit{Alive} &= \set{\alpha,\beta,\gamma,\delta} \\
+      \mathit{Known} &= \set{\alpha} \\
+      \mathit{Novel} &= \set{\beta,\gamma,\delta} \\
+      s &= 1 \\
+      p_\epsilon &= 1/2
+    \end{align*}
+  \end{minipage}
+};
+
+\path 
+  (root-1) edge (a-1)
+  (root-1) edge (b-1)
+  (root-1) edge (g-1)
+  (root-1) edge (d-1)
+  (a-1) edge (ab-1)
+  (a-1) edge (ag-1)
+  (a-1) edge (ad-1)
+  (ab-1) edge (abg-1)
+  (ag-1) edge (aga-1)
+  (b-1) edge (bg-1)
+  (bg-1) edge (bgd-1)
+  (g-1) edge (ga-1)
+  (g-1) edge (gd-1)
+  (ga-1) edge (gad-1)
+  (gd-1) edge (gda-1)
+  (d-1) edge (dots-1);
+
+
+\node[n] (root-2) [below= 1.0cm of bgd-1] {$() : 8$};
+\node[n] (b-2) [below of=root-2] {$\beta : 1$};
+\node[n] (bg-2) [below of=b-2] {$\beta\gamma : 1$};
+\node[n] (bgd-2) [below of=bg-2] {$\beta\gamma\delta : 1$};
+\node[n] (a-2) [left=2.0cm of b-2] {$\alpha : 3$};
+\node[n] (ag-2) [below of=a-2] {$\alpha\gamma : 1$};
+\node[n] (aga-2) [below of=ag-2] {$\alpha\gamma\alpha  : 1$};
+\node[n] (ab-2) [left=0.5cm of ag-2]  {$\alpha\beta : 1$};
+\node[n] (ad-2) [right of= ag-2] {$\alpha\delta : 1$};
+\node[n] (abg-2) [below of=ab-2] {$\alpha\beta\gamma : 1$};
+\node[n] (g-2) [thick,red,right= 0.6cm of b-2] {$\gamma : 2$};
+\node[n] (ga-2) [thick,red,below of=g-2] {$\gamma\alpha : 1$};
+\node[n] (gad-2) [below of=ga-2] {$\gamma\alpha\delta : 1$};
+\node[n] (gd-2) [thick,red,right=0.5cm of ga-2] {$\gamma\delta : 1$};
+\node[n] (gda-2) [below of=gd-2] {$\gamma\delta\alpha : 1$};
+\node[n] (d-2) [right of=g-2] {$\delta : 1$};
+\node (dots-2) [below right of=d-2] {$\cdots$};
+\node (info-2) [right=0.0cm of dots-2] {
+  \begin{minipage}{3cm}
+    \small
+    \begin{align*}
+      \mathit{Dead} &= \set{\alpha} \\
+      \mathit{Alive} &= \set{\beta,\gamma,\delta} \\
+      \mathit{Known} &= \set{\alpha,\delta} \\
+      \mathit{Novel} &= \set{\beta,\gamma} \\
+      s &= 1 \\
+      p_\epsilon &= 1/2
+    \end{align*}
+  \end{minipage}
+};
+
+% step 1->2
+\path (bgd-1) edge [dashed] 
+      node[left]{escape} 
+      node {$\frac{1}{2}\cdot p(\beta|\gamma)$} (root-2);
+
+\path 
+  (root-2) edge (a-2)
+  (root-2) edge (b-2)
+  (root-2) edge (g-2)
+  (root-2) edge (d-2)
+  (a-2) edge (ab-2)
+  (a-2) edge (ag-2)
+  (a-2) edge (ad-2)
+  (ab-2) edge (abg-2)
+  (ag-2) edge (aga-2)
+  (b-2) edge (bg-2)
+  (bg-2) edge (bgd-2)
+  (g-2) edge (ga-2)
+  (g-2) edge (gd-2)
+  (ga-2) edge (gad-2)
+  (gd-2) edge (gda-2)
+  (d-2) edge (dots-2);
+
+\node[n] (root-3) [thick,red,below= 1.0cm of bgd-2] {$() : 8$};
+\node[n] (b-3) [thick,red,below of=root-3] {$\beta : 1$};
+\node[n] (bg-3) [below of=b-3] {$\beta\gamma : 1$};
+\node[n] (bgd-3) [below of=bg-3] {$\beta\gamma\delta : 1$};
+\node[n] (a-3) [thick,red,left=2.0cm of b-3] {$\alpha : 3$};
+\node[n] (ag-3) [below of=a-3] {$\alpha\gamma : 1$};
+\node[n] (aga-3) [below of=ag-3] {$\alpha\gamma\alpha  : 1$};
+\node[n] (ab-3) [left=0.5cm of ag-3]  {$\alpha\beta : 1$};
+\node[n] (ad-3) [right of= ag-3] {$\alpha\delta : 1$};
+\node[n] (abg-3) [below of=ab-3] {$\alpha\beta\gamma : 1$};
+\node[n] (g-3) [thick,red,right= 0.6cm of b-3] {$\gamma : 2$};
+\node[n] (ga-3) [below of=g-3] {$\gamma\alpha : 1$};
+\node[n] (gad-3) [below of=ga-3] {$\gamma\alpha\delta : 1$};
+\node[n] (gd-3) [right=0.5cm of ga-3] {$\gamma\delta : 1$};
+\node[n] (gda-3) [below of=gd-3] {$\gamma\delta\alpha : 1$};
+\node[n] (d-3) [thick,red,right of=g-3] {$\delta : 1$};
+\node (dots-3) [below right of=d-3] {$\cdots$};
+\node (info-3) [right=0.0cm of dots-3] {
+  \begin{minipage}{3cm}
+    \small
+    \begin{align*}
+      \mathit{Dead} &= \set{\alpha,\delta} \\
+      \mathit{Alive} &= \set{\beta,\gamma} \\
+      \mathit{Known} &= \set{\alpha,\beta,\gamma} \\
+      \mathit{Novel} &= \varnothing \\
+      s &= 3 \\
+      p(\beta) &= 1/3
+    \end{align*}
+  \end{minipage}
+};
+\node (return) [below of=bgd-3] {return
+$\frac{1}{2}\cdot\frac{1}{2}\cdot\frac{1}{3}$};
+
+% step 2->3
+\path (bgd-2) edge [dashed] 
+      node[left]{escape} 
+      node {$\frac{1}{2}\cdot\frac{1}{2}\cdot p(\beta)$} (root-3);
+
+\path 
+  (root-3) edge (a-3)
+  (root-3) edge (b-3)
+  (root-3) edge (g-3)
+  (root-3) edge (d-3)
+  (a-3) edge (ab-3)
+  (a-3) edge (ag-3)
+  (a-3) edge (ad-3)
+  (ab-3) edge (abg-3)
+  (ag-3) edge (aga-3)
+  (b-3) edge (bg-3)
+  (bg-3) edge (bgd-3)
+  (g-3) edge (ga-3)
+  (g-3) edge (gd-3)
+  (ga-3) edge (gad-3)
+  (gd-3) edge (gda-3)
+  (d-3) edge (dots-3);
+  
+% return 
+\path (bgd-3) edge [dashed] (return);
+
+\end{tikzpicture}
 \caption{Step-by-step execution of PPM with $\hbar = 3$}
 \label{fig:ppm-stepwise}
 \end{figure}
